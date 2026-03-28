@@ -1,18 +1,30 @@
+# Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
 *.egg-info/
 dist/
 build/
-.env
-.venv
-venv/
-*.log
 
-# Local credentials — never commit these
-credentials.json
-gmail_token.json
-~/.jerbs/
+# Output files
+*.xlsx
+*.csv
+job_screener_*.xlsx
 
-# OS
+# Criteria profile (personal data — don't commit)
+job-screener-criteria.json
+*-criteria.json
+
+# macOS
 .DS_Store
-Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
