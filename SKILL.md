@@ -26,12 +26,54 @@ Supports two modes:
 
 ---
 
+## Environment detection
+
+jerbs runs in two environments with different file handling. Detect which one applies at
+the start of every session and adapt accordingly. Never ask the user which mode they're in
+— infer it silently.
+
+### Claude Code (filesystem access available)
+**Signal:** bash / file tools are available in the environment.
+
+- Read criteria and correspondence log directly from disk (`~/job-screener-criteria.json`,
+  `~/jerbs-correspondence.json`)
+- Write updates directly back to disk after every run — no user action needed
+- This is the zero-friction path
+
+### Web / Project (no filesystem access)
+**Signal:** no bash or file tools; running in a Claude.ai chat or project.
+
+- Criteria and correspondence log are **project files** — Claude reads them from the
+  project context automatically at the start of every conversation
+- Claude cannot write back to project files directly — instead, at the end of any run
+  where changes were made, output the updated file(s) so the user can re-upload them
+- Only output files that actually changed — don't emit noise on runs with no updates
+
+**Web session file output rules:**
+- Wrap each updated file in a clearly labelled code block with the filename as the header
+- Output criteria JSON if: screened_message_ids changed, last_run_date changed, send_mode
+  changed, or any criteria were updated
+- Output correspondence log JSON if: any new entries were added, or any entries changed
+  (awaiting_reply flipped, replied_at set)
+- After outputting, include this prompt exactly:
+
+  > 📁 **Re-upload to keep in sync:** Save the file(s) above and re-upload them to the
+  > project, replacing the existing versions. This is the only step needed — no other
+  > file management required.
+
+- If nothing changed (clean run, no new emails, no updates), skip file output entirely
+
+---
+
 ## How criteria are stored
 
-Criteria are stored in a JSON profile that Claude reads at the start of each run and
-writes when updated. The profile lives at a user-specified path (default:
-`~/job-screener-criteria.json`). On first run, Claude creates it interactively via the
-setup wizard. On subsequent runs, Claude loads it and prints a summary before screening.
+Criteria are stored in a JSON profile. The filename is `job-screener-criteria.json`.
+
+- **Claude Code:** lives at `~/job-screener-criteria.json`, read/written directly
+- **Web/Project:** lives as a project file, read from context, re-uploaded by user after changes
+
+On first run (no criteria found), Claude creates it interactively via the setup wizard.
+On subsequent runs, Claude loads it and prints a summary before screening.
 
 The bundled `criteria_template.json` shows the full schema with all fields and defaults.
 
@@ -39,8 +81,13 @@ The bundled `criteria_template.json` shows the full schema with all fields and d
 
 ## How correspondence is tracked
 
-All sent replies (and dry-run drafts) are logged to a JSON file at the path set in
-`correspondence_log_path` (default: `~/jerbs-correspondence.json`). Each entry records:
+All sent replies (and dry-run drafts) are logged to a JSON file named
+`jerbs-correspondence.json`.
+
+- **Claude Code:** lives at `~/jerbs-correspondence.json`, read/written directly
+- **Web/Project:** lives as a project file, read from context, re-uploaded by user after changes
+
+Each entry records:
 
 ```json
 {
