@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.env
+.venv
+venv/
+*.log
+
+# Local credentials — never commit these
+credentials.json
+gmail_token.json
+~/.jerbs/
+
+# OS
+.DS_Store
+Thumbs.db
