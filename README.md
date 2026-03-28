@@ -1,162 +1,130 @@
-# jerbs
+# jerbs 🔍
 
-Automated job email screener. Screens recruiter emails against your criteria, filters the noise, and drafts replies for anything worth pursuing.
-
-Two versions:
-- **Claude.ai** — installs as a skill, runs in the browser, scheduler widget included
-- **Local daemon** — runs continuously in the background via Claude Code / Python
+A Claude skill that screens your job-related emails against your personal criteria and drafts follow-up replies — so you only spend time on opportunities worth pursuing.
 
 ---
 
-## Quick start — Claude.ai
+## What it does
 
-### 1. Download the skill
-
-Grab [`claude-ai/jerbs.skill`](claude-ai/jerbs.skill) from this repo.
-
-### 2. Connect Gmail
-
-In Claude.ai: **Settings → Connectors → Gmail → Connect**
-
-Jerbs needs Gmail access to fetch and screen your emails. It operates in read-only mode by default — it never sends, deletes, or modifies anything.
-
-### 3. Install the skill
-
-In Claude.ai: **Settings → Skills → Install from file** → upload `jerbs.skill`
-
-### 4. Set up your criteria
-
-Start a new conversation and say:
-
-> "set up jerbs"
-
-The wizard walks you through configuring everything: target roles, comp floor, dealbreakers, required info, reply tone, business hours. Saves to a JSON file you own.
-
-### 5. Run it
-
-> "run jerbs" or "check my job emails"
-
-Jerbs runs two passes every cycle:
-- **Pass 1** — LinkedIn/Indeed job alert digests
-- **Pass 2** — Direct recruiter outreach
-
-Results come back as interested / maybe / filtered out, with draft replies for anything worth pursuing.
-
-### 6. Automate it (optional)
-
-> "start the jerbs scheduler"
-
-A scheduler widget appears with configurable business hours. It runs automatically on a variable cadence — no babysitting required:
-
-| Mode | Interval | Condition |
-|---|---|---|
-| Off-hours | 60 min | Outside business hours |
-| Business hours | 15 min | Within business hours |
-| Rapid | 5 min × 30 min | Auto-triggered when draft replies are generated |
-
-Rapid mode kicks in automatically when a run produces draft replies (watching for quick responses), then reverts on its own after 30 minutes.
-
-### 7. Export to spreadsheet (optional)
-
-> "export those results to a spreadsheet"
-
-Exports an `.xlsx` file importable to Google Sheets with a full pipeline status tracker — from "New" through "Offer accepted," with collapsible dead-end categories.
+- **Two-pass Gmail scan** — catches both job alert digests (LinkedIn, Indeed, etc.) and direct recruiter outreach
+- **Configurable screening criteria** — salary floor, remote preference, dealbreakers, seniority, target industries, company whitelist/blacklist, and more
+- **Verdict + reasoning** — each email gets a 🟢 Interested / 🟡 Maybe / 🔴 Filtered Out verdict with a one-sentence reason naming the specific criterion
+- **Draft replies** — ready-to-copy reply drafts for anything worth pursuing, requesting any missing info in a single message
+- **Spreadsheet export** — optional `.xlsx` pipeline tracker with color-coded status dropdowns and collapsible dead-end groups
+- **Auto-scheduler** — runs jerbs automatically on a variable cadence (15 min during business hours, 60 min off-hours, 5 min rapid mode after draft replies are generated)
 
 ---
 
-## Quick start — local daemon
-
-For true background operation (no browser tab needed).
-
-```bash
-git clone https://github.com/pauljunod/jerbs.git
-cd jerbs/claude-code
-pip install -r requirements.txt
-
-# Set your Anthropic API key
-export ANTHROPIC_API_KEY=sk-ant-...
-
-# Set up Gmail API credentials (see docs/setup.md)
-# Then run the setup wizard
-python jerbs.py --setup
-
-# Start the daemon
-python jerbs.py
-```
-
-See [`docs/setup.md`](docs/setup.md) for Gmail API setup, launchd/systemd background service config, and all CLI options.
-
----
-
-## Criteria
-
-Everything is driven by your criteria file — comp floor, target industries, dealbreakers, required info, reply tone, business hours. The setup wizard builds it interactively. You can edit it directly or update specific sections by telling jerbs what to change.
-
-**Salary range rule:** If your base floor falls *within* a stated range (e.g. floor is $200k, range is $180k–$300k), the role passes — you can negotiate to your number. Only fails if the top of the range is below your floor.
-
-Full schema: [`shared/criteria_template.json`](shared/criteria_template.json)
-
----
-
-## Repo structure
+## Files
 
 ```
 jerbs/
-├── claude-ai/
-│   ├── jerbs.skill          ← Install this in Claude.ai
-│   ├── SKILL.md             ← Skill instructions (bundled inside .skill)
-│   └── assets/
-│       └── scheduler.html   ← Scheduler widget (bundled inside .skill)
-├── claude-code/
-│   ├── jerbs.py             ← Daemon entry point
-│   ├── scheduler.py         ← Interval state machine
-│   ├── screener.py          ← Anthropic API screening logic
-│   ├── gmail_client.py      ← Google Gmail API wrapper
-│   ├── setup_wizard.py      ← First-time setup
-│   └── requirements.txt
-├── shared/
-│   ├── criteria_template.json   ← Full criteria schema with defaults
-│   └── scripts/
-│       └── export_results.py    ← xlsx export (shared by both versions)
-├── docs/
-│   └── setup.md             ← Detailed setup guide
-└── README.md
+├── README.md                  ← you are here
+├── SKILL.md                   ← the Claude skill definition (load this into Claude)
+├── criteria_template.json     ← full criteria schema with all fields and defaults
+├── scripts/
+│   └── export_results.py      ← exports screener results to a formatted .xlsx file
+└── assets/
+    └── scheduler.html         ← auto-scheduler widget (rendered inline by Claude)
 ```
 
 ---
 
-## How it works
+## Setup
 
-### Automatic rapid mode
-When a screening run generates draft replies, the scheduler automatically switches to 5-minute intervals for 30 minutes to catch quick responses. No manual trigger needed — it detects draft replies in Claude's output automatically.
+### 1. Add the skill to Claude
 
-### Screening memory
-Screened email IDs are saved to your criteria file after each run. Emails already screened won't appear again in future runs.
+Upload `SKILL.md` to your Claude skills, or paste it into your Claude system prompt.
 
-### First run vs. recurring
-- **First run:** looks back 7 days, no result cap — catches everything recent
-- **Recurring:** looks back 1 day, 100 emails per pass — fast and focused
+### 2. Connect Gmail
 
-### Read-only by default
-The Claude.ai version never sends, deletes, labels, or modifies anything. The local daemon has an optional `--send` flag for auto-sending draft replies if you want full automation.
+jerbs requires the **Gmail MCP connector** in Claude.ai. Enable it in **Settings → Connectors → Gmail**.
 
----
+### 3. Run it
 
-## Privacy
+Start a conversation with Claude and say any of:
 
-- Criteria and screening history stored locally (`~/.jerbs/` for daemon, your machine for Claude.ai)
-- Gmail credentials never leave your machine
-- Email content is sent to the Anthropic API for screening — subject to [Anthropic's privacy policy](https://www.anthropic.com/privacy)
+- `"run jerbs"`
+- `"check my job emails"`
+- `"screen my recruiter emails"`
+- `"set up my job screener"`
+
+On first run, Claude walks you through a setup wizard to capture your criteria. On subsequent runs, it loads your saved profile and goes straight to screening.
 
 ---
 
-## Contributing
+## Criteria profile
 
-PRs welcome. Ideas:
-- Outlook / other email provider support
-- Notion / Airtable export
-- TUI dashboard for the daemon
-- Slack/Discord notifications for high-interest matches
+Your criteria are stored in a JSON file (default: `~/job-screener-criteria.json`). Claude creates and updates this file automatically. The full schema is in `criteria_template.json`.
+
+Key sections:
+
+| Section | What it covers |
+|---|---|
+| `identity` | Your name, title, target roles, seniority level |
+| `target_companies` | Industries, company types, whitelist, blacklist |
+| `role_requirements` | Employment type, remote preference, visa sponsorship |
+| `compensation` | Base salary floor, TC target, sliding scale notes |
+| `tech_stack` | Required, dealbreaker, and preferred tech |
+| `hard_dealbreakers` | Automatic fail conditions |
+| `required_info` | Fields to always ask about if missing (comp, equity, WFH policy, etc.) |
+| `reply_settings` | Tone and signature for draft replies |
+
+You can update any section at any time without re-doing the full wizard:
+
+```
+"Update my salary floor to $200k"
+"Add Google to my dream companies"
+"Add 'no unpaid take-homes' as a dealbreaker"
+"Change my reply tone to brief"
+```
+
+---
+
+## Spreadsheet export
+
+After a screening run, say `"export to spreadsheet"` and Claude runs:
+
+```bash
+python scripts/export_results.py results.json job_screener_YYYY-MM-DD.xlsx
+```
+
+The `.xlsx` has two sheets:
+
+- **Summary** — run date, counts by verdict, full color-coded status guide
+- **Results** — one row per opportunity, sorted pass → maybe → fail, with a **Status** dropdown tracking the full hiring pipeline from *New* through *Offer accepted* or *Rejected*
+
+Dead-end rows (No response, Withdrew, Rejected, Filtered out) are grouped and collapsed at the bottom — click `+` to expand.
+
+### Requirements
+
+```bash
+pip install openpyxl
+```
+
+---
+
+## Auto-scheduler
+
+The scheduler runs jerbs automatically without manual prompting. Ask Claude to `"start the scheduler"` and it renders an interactive widget in the conversation.
+
+**Cadence:**
+
+| Mode | Interval | Trigger |
+|---|---|---|
+| Business hours | 15 min | Within your configured hours |
+| Off-hours | 60 min | Outside business hours |
+| Rapid response | 5 min for 30 min | Auto-triggered when draft replies are generated |
+
+The scheduler runs while the Claude.ai tab is open. It is not a background service — it requires an active browser tab.
+
+---
+
+## Constraints
+
+- **Read-only by default** — jerbs never sends, deletes, labels, archives, or creates Gmail drafts unless you explicitly enable send mode
+- **Draft replies are copy-and-send** — you always review before anything goes out
+- **Spreadsheet export is always optional** — never created unless you ask
 
 ---
 

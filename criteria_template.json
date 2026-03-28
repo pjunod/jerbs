@@ -1,0 +1,80 @@
+{
+  "_comment": "Job Email Screener \u2014 Criteria Profile. Edit this file or ask Claude to update it.",
+  "_version": "2.1",
+  "profile_name": "My Job Search",
+  "last_updated": "",
+  "identity": {
+    "name": "",
+    "current_title": "",
+    "background_summary": "",
+    "seniority_level": "",
+    "target_roles": [],
+    "years_of_experience": ""
+  },
+  "target_companies": {
+    "industries": [],
+    "company_types": [],
+    "company_stages": [],
+    "company_size": "",
+    "prestige_requirement": "",
+    "whitelist": [],
+    "blacklist": []
+  },
+  "target_industries_blocklist": [],
+  "role_requirements": {
+    "employment_type": [
+      "full-time"
+    ],
+    "seniority_min": "",
+    "seniority_blocklist": [
+      "junior",
+      "intern",
+      "associate",
+      "entry-level"
+    ],
+    "remote_preference": "",
+    "max_office_days_if_hybrid": null,
+    "max_travel_pct": null,
+    "visa_sponsorship_required": false
+  },
+  "compensation": {
+    "base_salary_floor": null,
+    "base_salary_currency": "USD",
+    "total_comp_target": null,
+    "equity_required": true,
+    "cash_bonus_acceptable": true,
+    "sliding_scale_notes": ""
+  },
+  "tech_stack": {
+    "required": [],
+    "dealbreaker": [],
+    "preferred": []
+  },
+  "hard_dealbreakers": [],
+  "required_info": [],
+  "interview_process": {
+    "max_rounds": null,
+    "no_unpaid_takehome": false,
+    "other_dealbreakers": []
+  },
+  "reply_settings": {
+    "tone": "professional",
+    "signature": "",
+    "auto_request_missing_info": true
+  },
+  "send_mode": {
+    "enabled": false,
+    "enabled_at": "",
+    "_note": "When false (dry-run), replies are shown as copy-paste text only. When true, Claude sends replies via Gmail and logs them to the correspondence log. Toggle with 'enable send mode' / 'disable send mode'. Claude always confirms before enabling."
+  },
+  "correspondence_log_path": "~/jerbs-correspondence.json",
+  "search_settings": {
+    "lookback_days": "auto",
+    "max_results_per_pass": "auto",
+    "extra_keywords": [],
+    "extra_exclusions": [],
+    "_note": "lookback_days and max_results_per_pass are set automatically: 7 days / unlimited on first run, 1 day / 100 on subsequent runs. Set to a number to override."
+  },
+  "screened_message_ids": [],
+  "last_run_date": ""
+}
