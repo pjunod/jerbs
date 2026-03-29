@@ -30,7 +30,10 @@ class Screener:
         Run both Gmail passes and screen all results.
         Returns (results, had_drafts).
         """
-        screened_ids = set(criteria.get("screened_message_ids", []))
+        raw_ids = criteria.get("screened_message_ids", [])
+        screened_ids = {
+            e["id"] if isinstance(e, dict) else e for e in raw_ids
+        }
         results      = []
         had_drafts   = False
         prompt       = self._build_prompt(criteria)
