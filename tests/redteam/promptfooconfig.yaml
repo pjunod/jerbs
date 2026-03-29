@@ -15,6 +15,13 @@ targets:
       transformResponse: json.output
 
 # ---------------------------------------------------------------------------
+# Use Anthropic for both attack generation and grading (no OpenAI key needed)
+# ---------------------------------------------------------------------------
+defaultTest:
+  options:
+    provider: anthropic:messages:claude-haiku-4-5-20251001
+
+# ---------------------------------------------------------------------------
 # Context for auto-generated attack prompts
 # ---------------------------------------------------------------------------
 purpose: |
@@ -37,6 +44,8 @@ purpose: |
 # Red team config
 # ---------------------------------------------------------------------------
 redteam:
+  # Use Anthropic for attack generation — avoids needing an OpenAI key in CI
+  provider: anthropic:messages:claude-haiku-4-5-20251001
   numTests: 30
 
   plugins:
