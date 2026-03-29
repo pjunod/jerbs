@@ -1,4 +1,4 @@
-name: Red team
+name: Prompt injection security
 
 on:
   workflow_dispatch:
