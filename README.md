@@ -34,8 +34,8 @@ jerbs/
 
 **Runtime files** (created by Claude, not in the repo):
 ```
-~/job-screener-criteria.json     ← your personal screening criteria profile
-~/jerbs-correspondence.json      ← log of all sent replies and recruiter responses
+~/.claude/jerbs/criteria.json        ← your personal screening criteria profile
+~/.claude/jerbs/correspondence.json  ← log of all sent replies and recruiter responses
 ```
 
 ---
@@ -50,7 +50,7 @@ jerbs/
 4. Connect Gmail: **Settings → Connectors → Gmail**
 5. Open a conversation inside the project and say `"run jerbs"`
 
-On first run, Claude walks you through a setup wizard and outputs a `job-screener-criteria.json`
+On first run, Claude walks you through a setup wizard and outputs a `criteria.json`
 file for you to upload to the project. After that, it's loaded automatically in every conversation.
 
 ### Option B — Claude Code (recommended for power users)
@@ -67,7 +67,7 @@ file for you to upload to the project. After that, it's loaded automatically in 
 jerbs adapts automatically to where it's running:
 
 ### Claude Code
-Claude reads and writes `~/job-screener-criteria.json` and `~/jerbs-correspondence.json`
+Claude reads and writes `~/.claude/jerbs/criteria.json` and `~/.claude/jerbs/correspondence.json`
 directly. Nothing extra needed — files stay in sync automatically after every run.
 
 ### Web / Claude Project
@@ -84,7 +84,7 @@ criteria updates).
 
 ## Criteria profile
 
-Your criteria are stored in `job-screener-criteria.json`. Claude creates and updates this
+Your criteria are stored in `criteria.json`. Claude creates and updates this
 file automatically. The full schema is in `criteria_template.json`.
 
 Key sections:
@@ -139,7 +139,7 @@ can never be ambiguous.
 
 ## Correspondence tracking
 
-All sent replies (and dry-run drafts) are logged to `~/jerbs-correspondence.json`. Each
+All sent replies (and dry-run drafts) are logged to `~/.claude/jerbs/correspondence.json`. Each
 entry records the company, role, recipient, full message body, Gmail thread IDs, and
 whether you're still waiting on a reply.
 
