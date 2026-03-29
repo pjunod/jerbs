@@ -1,0 +1,62 @@
+name: Red team
+
+on:
+  workflow_dispatch:
+    inputs:
+      num_tests:
+        description: "Number of auto-generated attack tests per plugin"
+        required: false
+        default: "30"
+
+jobs:
+  redteam:
+    name: Prompt injection red team
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: tests/redteam/requirements.txt
+
+      - name: Install Python dependencies
+        run: pip install -r tests/redteam/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Copy SKILL.md into redteam harness
+        run: cp SKILL.md tests/redteam/SKILL.md
+
+      - name: Start harness server
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python tests/redteam/server.py &
+          # Wait for server to be ready
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8675/health && break
+            sleep 1
+          done
+
+      - name: Run promptfoo red team
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npx --yes promptfoo@latest redteam run \
+            --config tests/redteam/promptfooconfig.yaml \
+            --no-cache
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redteam-results
+          path: .promptfoo/
+          retention-days: 30
