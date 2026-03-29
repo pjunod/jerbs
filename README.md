@@ -19,73 +19,110 @@ opportunities worth pursuing.
 
 ---
 
-## Files
+## Repository structure
 
 ```
 jerbs/
-├── README.md                    ← you are here
-├── SKILL.md                     ← the Claude skill definition (load this into Claude)
-├── criteria_template.json       ← full criteria schema with all fields and defaults
-├── scripts/
-│   └── export_results.py        ← exports screener results to a formatted .xlsx file
-└── assets/
-    └── scheduler.html           ← auto-scheduler widget (rendered inline by Claude)
+├── README.md                        ← you are here
+├── INSTALL.md                       ← quick-start installation guide
+├── SKILL.md                         ← Claude Code skill definition
+├── criteria_template.json           ← (legacy root copy — see shared/)
+│
+├── claude-ai/                       ← Claude.ai browser version
+│   ├── SKILL.md                     ← skill definition for Claude.ai Projects
+│   ├── jerbs.skill                  ← packaged .skill file for one-click install
+│   └── assets/
+│       └── scheduler.html           ← auto-scheduler widget (rendered inline by Claude)
+│
+├── claude-code/                     ← local Python daemon (always-on, no browser)
+│   ├── jerbs.py                     ← main entry point / daemon runner
+│   ├── screener.py                  ← email screening logic (Anthropic API)
+│   ├── gmail_client.py              ← Gmail API OAuth2 wrapper
+│   ├── scheduler.py                 ← interval state machine (biz/off-hours/rapid)
+│   ├── setup_wizard.py              ← interactive first-time setup
+│   └── requirements.txt             ← Python dependencies
+│
+├── shared/                          ← files shared across deployment modes
+│   ├── criteria_template.json       ← full criteria schema with all fields and defaults
+│   └── scripts/
+│       └── export_results.py        ← exports screener results to a formatted .xlsx file
+│
+└── docs/
+    └── setup.md                     ← detailed setup guide for all deployment modes
 ```
 
-**Runtime files** (created by Claude, not in the repo):
-```
-~/.claude/jerbs/criteria.json        ← your personal screening criteria profile
-~/.claude/jerbs/correspondence.json  ← log of all sent replies and recruiter responses
-```
+**Runtime files** (not in the repo — created automatically on first run):
+
+| Deployment | Criteria file | Correspondence log |
+|---|---|---|
+| Claude Code (CLI) | `~/.claude/jerbs/criteria.json` | `~/.claude/jerbs/correspondence.json` |
+| Local daemon | `~/.jerbs/criteria.json` | *(tracked in criteria file)* |
+| Claude.ai Project | Project file (re-upload after changes) | Project file (re-upload after changes) |
 
 ---
 
-## Setup
+## Deployment modes
 
-### Option A — Claude Project (recommended for web use)
+jerbs runs in three modes. Pick the one that fits your setup.
 
-1. Go to claude.ai → **Projects** → **New project**, name it "jerbs"
-2. Open the project → **Project instructions** → paste in the full contents of `SKILL.md`
-3. Upload `criteria_template.json` to the project files
-4. Connect Gmail: **Settings → Connectors → Gmail**
-5. Open a conversation inside the project and say `"run jerbs"`
+### Claude.ai (browser)
 
-On first run, Claude walks you through a setup wizard and outputs a `criteria.json`
-file for you to upload to the project. After that, it's loaded automatically in every conversation.
+Best for: casual use, no local setup required.
 
-### Option B — Claude Code (recommended for power users)
+- Runs entirely in your browser via Claude's MCP connector system
+- Gmail is connected via Settings → Connectors — no API keys needed
+- Auto-scheduler widget runs while the tab is open
+- Criteria and correspondence log are stored as project files; Claude outputs updated JSON at the end of any run where something changed, and prompts you to re-upload
 
-1. Clone this repo
-2. Open Claude Code in the repo directory
-3. Connect Gmail via the Claude.ai connector settings
-4. Say `"run jerbs"` — Claude reads and writes files directly, no re-uploading needed
+See [INSTALL.md](INSTALL.md) for setup steps.
+
+### Claude Code (CLI)
+
+Best for: power users who want zero-friction local file management.
+
+- Runs inside the Claude Code CLI with Gmail connected via Claude.ai connectors
+- Reads and writes `~/.claude/jerbs/criteria.json` and `~/.claude/jerbs/correspondence.json` directly — no re-uploading
+- `/jerbs` available as a global slash command once installed (see [INSTALL.md](INSTALL.md))
+
+### Local daemon
+
+Best for: always-on background screening with no browser required.
+
+- Standalone Python process, runs continuously in the background or as a system service
+- Uses the Anthropic API directly (bring your own API key)
+- Authenticates with Gmail via Google Cloud OAuth2 credentials
+- Supports `--once`, `--send`, `--export` flags
+- Runtime files live at `~/.jerbs/`
+
+See [docs/setup.md](docs/setup.md) for full setup including Gmail API credentials and system service configuration.
 
 ---
 
 ## How files are managed
 
-jerbs adapts automatically to where it's running:
-
 ### Claude Code
 Claude reads and writes `~/.claude/jerbs/criteria.json` and `~/.claude/jerbs/correspondence.json`
 directly. Nothing extra needed — files stay in sync automatically after every run.
 
-### Web / Claude Project
+On first run, if no criteria file is found at the default location, Claude asks if you have
+an existing file elsewhere and copies it over. The working copy is always `~/.claude/jerbs/`.
+
+### Claude.ai Project
 Claude reads both files from the project context at the start of every conversation.
 Since it can't write back to project files directly, at the end of any run where something
 changed, it outputs the updated JSON and prompts you to re-upload the file(s) to the project.
 On clean runs with no changes, it stays quiet.
 
-The re-upload step is quick — drag the file into the project to replace the old version —
-and only happens when something actually changed (new screened emails, new correspondence,
-criteria updates).
+### Local daemon
+The daemon reads and writes `~/.jerbs/criteria.json` directly. Pass `--criteria /path/to/file`
+to use a different location.
 
 ---
 
 ## Criteria profile
 
-Your criteria are stored in `criteria.json`. Claude creates and updates this
-file automatically. The full schema is in `criteria_template.json`.
+Your criteria are stored in `criteria.json`. Claude (or the daemon wizard) creates and updates
+this file automatically. The full schema is in `shared/criteria_template.json`.
 
 Key sections:
 
@@ -119,8 +156,8 @@ You can update any section at any time without re-doing the full wizard:
 By default, jerbs runs in **dry-run mode** — draft replies are shown as copy-paste text
 and nothing is sent. You're always in control of what goes out.
 
-**Send mode** allows Claude to send replies on your behalf automatically. Every sent
-message is logged to the correspondence log.
+**Send mode** allows Claude (or the daemon) to send replies on your behalf automatically.
+Every sent message is logged to the correspondence log.
 
 To enable:
 ```
@@ -139,9 +176,9 @@ can never be ambiguous.
 
 ## Correspondence tracking
 
-All sent replies (and dry-run drafts) are logged to `~/.claude/jerbs/correspondence.json`. Each
-entry records the company, role, recipient, full message body, Gmail thread IDs, and
-whether you're still waiting on a reply.
+All sent replies (and dry-run drafts) are logged to the correspondence log. Each entry
+records the company, role, recipient, full message body, Gmail thread IDs, and whether
+you're still waiting on a reply.
 
 On every subsequent run, jerbs checks open threads for recruiter responses and surfaces
 them at the top of your report:
@@ -170,11 +207,7 @@ You can also ask:
 
 ## Spreadsheet export
 
-After a screening run, say `"export to spreadsheet"` and Claude runs:
-
-```bash
-python scripts/export_results.py results.json job_screener_YYYY-MM-DD.xlsx
-```
+After a screening run, say `"export to spreadsheet"` and Claude runs `shared/scripts/export_results.py`.
 
 The `.xlsx` has two sheets:
 
@@ -206,9 +239,11 @@ The scheduler runs jerbs automatically without manual prompting. Ask Claude to
 | Off-hours | 60 min | Outside business hours |
 | Rapid response | 5 min for 30 min | Auto-triggered when draft replies are generated |
 
-The scheduler runs while the Claude.ai tab is open. It is not a background service —
-it requires an active browser tab. For always-on operation without a browser, use
-Claude Code.
+The browser scheduler (`claude-ai/assets/scheduler.html`) runs while the Claude.ai tab is
+open. It is not a background service — it requires an active browser tab.
+
+The local daemon (`claude-code/`) runs continuously as a true background process and does
+not require a browser.
 
 ---
 

@@ -16,9 +16,9 @@ build/
 *.csv
 job_screener_*.xlsx
 
-# Criteria profile (personal data — don't commit)
-job-screener-criteria.json
+# Runtime files (personal data — don't commit)
 *-criteria.json
+*-correspondence.json
 
 # macOS
 .DS_Store

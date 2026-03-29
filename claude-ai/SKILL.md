@@ -25,9 +25,10 @@ and optionally exports results to a spreadsheet pipeline tracker.
 ## How criteria are stored
 
 Criteria are stored in a JSON profile that Claude reads at the start of each run and
-writes when updated. The profile lives at a user-specified path (default:
-`~/job-screener-criteria.json`). On first run, Claude creates it interactively via the
-setup wizard. On subsequent runs, Claude loads it and prints a summary before screening.
+writes when updated. In Claude.ai Projects, the profile lives as a project file named
+`criteria.json`. On first run, Claude creates it interactively via the setup wizard and
+outputs it for upload. On subsequent runs, Claude loads it from the project context and
+prints a summary before screening.
 
 The bundled `criteria_template.json` shows the full schema with all fields and defaults.
 

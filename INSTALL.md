@@ -18,7 +18,7 @@ That's it. The setup wizard handles the rest.
 **Requirements:** Python 3.11+ · Anthropic API key · Google Cloud project
 
 ```bash
-git clone https://github.com/pauljunod/jerbs.git
+git clone https://github.com/pjunod/jerbs.git
 cd jerbs/claude-code
 pip install -r requirements.txt
 export ANTHROPIC_API_KEY=sk-ant-...
