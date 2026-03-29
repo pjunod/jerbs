@@ -20,6 +20,10 @@ job_screener_*.xlsx
 *-criteria.json
 *-correspondence.json
 
+# Test artifacts
+.promptfoo/
+tests/redteam/SKILL.md
+
 # macOS
 .DS_Store
 
