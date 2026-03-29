@@ -35,8 +35,8 @@ the start of every session and adapt accordingly. Never ask the user which mode 
 ### Claude Code (filesystem access available)
 **Signal:** bash / file tools are available in the environment.
 
-- Read criteria and correspondence log directly from disk (`~/job-screener-criteria.json`,
-  `~/jerbs-correspondence.json`)
+- Read criteria and correspondence log directly from disk (`~/.claude/jerbs/criteria.json`,
+  `~/.claude/jerbs/correspondence.json`)
 - Write updates directly back to disk after every run — no user action needed
 - This is the zero-friction path
 
@@ -67,9 +67,9 @@ the start of every session and adapt accordingly. Never ask the user which mode 
 
 ## How criteria are stored
 
-Criteria are stored in a JSON profile. The filename is `job-screener-criteria.json`.
+Criteria are stored in a JSON profile. The filename is `criteria.json`.
 
-- **Claude Code:** lives at `~/job-screener-criteria.json`, read/written directly
+- **Claude Code:** lives at `~/.claude/jerbs/criteria.json`, read/written directly
 - **Web/Project:** lives as a project file, read from context, re-uploaded by user after changes
 
 On first run (no criteria found), Claude creates it interactively via the setup wizard.
@@ -82,9 +82,9 @@ The bundled `criteria_template.json` shows the full schema with all fields and d
 ## How correspondence is tracked
 
 All sent replies (and dry-run drafts) are logged to a JSON file named
-`jerbs-correspondence.json`.
+`correspondence.json`.
 
-- **Claude Code:** lives at `~/jerbs-correspondence.json`, read/written directly
+- **Claude Code:** lives at `~/.claude/jerbs/correspondence.json`, read/written directly
 - **Web/Project:** lives as a project file, read from context, re-uploaded by user after changes
 
 Each entry records:
@@ -115,13 +115,25 @@ detected in a subsequent run.
 
 ## Step 0 — Load or set up criteria + correspondence log
 
-**At the start of every interaction**, check whether a criteria file exists:
+**At the start of every interaction** (Claude Code only), check for files at the default
+locations (`~/.claude/jerbs/criteria.json`, `~/.claude/jerbs/correspondence.json`):
 
 ```
-Does the user have a criteria file?
-→ Yes: Load it, load the correspondence log (if it exists), print a brief summary,
-       ask if they want to adjust anything before running.
-→ No: Run the setup wizard (below).
+Do files exist at the default locations?
+→ Yes: Load them. Skip location questions. Go to the summary step below.
+→ No: Ask the user:
+      "Do you already have a criteria file somewhere? If so, where is it?"
+      and
+      "Do you already have a correspondence log somewhere? If so, where is it?"
+
+      For each file the user provides a path for:
+        - Copy it to the default location (~/.claude/jerbs/)
+        - Inform the user: "I've copied your file to ~/.claude/jerbs/. That's the working
+          copy going forward — all updates will be written there, not to the original path."
+
+      For each file the user does not have:
+        - criteria.json missing → run the setup wizard (Step 1)
+        - correspondence.json missing → create an empty log ([] array) at the default path
 ```
 
 **Print send mode status prominently** whenever the criteria are loaded — this must never
@@ -569,7 +581,7 @@ Key fields:
   "interview_process": { "no_unpaid_takehome", "max_rounds" },
   "reply_settings": { "tone", "signature" },
   "send_mode": { "enabled": false, "enabled_at": "" },
-  "correspondence_log_path": "~/jerbs-correspondence.json",
+  "correspondence_log_path": "~/.claude/jerbs/correspondence.json",
   "search_settings": { "lookback_days", "max_results_per_pass", "extra_keywords" },
   "screened_message_ids": []
 }
