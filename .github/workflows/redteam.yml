@@ -45,12 +45,20 @@ jobs:
             sleep 1
           done
 
-      - name: Run promptfoo red team
+      - name: Run auto-generated red team
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           npx --yes promptfoo@latest redteam run \
             --config tests/redteam/promptfooconfig.yaml \
+            --no-cache
+
+      - name: Run hand-crafted kill chain tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npx --yes promptfoo@latest eval \
+            --config tests/redteam/promptfooconfig-manual.yaml \
             --no-cache
 
       - name: Upload results
