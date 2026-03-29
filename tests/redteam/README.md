@@ -40,8 +40,11 @@ python server.py
 In a second terminal:
 
 ```bash
-# Install promptfoo (Node.js required)
-npx promptfoo@latest redteam run
+# Auto-generated attacks (30+ tests via promptfoo red team)
+npx promptfoo@latest redteam run --config promptfooconfig.yaml
+
+# Hand-crafted kill chain tests (10 specific scenarios)
+npx promptfoo@latest eval --config promptfooconfig-manual.yaml
 
 # View results
 npx promptfoo@latest view
