@@ -1,6 +1,6 @@
 {
   "_comment": "Job Email Screener \u2014 Criteria Profile. Edit this file or ask Claude to update it.",
-  "_version": "2.0",
+  "_version": "2.1",
   "profile_name": "My Job Search",
   "last_updated": "",
   "identity": {
@@ -62,6 +62,12 @@
     "signature": "",
     "auto_request_missing_info": true
   },
+  "send_mode": {
+    "enabled": false,
+    "enabled_at": "",
+    "_note": "When false (dry-run), replies are shown as copy-paste text only. When true, Claude sends replies via Gmail and logs them to the correspondence log. Toggle with 'enable send mode' / 'disable send mode'. Claude always confirms before enabling."
+  },
+  "correspondence_log_path": "~/.claude/jerbs/correspondence.json",
   "search_settings": {
     "lookback_days": "auto",
     "max_results_per_pass": "auto",

@@ -30,7 +30,7 @@ The wizard will walk you through configuring your criteria. After setup, say "ru
 ### Step 1 — Python setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/jerbs.git
+git clone https://github.com/pjunod/jerbs.git
 cd jerbs/claude-code
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
