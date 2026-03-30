@@ -1,8 +1,9 @@
 # jerbs 🔍
 
-[![CI](https://github.com/pjunod/jerbs/actions/workflows/ci.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/ci.yml)
+[![Unit tests](https://github.com/pjunod/jerbs/actions/workflows/test.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/test.yml)
+[![Lint](https://github.com/pjunod/jerbs/actions/workflows/lint.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/lint.yml)
+[![Coverage](https://codecov.io/gh/pjunod/jerbs/graph/badge.svg)](https://codecov.io/gh/pjunod/jerbs)
 [![Prompt injection security](https://github.com/pjunod/jerbs/actions/workflows/redteam.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/redteam.yml)
-[![Lint](https://github.com/pjunod/jerbs/actions/workflows/ci.yml/badge.svg?label=lint)](https://github.com/pjunod/jerbs/actions/workflows/ci.yml)
 
 A Claude skill that screens your job-related emails against your personal criteria, drafts
 follow-up replies, and tracks your recruiter correspondence — so you only spend time on
