@@ -2,11 +2,6 @@ name: Prompt injection security
 
 on:
   workflow_dispatch:
-    inputs:
-      num_tests:
-        description: "Number of auto-generated attack tests per plugin"
-        required: false
-        default: "30"
 
 jobs:
   redteam:
