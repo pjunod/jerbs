@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/pjunod/jerbs/actions/workflows/ci.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/ci.yml)
 [![Prompt injection security](https://github.com/pjunod/jerbs/actions/workflows/redteam.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/redteam.yml)
+[![Lint](https://github.com/pjunod/jerbs/actions/workflows/ci.yml/badge.svg?label=lint)](https://github.com/pjunod/jerbs/actions/workflows/ci.yml)
 
 A Claude skill that screens your job-related emails against your personal criteria, drafts
 follow-up replies, and tracks your recruiter correspondence — so you only spend time on
@@ -29,6 +30,8 @@ jerbs/
 ├── README.md                        ← you are here
 ├── INSTALL.md                       ← quick-start installation guide
 ├── SKILL.md                         ← Claude Code skill definition
+├── pyproject.toml                   ← Python linter/formatter config (ruff)
+├── .yamllint.yaml                   ← YAML linter config
 ├── criteria_template.json           ← (legacy root copy — see shared/)
 │
 ├── claude-ai/                       ← Claude.ai browser version
@@ -49,6 +52,15 @@ jerbs/
 │   ├── criteria_template.json       ← full criteria schema with all fields and defaults
 │   └── scripts/
 │       └── export_results.py        ← exports screener results to a formatted .xlsx file
+│
+├── tests/
+│   ├── unit/                        ← pytest unit tests (run on every push/PR)
+│   └── redteam/                     ← prompt injection security test harness
+│       ├── server.py                ← FastAPI harness wrapping the screening pipeline
+│       ├── promptfooconfig.yaml     ← auto-generated attack suite (40 tests)
+│       ├── promptfooconfig-manual.yaml ← hand-crafted kill chain tests (10 scenarios)
+│       ├── test_criteria.json       ← fake bait criteria for the harness
+│       └── README.md                ← red team setup and usage
 │
 └── docs/
     └── setup.md                     ← detailed setup guide for all deployment modes
@@ -215,8 +227,9 @@ After a screening run, say `"export to spreadsheet"` and Claude runs `shared/scr
 The `.xlsx` has two sheets:
 
 - **Summary** — run date, counts by verdict, full color-coded status guide
-- **Results** — one row per opportunity, sorted pass → maybe → fail, with a **Status**
-  dropdown tracking the full hiring pipeline from *New* through *Offer accepted* or *Rejected*
+- **Results** — one row per opportunity, sorted pass → maybe → fail, with columns for
+  company, role, location, posting URL, verdict, comp assessment, and a **Status** dropdown
+  tracking the full hiring pipeline from *New* through *Offer accepted* or *Rejected*
 
 Dead-end rows (No response, Withdrew, Rejected, Filtered out) are grouped and collapsed
 at the bottom — click `+` to expand.
@@ -258,6 +271,32 @@ not require a browser.
 - **You always see what was sent** — in send mode, the full text of every sent reply is
   shown in the run report
 - **Spreadsheet export is always optional** — never created unless you ask
+
+---
+
+## Contributing
+
+### Linting
+
+Python code is linted and formatted with [ruff](https://docs.astral.sh/ruff/) (covers PEP 8,
+pyflakes, isort, bugbear, and pyupgrade). YAML is checked with yamllint. Both run as a
+**Lint** job in CI on every push and PR.
+
+```bash
+pip install ruff yamllint
+
+ruff check .          # lint
+ruff format .         # format (Black-compatible)
+yamllint .            # YAML
+```
+
+Config lives in [`pyproject.toml`](pyproject.toml) and [`.yamllint.yaml`](.yamllint.yaml).
+
+### Running the red team
+
+Comment `/redteam` on any PR to kick off the full prompt injection security suite against
+that branch. See [`tests/redteam/README.md`](tests/redteam/README.md) for local setup and
+what each test covers.
 
 ---
 
