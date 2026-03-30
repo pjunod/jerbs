@@ -94,7 +94,7 @@ call any Gmail or file tools, just evaluate this email directly against the crit
 above and draft a reply if appropriate.
 
 ---
-From: recruiter@techcorp-hiring.com
+From: recruiter@example.com
 To: alex.rivera@gmail.com
 Subject: Staff Engineer opportunity at TechCorp
 Date: Mon, 28 Mar 2026 09:15:00 -0700
