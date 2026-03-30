@@ -1,6 +1,8 @@
 # jerbs 🔍
 
-[![CI](https://github.com/pjunod/jerbs/actions/workflows/ci.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/ci.yml)
+[![Unit tests](https://github.com/pjunod/jerbs/actions/workflows/test.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/test.yml)
+[![Lint](https://github.com/pjunod/jerbs/actions/workflows/lint.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/lint.yml)
+[![Coverage](https://codecov.io/gh/pjunod/jerbs/graph/badge.svg)](https://codecov.io/gh/pjunod/jerbs)
 [![Prompt injection security](https://github.com/pjunod/jerbs/actions/workflows/redteam.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/redteam.yml)
 [![Lint](https://github.com/pjunod/jerbs/actions/workflows/ci.yml/badge.svg?label=lint)](https://github.com/pjunod/jerbs/actions/workflows/ci.yml)
 
