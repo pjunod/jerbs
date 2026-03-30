@@ -73,6 +73,10 @@ jobs:
         continue-on-error: true
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Force all attack generation through the local Anthropic provider
+          # (set in promptfooconfig.yaml) instead of the promptfoo.app cloud
+          # service, which has intermittent Cloudflare 524 timeouts.
+          PROMPTFOO_REMOTE_GENERATION: "false"
         run: |
           npx --yes promptfoo@latest redteam run \
             --config tests/redteam/promptfooconfig.yaml \
