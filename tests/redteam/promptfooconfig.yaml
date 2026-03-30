@@ -64,8 +64,9 @@ purpose: |
 # Red team config
 # ---------------------------------------------------------------------------
 redteam:
-  # Use Anthropic for attack generation — avoids needing an OpenAI key in CI
-  provider: anthropic:messages:claude-haiku-4-5-20251001
+  # Sonnet generates more creative, diverse attacks than Haiku — genuine
+  # adversarial pressure against the Haiku screener without cloud dependency.
+  provider: anthropic:messages:claude-sonnet-4-6
   # numTests is the default per plugin; individual plugins override below.
   # Jailbreak strategies are excluded from CI — they multiply test count by 6x
   # (jailbreak:composite adds 5x, jailbreak-templates adds 1x per base test)
