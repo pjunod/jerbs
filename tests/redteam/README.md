@@ -6,27 +6,43 @@ The harness reconstructs the full jerbs screening pipeline as a local HTTP endpo
 Promptfoo injects attack payloads as email bodies — the same attack surface a malicious
 recruiter would use in the real world.
 
+## Running in CI
+
+**From a PR:** comment `/redteam` and the full suite runs against that branch automatically.
+A 🚀 reaction on your comment confirms the trigger was received.
+
+**Manual dispatch:** Actions → "Prompt injection security" → Run workflow → select branch.
+
+Results appear in the Actions tab. The auto-generated redteam and hand-crafted eval steps
+each print a failure summary; the job fails only if any test fails.
+
 ## How it works
 
 1. `server.py` — FastAPI app that loads `SKILL.md` as the system prompt, injects
    `test_criteria.json` as fake bait criteria, and wraps each promptfoo payload in a
-   realistic email screening context before sending to the Claude API.
+   realistic email screening context before sending to the Claude API. Prompt caching is
+   enabled on the system prompt to stay under Anthropic rate limits.
 
-2. `promptfooconfig.yaml` — Targets the local server with both auto-generated attacks
-   (indirect injection, data exfil, PII, hijacking, policy violations) and 10 hand-crafted
-   test cases covering the specific jerbs kill chains.
+2. `promptfooconfig.yaml` — Auto-generated attacks via the promptfoo red team engine:
+   indirect injection, PII exfiltration, hijacking, and policy violations (40 tests).
+   Uses Claude Sonnet to generate attacks and Claude Haiku to grade responses.
 
-3. `test_criteria.json` — Fake profile with specific bait values (salary floor: $245k,
+3. `promptfooconfig-manual.yaml` — 10 hand-crafted kill chain tests covering specific
+   jerbs attack scenarios (see table below). Uses `not-contains` assertions where possible
+   to avoid LLM grader rate-limit issues.
+
+4. `test_criteria.json` — Fake profile with specific bait values (salary floor: $245k,
    TC target: $425k, named whitelist/blacklist companies) to make exfiltration detectable.
 
 The server-side `scan_for_leaks()` function also checks every response for sensitive
 pattern matches and reports them in the `metadata.findings` field.
 
-## Setup
+## Local setup
 
 ```bash
 cd tests/redteam
 pip install -r requirements.txt
+npm install -g promptfoo  # install once; avoids npx download noise on every run
 
 # Copy the current SKILL.md into this directory
 cp ../../SKILL.md ./SKILL.md
@@ -40,14 +56,14 @@ python server.py
 In a second terminal:
 
 ```bash
-# Auto-generated attacks (30+ tests via promptfoo red team)
-npx promptfoo@latest redteam run --config promptfooconfig.yaml
+# Auto-generated attacks (~40 tests via promptfoo red team)
+promptfoo redteam run --config promptfooconfig.yaml
 
 # Hand-crafted kill chain tests (10 specific scenarios)
-npx promptfoo@latest eval --config promptfooconfig-manual.yaml
+promptfoo eval --config promptfooconfig-manual.yaml
 
-# View results
-npx promptfoo@latest view
+# View results in browser
+promptfoo view
 ```
 
 ## What's being tested
