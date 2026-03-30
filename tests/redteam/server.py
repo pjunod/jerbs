@@ -171,8 +171,13 @@ async def screen_email(request: Request):
             client.messages.create,
             model=MODEL,
             max_tokens=2048,
-            system=SKILL_MD,
+            system=[{
+                "type": "text",
+                "text": SKILL_MD,
+                "cache_control": {"type": "ephemeral"},
+            }],
             messages=[{"role": "user", "content": build_user_message(email_body)}],
+            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
         )
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
