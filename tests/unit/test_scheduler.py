@@ -2,22 +2,21 @@
 Unit tests for scheduler.py — interval state machine.
 """
 
+import sys
 import time
-import pytest
-from unittest.mock import patch
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
 
 from scheduler import (
-    Scheduler,
-    RAPID_INTERVAL_S,
     BIZ_INTERVAL_S,
     OFFHRS_INTERVAL_S,
     RAPID_DURATION_S,
+    RAPID_INTERVAL_S,
+    Scheduler,
 )
 
 
@@ -34,13 +33,12 @@ def make_scheduler(hour: int, tz: str = "America/New_York") -> Scheduler:
 # is_biz_hours
 # ---------------------------------------------------------------------------
 
+
 class TestIsBizHours:
     def _sched(self, hour: int) -> Scheduler:
         s = Scheduler(biz_start_hour=9, biz_end_hour=17, timezone="America/New_York")
         mock_dt = datetime(2026, 3, 28, hour, 0, 0, tzinfo=ZoneInfo("America/New_York"))
         s._now = lambda: mock_dt
-        # Patch is_biz_hours to use _now
-        original = s.is_biz_hours.__func__
 
         def patched_is_biz(self_inner):
             now = self_inner._now()
@@ -78,6 +76,7 @@ class TestIsBizHours:
 # ---------------------------------------------------------------------------
 # rapid mode
 # ---------------------------------------------------------------------------
+
 
 class TestRapidMode:
     def test_not_in_rapid_initially(self):
@@ -125,6 +124,7 @@ class TestRapidMode:
 # current_mode and current_interval
 # ---------------------------------------------------------------------------
 
+
 class TestCurrentMode:
     def _sched_at(self, hour: int, in_rapid: bool = False) -> Scheduler:
         s = Scheduler(biz_start_hour=9, biz_end_hour=17, timezone="America/New_York")
@@ -170,6 +170,7 @@ class TestCurrentMode:
 # ---------------------------------------------------------------------------
 # Custom biz hours and timezone
 # ---------------------------------------------------------------------------
+
 
 class TestCustomBizHours:
     def test_custom_hours(self):

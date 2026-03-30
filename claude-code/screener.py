@@ -5,38 +5,37 @@ Builds the screening prompt from user criteria, runs two Gmail passes,
 screens each email/listing, and returns structured results.
 """
 
-import os
 import json
-from datetime import datetime
-from typing import Optional
+import os
 
 try:
     import anthropic
-except ImportError:
-    raise ImportError("Anthropic SDK not installed. Run: pip install anthropic")
+except ImportError as e:
+    raise ImportError("Anthropic SDK not installed. Run: pip install anthropic") from e
 
 
 class Screener:
-    def __init__(self, api_key: Optional[str] = None):
-        self.client = anthropic.Anthropic(
-            api_key=api_key or os.environ.get("ANTHROPIC_API_KEY")
-        )
+    def __init__(self, api_key: str | None = None):
+        self.client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
         self.model = "claude-sonnet-4-20250514"
 
-    def run(self, criteria: dict, gmail, lookback_days: int = 1,
-            max_per_pass: Optional[int] = 100, send_mode: bool = False
-            ) -> tuple[list[dict], bool]:
+    def run(
+        self,
+        criteria: dict,
+        gmail,
+        lookback_days: int = 1,
+        max_per_pass: int | None = 100,
+        send_mode: bool = False,
+    ) -> tuple[list[dict], bool]:
         """
         Run both Gmail passes and screen all results.
         Returns (results, had_drafts).
         """
         raw_ids = criteria.get("screened_message_ids", [])
-        screened_ids = {
-            e["id"] if isinstance(e, dict) else e for e in raw_ids
-        }
-        results      = []
-        had_drafts   = False
-        prompt       = self._build_prompt(criteria)
+        screened_ids = {e["id"] if isinstance(e, dict) else e for e in raw_ids}
+        results = []
+        had_drafts = False
+        prompt = self._build_prompt(criteria)
 
         pass1_query = (
             f"(subject:(opportunity OR role OR position OR opening OR hiring) OR "
@@ -47,9 +46,9 @@ class Screener:
             f"newer_than:{lookback_days}d -from:linkedin.com -from:jobalerts.indeed.com "
             f"-from:indeedemail.com -from:noreply -from:no-reply "
             f"(subject:(opportunity OR role OR position OR opening OR hiring OR "
-            f"\"reaching out\" OR \"your background\" OR \"your profile\" OR \"came across\") OR "
-            f"(\"your experience\" OR \"came across your profile\" OR \"reaching out\" OR "
-            f"\"great fit\" OR \"perfect fit\"))"
+            f'"reaching out" OR "your background" OR "your profile" OR "came across") OR '
+            f'("your experience" OR "came across your profile" OR "reaching out" OR '
+            f'"great fit" OR "perfect fit"))'
         )
 
         extra_kw = criteria.get("search_settings", {}).get("extra_keywords", [])
@@ -68,8 +67,10 @@ class Screener:
             new_msgs = [m for m in messages if m["id"] not in screened_ids]
 
             if max_per_pass and len(messages) >= max_per_pass:
-                print(f"\nPass {pass_num} hit the {max_per_pass}-result limit — "
-                      f"there may be more emails. Run with a larger --max to fetch more.")
+                print(
+                    f"\nPass {pass_num} hit the {max_per_pass}-result limit — "
+                    f"there may be more emails. Run with a larger --max to fetch more."
+                )
 
             for msg_meta in new_msgs:
                 msg = gmail.get_message(msg_meta["id"])
@@ -85,8 +86,7 @@ class Screener:
 
         return results, had_drafts
 
-    def _screen_one(self, msg: dict, system_prompt: str,
-                    source: str, pass_num: int) -> Optional[dict]:
+    def _screen_one(self, msg: dict, system_prompt: str, source: str, pass_num: int) -> dict | None:
         """Screen a single email and return a result dict."""
         user_content = (
             f"Subject: {msg.get('subject', '')}\n"
@@ -100,24 +100,24 @@ class Screener:
                 model=self.model,
                 max_tokens=1024,
                 system=system_prompt,
-                messages=[{"role": "user", "content": user_content}]
+                messages=[{"role": "user", "content": user_content}],
             )
             text = response.content[0].text.strip()
             text = text.replace("```json", "").replace("```", "").strip()
             parsed = json.loads(text)
         except (json.JSONDecodeError, Exception) as e:
             return {
-                "source":    source,
+                "source": source,
                 "message_id": msg["id"],
-                "thread_id":  msg.get("threadId", ""),
-                "subject":    msg.get("subject", ""),
-                "from":       msg.get("from", ""),
+                "thread_id": msg.get("threadId", ""),
+                "subject": msg.get("subject", ""),
+                "from": msg.get("from", ""),
                 "email_date": msg.get("date", ""),
-                "company":    "?",
-                "role":       msg.get("subject", "?"),
-                "location":   "",
-                "verdict":    "maybe",
-                "reason":     f"Screening parse error: {e}",
+                "company": "?",
+                "role": msg.get("subject", "?"),
+                "location": "",
+                "verdict": "maybe",
+                "reason": f"Screening parse error: {e}",
                 "dealbreaker": None,
                 "comp_assessment": None,
                 "missing_fields": [],
@@ -125,39 +125,39 @@ class Screener:
             }
 
         return {
-            "source":          source,
-            "message_id":      msg["id"],
-            "thread_id":       msg.get("threadId", ""),
-            "subject":         msg.get("subject", ""),
-            "from":            msg.get("from", ""),
-            "email_date":      msg.get("date", ""),
-            "company":         parsed.get("company", ""),
-            "role":            parsed.get("role", msg.get("subject", "")),
-            "location":        parsed.get("location", ""),
-            "verdict":         parsed.get("verdict", "maybe"),
-            "reason":          parsed.get("reason", ""),
-            "dealbreaker":     parsed.get("dealbreaker_triggered"),
+            "source": source,
+            "message_id": msg["id"],
+            "thread_id": msg.get("threadId", ""),
+            "subject": msg.get("subject", ""),
+            "from": msg.get("from", ""),
+            "email_date": msg.get("date", ""),
+            "company": parsed.get("company", ""),
+            "role": parsed.get("role", msg.get("subject", "")),
+            "location": parsed.get("location", ""),
+            "verdict": parsed.get("verdict", "maybe"),
+            "reason": parsed.get("reason", ""),
+            "dealbreaker": parsed.get("dealbreaker_triggered"),
             "comp_assessment": parsed.get("comp_assessment"),
-            "missing_fields":  parsed.get("missing_fields", []),
-            "reply_draft":     parsed.get("reply_draft"),
+            "missing_fields": parsed.get("missing_fields", []),
+            "reply_draft": parsed.get("reply_draft"),
         }
 
     def _build_prompt(self, criteria: dict) -> str:
-        comp    = criteria.get("compensation", {})
-        stack   = criteria.get("tech_stack", {})
-        reply   = criteria.get("reply_settings", {})
-        ident   = criteria.get("identity", {})
-        tc      = criteria.get("target_companies", {})
-        role_r  = criteria.get("role_requirements", {})
-        floor   = comp.get("base_salary_floor", 225000)
-        tc_tgt  = comp.get("total_comp_target", 350000)
+        comp = criteria.get("compensation", {})
+        stack = criteria.get("tech_stack", {})
+        reply = criteria.get("reply_settings", {})
+        ident = criteria.get("identity", {})
+        tc = criteria.get("target_companies", {})
+        role_r = criteria.get("role_requirements", {})
+        floor = comp.get("base_salary_floor", 225000)
+        tc_tgt = comp.get("total_comp_target", 350000)
         sliding = comp.get("sliding_scale_notes", "")
-        blk     = tc.get("blacklist", [])
+        blk = tc.get("blacklist", [])
         blk_str = ", ".join(blk) if blk else "none"
         db_list = "\n".join(f"- {d}" for d in criteria.get("hard_dealbreakers", []))
-        req_list= "\n".join(f"- {r}" for r in criteria.get("required_info", []))
-        sig     = reply.get("signature", "")
-        tone    = reply.get("tone", "professional and direct")
+        req_list = "\n".join(f"- {r}" for r in criteria.get("required_info", []))
+        sig = reply.get("signature", "")
+        tone = reply.get("tone", "professional and direct")
 
         return f"""You are screening job recruiter emails for a candidate. Apply genuine judgment.
 

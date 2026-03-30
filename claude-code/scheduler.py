@@ -11,23 +11,24 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-RAPID_INTERVAL_S   = 5  * 60
-BIZ_INTERVAL_S     = 15 * 60
-OFFHRS_INTERVAL_S  = 60 * 60
-RAPID_DURATION_S   = 30 * 60
+RAPID_INTERVAL_S = 5 * 60
+BIZ_INTERVAL_S = 15 * 60
+OFFHRS_INTERVAL_S = 60 * 60
+RAPID_DURATION_S = 30 * 60
 
 
 class Scheduler:
-    def __init__(self, biz_start_hour: int = 9, biz_end_hour: int = 17,
-                 timezone: str = "America/New_York"):
-        self.biz_start  = biz_start_hour
-        self.biz_end    = biz_end_hour
-        self.tz         = ZoneInfo(timezone)
-        self.tz_name    = timezone
+    def __init__(
+        self, biz_start_hour: int = 9, biz_end_hour: int = 17, timezone: str = "America/New_York"
+    ):
+        self.biz_start = biz_start_hour
+        self.biz_end = biz_end_hour
+        self.tz = ZoneInfo(timezone)
+        self.tz_name = timezone
         self._rapid_end = 0.0
 
     def is_biz_hours(self) -> bool:
-        now  = datetime.now(self.tz)
+        now = datetime.now(self.tz)
         hour = now.hour
         return self.biz_start <= hour < self.biz_end
 

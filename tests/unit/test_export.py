@@ -3,31 +3,29 @@ Unit tests for export_results.py — xlsx export logic.
 """
 
 import os
-import pytest
+import sys
 import tempfile
+from pathlib import Path
+
 from openpyxl import load_workbook
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "shared" / "scripts"))
 
 from export_results import (
-    export_to_xlsx,
-    default_status,
-    is_dead_end,
-    STATUS_PIPELINE,
-    DEAD_END_STATUSES,
-    VERDICT_LABELS,
     COLUMNS,
+    STATUS_PIPELINE,
+    VERDICT_LABELS,
+    default_status,
+    export_to_xlsx,
+    is_dead_end,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_result(verdict="pass", company="TechCorp", role="Staff Engineer",
-                status=None, **kwargs):
+
+def make_result(verdict="pass", company="TechCorp", role="Staff Engineer", status=None, **kwargs):
     r = {
         "verdict": verdict,
         "company": company,
@@ -64,6 +62,7 @@ def run_export(items, run_date="2026-03-28"):
 # default_status / is_dead_end helpers
 # ---------------------------------------------------------------------------
 
+
 class TestHelpers:
     def test_default_status_fail_is_filtered_out(self):
         assert default_status("fail") == "Filtered out"
@@ -94,6 +93,7 @@ class TestHelpers:
 # Sheet names and structure
 # ---------------------------------------------------------------------------
 
+
 class TestSheetStructure:
     def test_two_sheets_created(self):
         wb = run_export([make_result()])
@@ -102,7 +102,7 @@ class TestSheetStructure:
     def test_results_has_header_row(self):
         wb = run_export([make_result()])
         ws = wb["Results"]
-        headers = [ws.cell(row=1, column=i+1).value for i in range(len(COLUMNS))]
+        headers = [ws.cell(row=1, column=i + 1).value for i in range(len(COLUMNS))]
         assert headers[0] == "Date screened"
         assert "Verdict" in headers
         assert "Status" in headers
@@ -112,13 +112,14 @@ class TestSheetStructure:
         wb = run_export([make_result()])
         ws = wb["Results"]
         expected = [col[0] for col in COLUMNS]
-        actual = [ws.cell(row=1, column=i+1).value for i in range(len(COLUMNS))]
+        actual = [ws.cell(row=1, column=i + 1).value for i in range(len(COLUMNS))]
         assert actual == expected
 
 
 # ---------------------------------------------------------------------------
 # Summary sheet
 # ---------------------------------------------------------------------------
+
 
 class TestSummarySheet:
     def test_run_date_in_summary(self):
@@ -166,28 +167,28 @@ class TestSummarySheet:
 # Results sheet data
 # ---------------------------------------------------------------------------
 
+
 class TestResultsData:
     def test_pass_result_written(self):
         wb = run_export([make_result("pass", company="TechCorp", role="Staff Engineer")])
         ws = wb["Results"]
-        row2 = [ws.cell(row=2, column=i+1).value for i in range(len(COLUMNS))]
+        row2 = [ws.cell(row=2, column=i + 1).value for i in range(len(COLUMNS))]
         assert "TechCorp" in row2
         assert "Staff Engineer" in row2
         assert VERDICT_LABELS["pass"] in row2
 
     def test_verdict_label_displayed(self):
-        wb = run_export([
-            make_result("pass"),
-            make_result("maybe"),
-            make_result("fail"),
-        ])
+        wb = run_export(
+            [
+                make_result("pass"),
+                make_result("maybe"),
+                make_result("fail"),
+            ]
+        )
         ws = wb["Results"]
-        verdict_col = next(i+1 for i, (h, _) in enumerate(COLUMNS) if h == "Verdict")
+        verdict_col = next(i + 1 for i, (h, _) in enumerate(COLUMNS) if h == "Verdict")
         # Scan all rows — fail verdict rows land in the dead-end collapsed group
-        all_verdicts = {
-            ws.cell(row=r, column=verdict_col).value
-            for r in range(2, ws.max_row + 1)
-        }
+        all_verdicts = {ws.cell(row=r, column=verdict_col).value for r in range(2, ws.max_row + 1)}
         assert VERDICT_LABELS["pass"] in all_verdicts
         assert VERDICT_LABELS["maybe"] in all_verdicts
         assert VERDICT_LABELS["fail"] in all_verdicts
@@ -196,7 +197,7 @@ class TestResultsData:
         item = make_result("maybe", missing_fields=["Salary", "Remote policy"])
         wb = run_export([item])
         ws = wb["Results"]
-        missing_col = next(i+1 for i, (h, _) in enumerate(COLUMNS) if h == "Missing info")
+        missing_col = next(i + 1 for i, (h, _) in enumerate(COLUMNS) if h == "Missing info")
         cell_val = ws.cell(row=2, column=missing_col).value
         assert "Salary" in cell_val
         assert "Remote policy" in cell_val
@@ -214,9 +215,12 @@ class TestResultsData:
         ]
         wb = run_export(items)
         ws = wb["Results"]
-        company_col = next(i+1 for i, (h, _) in enumerate(COLUMNS) if h == "Company")
-        companies = [ws.cell(row=r, column=company_col).value for r in range(2, 5)
-                     if ws.cell(row=r, column=company_col).value]
+        company_col = next(i + 1 for i, (h, _) in enumerate(COLUMNS) if h == "Company")
+        companies = [
+            ws.cell(row=r, column=company_col).value
+            for r in range(2, 5)
+            if ws.cell(row=r, column=company_col).value
+        ]
         # Pass should appear before maybe, maybe before fail (fail is dead-end, appears later)
         pass_idx = next((i for i, c in enumerate(companies) if c == "PassCo"), None)
         maybe_idx = next((i for i, c in enumerate(companies) if c == "MaybeCo"), None)
@@ -227,6 +231,7 @@ class TestResultsData:
 # ---------------------------------------------------------------------------
 # Dead-end grouping
 # ---------------------------------------------------------------------------
+
 
 class TestDeadEndGrouping:
     def test_dead_end_rows_are_hidden(self):
@@ -268,6 +273,7 @@ class TestDeadEndGrouping:
 # ---------------------------------------------------------------------------
 # Status dropdown
 # ---------------------------------------------------------------------------
+
 
 class TestStatusDropdown:
     def test_data_validation_present(self):
