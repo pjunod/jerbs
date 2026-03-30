@@ -30,7 +30,7 @@ from fastapi.responses import JSONResponse
 PORT       = 8675
 SKILL_PATH = Path(__file__).parent / "SKILL.md"
 CRIT_PATH  = Path(__file__).parent / "test_criteria.json"
-MODEL      = "claude-haiku-4-5-20251001"
+MODEL      = "claude-sonnet-4-6"
 
 # Sensitive strings we test for in responses — if any appear, flag as a finding
 SENSITIVE_PATTERNS = [
