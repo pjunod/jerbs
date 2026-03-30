@@ -5,15 +5,13 @@ All Anthropic API calls are mocked — no real API calls are made.
 """
 
 import json
-import pytest
-from unittest.mock import MagicMock, patch
-
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
 
 from screener import Screener
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -87,6 +85,7 @@ def mock_api_response(text: str) -> MagicMock:
 # _build_prompt
 # ---------------------------------------------------------------------------
 
+
 class TestBuildPrompt:
     def test_salary_floor_in_prompt(self):
         s = make_screener()
@@ -153,9 +152,10 @@ class TestBuildPrompt:
         assert "reply_draft" in prompt
 
     def test_empty_blacklist_shows_none(self):
-        criteria = {**MINIMAL_CRITERIA, "target_companies": {
-            **MINIMAL_CRITERIA["target_companies"], "blacklist": []
-        }}
+        criteria = {
+            **MINIMAL_CRITERIA,
+            "target_companies": {**MINIMAL_CRITERIA["target_companies"], "blacklist": []},
+        }
         s = make_screener()
         prompt = s._build_prompt(criteria)
         assert "none" in prompt.lower()
@@ -164,6 +164,7 @@ class TestBuildPrompt:
 # ---------------------------------------------------------------------------
 # _screen_one — happy path
 # ---------------------------------------------------------------------------
+
 
 class TestScreenOne:
     def test_pass_verdict_parsed(self):
@@ -179,8 +180,9 @@ class TestScreenOne:
             "missing_fields": ["Equity details"],
             "reply_draft": "Hi, I'm interested. Can you share equity details?\n\nAlex Rivera",
         }
-        with patch.object(s.client.messages, "create",
-                          return_value=mock_api_response(json.dumps(api_result))):
+        with patch.object(
+            s.client.messages, "create", return_value=mock_api_response(json.dumps(api_result))
+        ):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
         assert result["verdict"] == "pass"
@@ -203,8 +205,9 @@ class TestScreenOne:
             "missing_fields": [],
             "reply_draft": None,
         }
-        with patch.object(s.client.messages, "create",
-                          return_value=mock_api_response(json.dumps(api_result))):
+        with patch.object(
+            s.client.messages, "create", return_value=mock_api_response(json.dumps(api_result))
+        ):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
         assert result["verdict"] == "fail"
@@ -224,8 +227,9 @@ class TestScreenOne:
             "missing_fields": ["Base salary range", "Remote policy"],
             "reply_draft": "Interested — can you share comp details?\n\nAlex Rivera",
         }
-        with patch.object(s.client.messages, "create",
-                          return_value=mock_api_response(json.dumps(api_result))):
+        with patch.object(
+            s.client.messages, "create", return_value=mock_api_response(json.dumps(api_result))
+        ):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
         assert result["verdict"] == "maybe"
@@ -234,12 +238,19 @@ class TestScreenOne:
     def test_source_label_preserved(self):
         s = make_screener()
         api_result = {
-            "company": "X", "role": "Y", "location": "", "verdict": "fail",
-            "reason": "r", "dealbreaker_triggered": None,
-            "comp_assessment": None, "missing_fields": [], "reply_draft": None,
+            "company": "X",
+            "role": "Y",
+            "location": "",
+            "verdict": "fail",
+            "reason": "r",
+            "dealbreaker_triggered": None,
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
         }
-        with patch.object(s.client.messages, "create",
-                          return_value=mock_api_response(json.dumps(api_result))):
+        with patch.object(
+            s.client.messages, "create", return_value=mock_api_response(json.dumps(api_result))
+        ):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "LinkedIn Alert", 1)
 
         assert result["source"] == "LinkedIn Alert"
@@ -249,11 +260,13 @@ class TestScreenOne:
 # _screen_one — error handling
 # ---------------------------------------------------------------------------
 
+
 class TestScreenOneErrors:
     def test_json_parse_error_falls_back_to_maybe(self):
         s = make_screener()
-        with patch.object(s.client.messages, "create",
-                          return_value=mock_api_response("not valid json at all")):
+        with patch.object(
+            s.client.messages, "create", return_value=mock_api_response("not valid json at all")
+        ):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
         assert result["verdict"] == "maybe"
@@ -261,8 +274,7 @@ class TestScreenOneErrors:
 
     def test_api_exception_falls_back_to_maybe(self):
         s = make_screener()
-        with patch.object(s.client.messages, "create",
-                          side_effect=Exception("API timeout")):
+        with patch.object(s.client.messages, "create", side_effect=Exception("API timeout")):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
         assert result["verdict"] == "maybe"
@@ -270,8 +282,9 @@ class TestScreenOneErrors:
 
     def test_partial_json_falls_back_to_maybe(self):
         s = make_screener()
-        with patch.object(s.client.messages, "create",
-                          return_value=mock_api_response('{"verdict": "pass"')):  # truncated
+        with patch.object(
+            s.client.messages, "create", return_value=mock_api_response('{"verdict": "pass"')
+        ):  # truncated
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
         assert result["verdict"] == "maybe"
@@ -279,14 +292,18 @@ class TestScreenOneErrors:
     def test_json_in_code_block_stripped(self):
         s = make_screener()
         api_result = {
-            "company": "TechCorp", "role": "Staff Engineer", "location": "Remote",
-            "verdict": "pass", "reason": "Clears all criteria.",
-            "dealbreaker_triggered": None, "comp_assessment": None,
-            "missing_fields": [], "reply_draft": None,
+            "company": "TechCorp",
+            "role": "Staff Engineer",
+            "location": "Remote",
+            "verdict": "pass",
+            "reason": "Clears all criteria.",
+            "dealbreaker_triggered": None,
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
         }
         wrapped = f"```json\n{json.dumps(api_result)}\n```"
-        with patch.object(s.client.messages, "create",
-                          return_value=mock_api_response(wrapped)):
+        with patch.object(s.client.messages, "create", return_value=mock_api_response(wrapped)):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
         assert result["verdict"] == "pass"
@@ -295,6 +312,7 @@ class TestScreenOneErrors:
 # ---------------------------------------------------------------------------
 # run — integration with mocked Gmail and API
 # ---------------------------------------------------------------------------
+
 
 class TestRun:
     def _mock_gmail(self, messages: list, email: dict) -> MagicMock:
@@ -323,13 +341,19 @@ class TestRun:
         gmail = self._mock_gmail([{"id": "msg001"}], SAMPLE_EMAIL)
 
         api_result = {
-            "company": "TechCorp", "role": "Staff Engineer", "location": "Remote",
-            "verdict": "pass", "reason": "Clears criteria.",
-            "dealbreaker_triggered": None, "comp_assessment": "Strong.",
-            "missing_fields": [], "reply_draft": "Interested!\n\nAlex Rivera",
+            "company": "TechCorp",
+            "role": "Staff Engineer",
+            "location": "Remote",
+            "verdict": "pass",
+            "reason": "Clears criteria.",
+            "dealbreaker_triggered": None,
+            "comp_assessment": "Strong.",
+            "missing_fields": [],
+            "reply_draft": "Interested!\n\nAlex Rivera",
         }
-        with patch.object(s.client.messages, "create",
-                          return_value=mock_api_response(json.dumps(api_result))):
+        with patch.object(
+            s.client.messages, "create", return_value=mock_api_response(json.dumps(api_result))
+        ):
             results, had_drafts = s.run(criteria, gmail, lookback_days=1)
 
         assert len(results) >= 1
@@ -341,13 +365,19 @@ class TestRun:
         gmail = self._mock_gmail([{"id": "msg001"}], SAMPLE_EMAIL)
 
         api_result = {
-            "company": "BadCo", "role": "Junior Dev", "location": "On-site",
-            "verdict": "fail", "reason": "Junior role.",
+            "company": "BadCo",
+            "role": "Junior Dev",
+            "location": "On-site",
+            "verdict": "fail",
+            "reason": "Junior role.",
             "dealbreaker_triggered": "Junior or mid-level role",
-            "comp_assessment": None, "missing_fields": [], "reply_draft": None,
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
         }
-        with patch.object(s.client.messages, "create",
-                          return_value=mock_api_response(json.dumps(api_result))):
+        with patch.object(
+            s.client.messages, "create", return_value=mock_api_response(json.dumps(api_result))
+        ):
             results, had_drafts = s.run(criteria, gmail, lookback_days=1)
 
         assert had_drafts is False

@@ -10,10 +10,7 @@ are saved after a run. These tests verify the expected behavior:
 """
 
 import json
-import pytest
 from datetime import date, timedelta
-from pathlib import Path
-
 
 # ---------------------------------------------------------------------------
 # Pruning logic (extracted for unit testing)
@@ -21,6 +18,7 @@ from pathlib import Path
 # but for the local daemon we implement it as a utility function here.
 # These tests define the contract that the implementation must satisfy.
 # ---------------------------------------------------------------------------
+
 
 def migrate_screened_ids(raw_ids: list, run_date: str) -> list:
     """
@@ -46,10 +44,7 @@ def prune_screened_ids(ids: list, run_date: str, ttl_days: int = 60) -> list:
     relative to run_date.
     """
     cutoff = date.fromisoformat(run_date) - timedelta(days=ttl_days)
-    return [
-        entry for entry in ids
-        if date.fromisoformat(entry["screened_at"]) > cutoff
-    ]
+    return [entry for entry in ids if date.fromisoformat(entry["screened_at"]) > cutoff]
 
 
 def add_screened_id(ids: list, message_id: str, screened_at: str) -> list:
@@ -60,6 +55,7 @@ def add_screened_id(ids: list, message_id: str, screened_at: str) -> list:
 # ---------------------------------------------------------------------------
 # Migration tests
 # ---------------------------------------------------------------------------
+
 
 class TestMigration:
     def test_empty_list_stays_empty(self):
@@ -97,6 +93,7 @@ class TestMigration:
 # ---------------------------------------------------------------------------
 # Pruning tests
 # ---------------------------------------------------------------------------
+
 
 class TestPruning:
     def test_empty_list_stays_empty(self):
@@ -154,10 +151,7 @@ class TestPruning:
     def test_large_list_performance(self):
         # Ensure pruning doesn't break with a large list (simulates months of use)
         run_date = "2026-03-28"
-        ids = [
-            {"id": f"msg{i:06d}", "screened_at": "2026-03-01"}
-            for i in range(5000)
-        ]
+        ids = [{"id": f"msg{i:06d}", "screened_at": "2026-03-01"} for i in range(5000)]
         result = prune_screened_ids(ids, run_date)
         assert len(result) == 5000  # 2026-03-01 is 27 days ago — within 60-day TTL
 
@@ -165,6 +159,7 @@ class TestPruning:
 # ---------------------------------------------------------------------------
 # add_screened_id tests
 # ---------------------------------------------------------------------------
+
 
 class TestAddScreenedId:
     def test_adds_in_object_format(self):
@@ -187,6 +182,7 @@ class TestAddScreenedId:
 # ---------------------------------------------------------------------------
 # End-to-end: migrate → add → prune cycle
 # ---------------------------------------------------------------------------
+
 
 class TestFullCycle:
     def test_migrate_then_prune_removes_old_legacy_ids(self):

@@ -1,0 +1,15 @@
+extends: default
+
+rules:
+  # Long strings in llm-rubric values and GitHub Actions shell steps can't
+  # reasonably be wrapped — disable line-length for YAML.
+  line-length: disable
+
+  # promptfoo configs and GitHub Actions workflows don't conventionally start
+  # with the "---" document separator.
+  document-start: disable
+
+  # GitHub Actions uses "on:" as an event trigger keyword. yamllint reads it
+  # as a truthy value; allow it alongside the standard true/false.
+  truthy:
+    allowed-values: ["true", "false", "on", "off", "yes", "no"]

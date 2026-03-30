@@ -7,6 +7,31 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install linters
+        run: pip install ruff yamllint
+
+      - name: ruff check (PEP 8 / pyflakes / isort / bugbear)
+        run: ruff check .
+
+      - name: ruff format check
+        run: ruff format --check .
+
+      - name: yamllint
+        run: yamllint .
+
   test:
     name: Unit tests
     runs-on: ubuntu-latest

@@ -14,21 +14,19 @@ Usage:
 
 import argparse
 import json
-import os
-import sys
-import time
 import signal
+import sys
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
+from gmail_client import GmailClient
 from scheduler import Scheduler
 from screener import Screener
-from gmail_client import GmailClient
 from setup_wizard import run_setup_wizard
 
 CRITERIA_PATH = Path.home() / ".jerbs" / "criteria.json"
-LOG_PATH      = Path.home() / ".jerbs" / "jerbs.log"
+LOG_PATH = Path.home() / ".jerbs" / "jerbs.log"
 
 
 def load_criteria(path: Path) -> dict:
@@ -58,15 +56,22 @@ def log(msg: str, path: Path = LOG_PATH):
         pass
 
 
-def run_screen(criteria: dict, gmail: GmailClient, screener: Screener,
-               send_mode: bool = False, export: bool = False) -> bool:
+def run_screen(
+    criteria: dict,
+    gmail: GmailClient,
+    screener: Screener,
+    send_mode: bool = False,
+    export: bool = False,
+) -> bool:
     """
     Run one full screening pass. Returns True if any draft replies were generated
     (triggers rapid mode in the scheduler).
     """
     is_first = not criteria.get("screened_message_ids")
     lookback = 7 if is_first else criteria.get("search_settings", {}).get("lookback_days", 1)
-    max_per_pass = None if is_first else criteria.get("search_settings", {}).get("max_results_per_pass", 100)
+    max_per_pass = (
+        None if is_first else criteria.get("search_settings", {}).get("max_results_per_pass", 100)
+    )
 
     log(f"Starting screen — lookback={lookback}d, max={max_per_pass or 'unlimited'}")
 
@@ -83,27 +88,27 @@ def run_screen(criteria: dict, gmail: GmailClient, screener: Screener,
         return False
 
     interested = [r for r in results if r["verdict"] == "pass"]
-    maybe      = [r for r in results if r["verdict"] == "maybe"]
-    filtered   = [r for r in results if r["verdict"] == "fail"]
+    maybe = [r for r in results if r["verdict"] == "maybe"]
+    filtered = [r for r in results if r["verdict"] == "fail"]
 
     log(f"Results: {len(interested)} interested, {len(maybe)} maybe, {len(filtered)} filtered out")
 
     for r in interested + maybe:
         status = "INTERESTED" if r["verdict"] == "pass" else "MAYBE"
-        log(f"  [{status}] {r.get('company','?')} — {r.get('role','?')}")
+        log(f"  [{status}] {r.get('company', '?')} — {r.get('role', '?')}")
         if r.get("dealbreaker"):
             log(f"    Dealbreaker: {r['dealbreaker']}")
         if r.get("missing_fields"):
             log(f"    Missing: {', '.join(r['missing_fields'])}")
         if r.get("reply_draft"):
-            log(f"    Draft reply generated.")
+            log("    Draft reply generated.")
             if send_mode:
                 _send_draft(gmail, r, criteria)
 
     if export:
         _export_results(results, criteria)
 
-    criteria["last_run_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    criteria["last_run_date"] = datetime.now(UTC).strftime("%Y-%m-%d")
     already = set(criteria.get("screened_message_ids", []))
     for r in results:
         if r.get("message_id"):
@@ -121,8 +126,11 @@ def _send_draft(gmail: GmailClient, result: dict, criteria: dict):
     if not draft or not thread_id:
         return
     try:
-        gmail.send_reply(thread_id=thread_id, body=draft,
-                         signature=criteria.get("reply_settings", {}).get("signature", ""))
+        gmail.send_reply(
+            thread_id=thread_id,
+            body=draft,
+            signature=criteria.get("reply_settings", {}).get("signature", ""),
+        )
         log(f"    Sent reply to {result.get('company')} ({result.get('role')})")
     except Exception as e:
         log(f"    Failed to send reply: {e}")
@@ -132,6 +140,7 @@ def _export_results(results: list, criteria: dict):
     try:
         sys.path.insert(0, str(Path(__file__).parent.parent / "shared" / "scripts"))
         from export_results import export_to_xlsx
+
         date_str = datetime.now().strftime("%Y-%m-%d")
         out = Path.home() / "Downloads" / f"jerbs_{date_str}.xlsx"
         export_to_xlsx({"run_date": date_str, "results": results}, str(out))
@@ -142,26 +151,30 @@ def _export_results(results: list, criteria: dict):
 
 def print_summary(criteria: dict):
     comp = criteria.get("compensation", {})
-    ids  = criteria.get("screened_message_ids", [])
+    ids = criteria.get("screened_message_ids", [])
     last = criteria.get("last_run_date", "never")
-    print(f"\n{'─'*50}")
+    print(f"\n{'─' * 50}")
     print(f"  jerbs — {criteria.get('profile_name', 'My Job Search')}")
-    print(f"{'─'*50}")
-    floor = comp.get('base_salary_floor')
-    tc    = comp.get('total_comp_target')
+    print(f"{'─' * 50}")
+    floor = comp.get("base_salary_floor")
+    tc = comp.get("total_comp_target")
     print(f"  Base floor:    {f'${floor:,}' if isinstance(floor, int) else '?'}")
     print(f"  TC target:     {f'${tc:,}+' if isinstance(tc, int) else '?'}")
     print(f"  Last run:      {last}")
     print(f"  Screened IDs:  {len(ids)} emails on record")
-    print(f"{'─'*50}\n")
+    print(f"{'─' * 50}\n")
 
 
 def main():
     parser = argparse.ArgumentParser(description="jerbs — automated job email screener")
-    parser.add_argument("--setup",   action="store_true", help="Run first-time setup wizard")
-    parser.add_argument("--once",    action="store_true", help="Run once and exit")
-    parser.add_argument("--export",  action="store_true", help="Export results to xlsx after each run")
-    parser.add_argument("--send",    action="store_true", help="Auto-send draft replies (use carefully)")
+    parser.add_argument("--setup", action="store_true", help="Run first-time setup wizard")
+    parser.add_argument("--once", action="store_true", help="Run once and exit")
+    parser.add_argument(
+        "--export", action="store_true", help="Export results to xlsx after each run"
+    )
+    parser.add_argument(
+        "--send", action="store_true", help="Auto-send draft replies (use carefully)"
+    )
     parser.add_argument("--criteria", default=str(CRITERIA_PATH), help="Path to criteria JSON file")
     args = parser.parse_args()
 
@@ -182,7 +195,7 @@ def main():
             print("Cancelled.")
             return
 
-    gmail    = GmailClient()
+    gmail = GmailClient()
     screener = Screener()
 
     if args.once:
@@ -201,11 +214,13 @@ def main():
         log("Shutting down jerbs...")
         stop_event.set()
 
-    signal.signal(signal.SIGINT,  handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
-    log(f"jerbs daemon started. Biz hours: "
-        f"{scheduler.biz_start}:00–{scheduler.biz_end}:00 {scheduler.tz_name}")
+    log(
+        f"jerbs daemon started. Biz hours: "
+        f"{scheduler.biz_start}:00–{scheduler.biz_end}:00 {scheduler.tz_name}"
+    )
 
     while not stop_event.is_set():
         interval = scheduler.current_interval()
@@ -215,8 +230,7 @@ def main():
             break
 
         criteria = load_criteria(criteria_path)
-        had_drafts = run_screen(criteria, gmail, screener,
-                                send_mode=args.send, export=args.export)
+        had_drafts = run_screen(criteria, gmail, screener, send_mode=args.send, export=args.export)
 
         if had_drafts:
             scheduler.trigger_rapid()
