@@ -46,25 +46,123 @@ jobs:
           done
 
       - name: Run auto-generated red team
+        id: redteam
+        continue-on-error: true
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           npx --yes promptfoo@latest redteam run \
             --config tests/redteam/promptfooconfig.yaml \
-            --no-cache
+            --no-cache \
+            --output /tmp/redteam-results.json
+
+      - name: Print auto-generated test failures
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+
+          path = "/tmp/redteam-results.json"
+          if not os.path.exists(path):
+              print("No redteam results file found — run may have failed before writing output.")
+              sys.exit(0)
+
+          with open(path) as f:
+              data = json.load(f)
+
+          all_results = data.get("results", {}).get("results", [])
+          fails = [r for r in all_results if not r.get("success", True)]
+          passes = [r for r in all_results if r.get("success", True)]
+
+          print(f"\n=== AUTO-GENERATED RED TEAM RESULTS ===")
+          print(f"Total: {len(all_results)}  |  Passed: {len(passes)}  |  Failed: {len(fails)}\n")
+
+          if not fails:
+              print("All tests passed.")
+              sys.exit(0)
+
+          print(f"Showing first 30 failures:\n")
+          for i, r in enumerate(fails[:30]):
+              meta      = r.get("testCase", {}).get("metadata", {})
+              plugin    = meta.get("pluginId", "unknown")
+              strategy  = meta.get("strategyId", "")
+              vars_     = r.get("vars", {})
+              attack    = str(vars_.get("prompt", vars_)).strip()[:300]
+              output    = str((r.get("response") or {}).get("output", "")).strip()[:400]
+              reason    = (r.get("gradingResult") or {}).get("reason", "no reason")[:400]
+
+              print(f"[{i+1}] plugin={plugin}  strategy={strategy or 'none'}")
+              print(f"  ATTACK : {attack}")
+              print(f"  RESPONSE: {output}")
+              print(f"  REASON : {reason}")
+              print()
+          EOF
+
+      - name: Fail if auto-generated red team found issues
+        if: steps.redteam.outcome == 'failure'
+        run: exit 1
 
       - name: Run hand-crafted kill chain tests
+        id: eval
+        continue-on-error: true
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           npx --yes promptfoo@latest eval \
             --config tests/redteam/promptfooconfig-manual.yaml \
-            --no-cache
+            --no-cache \
+            --output /tmp/eval-results.json
+
+      - name: Print hand-crafted test failures
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+
+          path = "/tmp/eval-results.json"
+          if not os.path.exists(path):
+              print("No eval results file found — run may have failed before writing output.")
+              sys.exit(0)
+
+          with open(path) as f:
+              data = json.load(f)
+
+          all_results = data.get("results", {}).get("results", [])
+          fails = [r for r in all_results if not r.get("success", True)]
+          passes = [r for r in all_results if r.get("success", True)]
+
+          print(f"\n=== HAND-CRAFTED KILL CHAIN RESULTS ===")
+          print(f"Total: {len(all_results)}  |  Passed: {len(passes)}  |  Failed: {len(fails)}\n")
+
+          if not fails:
+              print("All tests passed.")
+              sys.exit(0)
+
+          for i, r in enumerate(fails):
+              desc    = r.get("description") or r.get("testCase", {}).get("description", f"test {i+1}")
+              vars_   = r.get("vars", {})
+              attack  = str(vars_.get("prompt", vars_)).strip()[:300]
+              output  = str((r.get("response") or {}).get("output", "")).strip()[:400]
+              reason  = (r.get("gradingResult") or {}).get("reason", "no reason")[:400]
+
+              print(f"[{i+1}] {desc}")
+              print(f"  ATTACK : {attack}")
+              print(f"  RESPONSE: {output}")
+              print(f"  REASON : {reason}")
+              print()
+          EOF
+
+      - name: Fail if hand-crafted tests found issues
+        if: steps.eval.outcome == 'failure'
+        run: exit 1
 
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: redteam-results
-          path: .promptfoo/
+          path: |
+            .promptfoo/
+            /tmp/redteam-results.json
+            /tmp/eval-results.json
           retention-days: 30
