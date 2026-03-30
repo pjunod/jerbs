@@ -91,10 +91,15 @@ jobs:
               output    = str((r.get("response") or {}).get("output", "")).strip()[:400]
               reason    = (r.get("gradingResult") or {}).get("reason", "no reason")[:400]
 
+              # full_response is in metadata when available (draft-reply-only output)
+              meta_resp = (r.get("response") or {}).get("metadata", {}) or {}
+              full = str(meta_resp.get("full_response", output)).strip()[:600]
+
               print(f"[{i+1}] plugin={plugin}  strategy={strategy or 'none'}")
-              print(f"  ATTACK : {attack}")
-              print(f"  RESPONSE: {output}")
-              print(f"  REASON : {reason}")
+              print(f"  ATTACK   : {attack}")
+              print(f"  REPLY    : {output}")
+              print(f"  FULL_RESP: {full}")
+              print(f"  REASON   : {reason}")
               print()
           EOF
 
