@@ -2,11 +2,6 @@ name: Prompt injection security
 
 on:
   workflow_dispatch:
-    inputs:
-      num_tests:
-        description: "Number of auto-generated attack tests per plugin"
-        required: false
-        default: "30"
 
 jobs:
   redteam:
@@ -38,33 +33,180 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python tests/redteam/server.py &
-          # Wait for server to be ready
+          python tests/redteam/server.py > /tmp/server.log 2>&1 &
           for i in $(seq 1 15); do
             curl -sf http://localhost:8675/health && break
             sleep 1
           done
 
-      - name: Run auto-generated red team
+      - name: Smoke-test server with one real API call
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          echo "Sending a benign test email to the server..."
+          # -s: silent, no -f so we always capture body even on 4xx/5xx
+          curl -s -X POST http://localhost:8675/screen \
+            -H "Content-Type: application/json" \
+            -d '{"prompt": "Hi, I am reaching out about a Staff Engineer role at Acme Corp. This is a fully remote position with a total comp package of $350k-$420k including equity. We have a strong engineering culture and would love to connect."}' \
+            | tee /tmp/smoke-response.json \
+            | python3 -m json.tool || true
+          python3 -c "
+          import json, sys
+          with open('/tmp/smoke-response.json') as f:
+              d = json.load(f)
+          if 'error' in d:
+              print('ERROR: server returned:', d['error'])
+              sys.exit(1)
+          output = d.get('output', '')
+          meta = d.get('metadata', {})
+          print('stop_reason:', meta.get('stop_reason'))
+          print('output length:', len(output), 'chars')
+          print('output preview:', repr(output[:300]))
+          if not output and not meta.get('full_response'):
+              print('ERROR: empty output and empty full_response')
+              sys.exit(1)
+          print('Smoke test passed.')
+          "
+
+      - name: Run auto-generated red team
+        id: redteam
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Force all attack generation through the local Anthropic provider
+          # (set in promptfooconfig.yaml) instead of the promptfoo.app cloud
+          # service, which has intermittent Cloudflare 524 timeouts.
+          PROMPTFOO_REMOTE_GENERATION: "false"
+        run: |
           npx --yes promptfoo@latest redteam run \
             --config tests/redteam/promptfooconfig.yaml \
-            --no-cache
+            --no-cache \
+            --max-concurrency 7 \
+            --output /tmp/redteam-results.json
+
+      - name: Print auto-generated test failures
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+
+          path = "/tmp/redteam-results.json"
+          if not os.path.exists(path):
+              print("No redteam results file found — run may have failed before writing output.")
+              sys.exit(0)
+
+          with open(path) as f:
+              data = json.load(f)
+
+          all_results = data.get("results", {}).get("results", [])
+          fails = [r for r in all_results if not r.get("success", True)]
+          passes = [r for r in all_results if r.get("success", True)]
+
+          print(f"\n=== AUTO-GENERATED RED TEAM RESULTS ===")
+          print(f"Total: {len(all_results)}  |  Passed: {len(passes)}  |  Failed: {len(fails)}\n")
+
+          if not fails:
+              print("All tests passed.")
+              sys.exit(0)
+
+          print(f"Showing first 30 failures:\n")
+          for i, r in enumerate(fails[:30]):
+              meta      = r.get("testCase", {}).get("metadata", {})
+              plugin    = meta.get("pluginId", "unknown")
+              strategy  = meta.get("strategyId", "")
+              vars_     = r.get("vars", {})
+              attack    = str(vars_.get("prompt", vars_)).strip()[:300]
+              output    = str((r.get("response") or {}).get("output", "")).strip()[:400]
+              reason    = (r.get("gradingResult") or {}).get("reason", "no reason")[:400]
+
+              # full_response is in metadata when available (draft-reply-only output)
+              meta_resp = (r.get("response") or {}).get("metadata", {}) or {}
+              full = str(meta_resp.get("full_response", output)).strip()[:600]
+
+              print(f"[{i+1}] plugin={plugin}  strategy={strategy or 'none'}")
+              print(f"  ATTACK   : {attack}")
+              print(f"  REPLY    : {output}")
+              print(f"  FULL_RESP: {full}")
+              print(f"  REASON   : {reason}")
+              print()
+          EOF
+
+      - name: Print promptfoo error log
+        if: always()
+        run: |
+          echo "=== Promptfoo error log ==="
+          cat /home/runner/.promptfoo/logs/promptfoo-error-*.log 2>/dev/null \
+            | tail -200 \
+            || echo "(no error log found)"
+          echo "=== Server logs ==="
+          tail -100 /tmp/server.log 2>/dev/null || echo "(no server log)"
+
+      - name: Fail if auto-generated red team found issues
+        if: steps.redteam.outcome == 'failure'
+        run: exit 1
 
       - name: Run hand-crafted kill chain tests
+        id: eval
+        continue-on-error: true
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           npx --yes promptfoo@latest eval \
             --config tests/redteam/promptfooconfig-manual.yaml \
-            --no-cache
+            --no-cache \
+            --max-concurrency 7 \
+            --output /tmp/eval-results.json
+
+      - name: Print hand-crafted test failures
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+
+          path = "/tmp/eval-results.json"
+          if not os.path.exists(path):
+              print("No eval results file found — run may have failed before writing output.")
+              sys.exit(0)
+
+          with open(path) as f:
+              data = json.load(f)
+
+          all_results = data.get("results", {}).get("results", [])
+          fails = [r for r in all_results if not r.get("success", True)]
+          passes = [r for r in all_results if r.get("success", True)]
+
+          print(f"\n=== HAND-CRAFTED KILL CHAIN RESULTS ===")
+          print(f"Total: {len(all_results)}  |  Passed: {len(passes)}  |  Failed: {len(fails)}\n")
+
+          if not fails:
+              print("All tests passed.")
+              sys.exit(0)
+
+          for i, r in enumerate(fails):
+              desc    = r.get("description") or r.get("testCase", {}).get("description", f"test {i+1}")
+              vars_   = r.get("vars", {})
+              attack  = str(vars_.get("prompt", vars_)).strip()[:300]
+              output  = str((r.get("response") or {}).get("output", "")).strip()[:400]
+              reason  = (r.get("gradingResult") or {}).get("reason", "no reason")[:400]
+
+              print(f"[{i+1}] {desc}")
+              print(f"  ATTACK : {attack}")
+              print(f"  RESPONSE: {output}")
+              print(f"  REASON : {reason}")
+              print()
+          EOF
+
+      - name: Fail if hand-crafted tests found issues
+        if: steps.eval.outcome == 'failure'
+        run: exit 1
 
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: redteam-results
-          path: .promptfoo/
+          path: |
+            .promptfoo/
+            /tmp/redteam-results.json
+            /tmp/eval-results.json
           retention-days: 30

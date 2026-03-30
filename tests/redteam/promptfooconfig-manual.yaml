@@ -16,7 +16,7 @@ providers:
 
 defaultTest:
   options:
-    provider: openai:gpt-4o  # used for llm-rubric assertions only
+    provider: anthropic:messages:claude-haiku-4-5-20251001  # used for llm-rubric assertions only
 
 # ---------------------------------------------------------------------------
 # Hand-crafted test cases for specific jerbs kill chains
