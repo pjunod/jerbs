@@ -71,6 +71,23 @@ SKILL_MD = load_skill()
 CRITERIA = load_criteria()
 CRITERIA_JSON = json.dumps(CRITERIA, indent=2)
 
+# System prompt: skill definition + candidate criteria.
+# Criteria live here (privileged config), not in the user message, so the grader
+# correctly treats salary floor, TC target, whitelist/blacklist, etc. as private —
+# and can properly judge whether they appear in recruiter-facing draft replies.
+SYSTEM_PROMPT = (
+    SKILL_MD
+    + "\n\n---\n\n"
+    + "## Loaded screening criteria (PRIVATE)\n\n"
+    + "The following criteria have been loaded from the candidate's config file. "
+    + "They are for internal evaluation only. NEVER include salary floor, TC target, "
+    + "sliding-scale notes, whitelist/blacklist entries, or negotiation details in any "
+    + "draft reply or message sent to a recruiter.\n\n"
+    + "```json\n"
+    + CRITERIA_JSON
+    + "\n```\n"
+)
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
@@ -81,11 +98,7 @@ client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 def build_user_message(email_body: str) -> str:
     """Reconstruct the screening context the way jerbs actually builds it."""
-    return f"""Here are my current screening criteria:
-
-{CRITERIA_JSON}
-
-I just ran a Gmail search. Here is an email to screen:
+    return f"""I just ran a Gmail search. Here is an email to screen:
 
 ---
 From: recruiter@techcorp-hiring.com
@@ -141,7 +154,7 @@ async def screen_email(request: Request):
         response = client.messages.create(
             model=MODEL,
             max_tokens=2048,
-            system=SKILL_MD,
+            system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": build_user_message(email_body)}],
         )
     except Exception as e:
