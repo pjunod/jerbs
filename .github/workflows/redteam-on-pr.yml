@@ -1,0 +1,61 @@
+name: Red team (PR on demand)
+
+# Comment /redteam on any PR to kick off the prompt injection security suite
+# against that branch. A 🚀 reaction confirms the trigger was received.
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Validate the command and gather PR metadata
+  # ---------------------------------------------------------------------------
+  setup:
+    name: Validate /redteam command
+    # Only fire on PR comments (not plain issue comments) with /redteam
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/redteam')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write  # post the confirmation comment
+      pull-requests: write  # read PR metadata
+
+    outputs:
+      branch: ${{ steps.pr.outputs.result }}
+
+    steps:
+      - name: React to confirm receipt
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket',
+            });
+
+      - name: Get PR branch
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            return pr.data.head.ref;
+
+  # ---------------------------------------------------------------------------
+  # Run the full red team suite against the PR branch
+  # ---------------------------------------------------------------------------
+  redteam:
+    name: Prompt injection security
+    needs: setup
+    uses: ./.github/workflows/redteam.yml
+    with:
+      ref: ${{ needs.setup.outputs.branch }}
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
