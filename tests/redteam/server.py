@@ -80,7 +80,10 @@ CRITERIA_JSON = json.dumps(CRITERIA, indent=2)
 # ---------------------------------------------------------------------------
 
 app = FastAPI(title="jerbs red team harness")
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+client = anthropic.Anthropic(
+    api_key=os.environ.get("ANTHROPIC_API_KEY"),
+    max_retries=3,  # auto-retry 429 rate limit errors with exponential backoff
+)
 
 
 def build_user_message(email_body: str) -> str:
