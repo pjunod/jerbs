@@ -26,6 +26,11 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install promptfoo
+        # Install once globally; suppress deprecation warnings from promptfoo's
+        # transitive dependencies (inflight, rimraf, glob, etc.) that we can't fix.
+        run: npm install -g promptfoo --loglevel=error
+
       - name: Copy SKILL.md into redteam harness
         run: cp SKILL.md tests/redteam/SKILL.md
 
@@ -78,7 +83,7 @@ jobs:
           # service, which has intermittent Cloudflare 524 timeouts.
           PROMPTFOO_REMOTE_GENERATION: "false"
         run: |
-          npx --yes promptfoo@latest redteam run \
+          promptfoo redteam run \
             --config tests/redteam/promptfooconfig.yaml \
             --no-cache \
             --max-concurrency 7 \
@@ -151,7 +156,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          npx --yes promptfoo@latest eval \
+          promptfoo eval \
             --config tests/redteam/promptfooconfig-manual.yaml \
             --no-cache \
             --max-concurrency 7 \
