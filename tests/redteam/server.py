@@ -30,7 +30,10 @@ from fastapi.responses import JSONResponse
 PORT       = 8675
 SKILL_PATH = Path(__file__).parent / "SKILL.md"
 CRIT_PATH  = Path(__file__).parent / "test_criteria.json"
-MODEL      = "claude-sonnet-4-6"
+# Use Haiku for the security test harness — we're testing whether the security
+# directives in SKILL.md are followed, not model quality. Haiku processes the
+# 30k-char system prompt 5-10x faster than Sonnet, which is the main CI bottleneck.
+MODEL      = "claude-haiku-4-5-20251001"
 
 # Sensitive strings we test for in responses — if any appear, flag as a finding
 SENSITIVE_PATTERNS = [
