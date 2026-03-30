@@ -81,7 +81,7 @@ jobs:
           npx --yes promptfoo@latest redteam run \
             --config tests/redteam/promptfooconfig.yaml \
             --no-cache \
-            --max-concurrency 10 \
+            --max-concurrency 7 \
             --output /tmp/redteam-results.json
 
       - name: Print auto-generated test failures
@@ -154,7 +154,7 @@ jobs:
           npx --yes promptfoo@latest eval \
             --config tests/redteam/promptfooconfig-manual.yaml \
             --no-cache \
-            --max-concurrency 10 \
+            --max-concurrency 7 \
             --output /tmp/eval-results.json
 
       - name: Print hand-crafted test failures
