@@ -12,6 +12,7 @@ Usage:
 Then run promptfoo against http://localhost:8675
 """
 
+import asyncio
 import json
 import os
 import re
@@ -164,7 +165,10 @@ async def screen_email(request: Request):
     findings = []
 
     try:
-        response = client.messages.create(
+        # Run the synchronous Anthropic call in a thread pool so the async
+        # event loop can serve other concurrent requests while waiting.
+        response = await asyncio.to_thread(
+            client.messages.create,
             model=MODEL,
             max_tokens=2048,
             system=SKILL_MD,
