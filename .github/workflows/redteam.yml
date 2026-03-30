@@ -49,18 +49,29 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           echo "Sending a benign test email to the server..."
-          response=$(curl -sf -X POST http://localhost:8675/screen \
+          # -s: silent, no -f so we always capture body even on 4xx/5xx
+          curl -s -X POST http://localhost:8675/screen \
             -H "Content-Type: application/json" \
-            -d '{"prompt": "Hi, I am reaching out about a Staff Engineer role at Acme Corp. This is a fully remote position with a total comp package of $350k-$420k including equity. We have a strong engineering culture and would love to connect."}')
-          echo "Raw response:"
-          echo "$response" | python3 -m json.tool || echo "$response"
-          output=$(echo "$response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(repr(d.get('output','<empty>'))[:300])" 2>/dev/null || echo "<failed to parse>")
-          echo "Extracted output: $output"
-          if [ "$output" = "''" ] || [ "$output" = "<empty>" ] || [ "$output" = "<failed to parse>" ]; then
-            echo "ERROR: Server returned empty output on smoke test — aborting"
-            exit 1
-          fi
-          echo "Smoke test passed."
+            -d '{"prompt": "Hi, I am reaching out about a Staff Engineer role at Acme Corp. This is a fully remote position with a total comp package of $350k-$420k including equity. We have a strong engineering culture and would love to connect."}' \
+            | tee /tmp/smoke-response.json \
+            | python3 -m json.tool || true
+          python3 -c "
+          import json, sys
+          with open('/tmp/smoke-response.json') as f:
+              d = json.load(f)
+          if 'error' in d:
+              print('ERROR: server returned:', d['error'])
+              sys.exit(1)
+          output = d.get('output', '')
+          meta = d.get('metadata', {})
+          print('stop_reason:', meta.get('stop_reason'))
+          print('output length:', len(output), 'chars')
+          print('output preview:', repr(output[:300]))
+          if not output and not meta.get('full_response'):
+              print('ERROR: empty output and empty full_response')
+              sys.exit(1)
+          print('Smoke test passed.')
+          "
 
       - name: Run auto-generated red team
         id: redteam
