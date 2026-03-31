@@ -314,6 +314,7 @@ class TestScriptGuard:
 
     def test_too_few_args_exits_with_error(self):
         import runpy
+
         import pytest
 
         with patch("sys.argv", ["export_results.py"]):

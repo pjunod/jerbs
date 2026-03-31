@@ -15,7 +15,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
 
 import gmail_client
-from gmail_client import GmailClient, SCOPES_READONLY, SCOPES_SEND
+from gmail_client import SCOPES_READONLY, SCOPES_SEND, GmailClient
 
 
 def make_client(send_mode: bool = False) -> GmailClient:
@@ -312,9 +312,7 @@ class TestExtractBody:
                 {
                     "mimeType": "multipart/alternative",
                     "body": {},
-                    "parts": [
-                        {"mimeType": "text/plain", "body": {"data": b64("Nested plain")}}
-                    ],
+                    "parts": [{"mimeType": "text/plain", "body": {"data": b64("Nested plain")}}],
                 }
             ],
         }

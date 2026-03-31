@@ -520,9 +520,7 @@ class TestSendDraft:
         criteria = {"reply_settings": {"signature": "Best, Alex"}}
         with patch("jerbs.log"):
             jerbs._send_draft(gmail, result, criteria)
-        gmail.send_reply.assert_called_once_with(
-            thread_id="t1", body="Hi!", signature="Best, Alex"
-        )
+        gmail.send_reply.assert_called_once_with(thread_id="t1", body="Hi!", signature="Best, Alex")
 
     def test_sends_reply_with_empty_signature_when_missing(self):
         gmail = MagicMock()
@@ -732,9 +730,7 @@ class TestMain:
         with patch("sys.argv", ["jerbs", "--criteria", str(cfile)]):
             with patch("jerbs.GmailClient"):
                 with patch("jerbs.Screener"):
-                    with patch(
-                        "jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)
-                    ):
+                    with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
                         with patch("builtins.print"):
                             with patch("jerbs.signal.signal", side_effect=capture_signal):
                                 with patch("threading.Event", return_value=mock_event):

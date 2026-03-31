@@ -9,12 +9,9 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
 
 from setup_wizard import ask, ask_bool, ask_int, ask_list, run_setup_wizard
-
 
 # ---------------------------------------------------------------------------
 # ask

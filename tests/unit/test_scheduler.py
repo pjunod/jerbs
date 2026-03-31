@@ -6,7 +6,6 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
@@ -18,7 +17,6 @@ from scheduler import (
     RAPID_INTERVAL_S,
     Scheduler,
 )
-
 
 # ---------------------------------------------------------------------------
 # is_biz_hours
