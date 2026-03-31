@@ -55,6 +55,7 @@ def main() -> None:
 
     # --- Load generated tests (optional) ---
     generated_tests: list = []
+    generated_config: dict = {}
     if args.generated and Path(args.generated).exists():
         try:
             generated_config = load_yaml(args.generated)
@@ -73,7 +74,7 @@ def main() -> None:
         )
         merged_tests = list(baseline_tests)
     else:
-        # Count generated tests per plugin
+        # Count generated tests per plugin (handle sub-plugin IDs like pii:api-db)
         generated_by_plugin: dict[str, list] = defaultdict(list)
         for test in generated_tests:
             generated_by_plugin[plugin_id(test)].append(test)
@@ -81,10 +82,18 @@ def main() -> None:
         for pid, tests in sorted(generated_by_plugin.items()):
             print(f"[merge_prompts]   {pid}: {len(tests)} generated", file=sys.stderr)
 
+        def gen_count_for(baseline_pid: str) -> int:
+            """Count generated tests for a baseline plugin, including sub-plugin IDs."""
+            return sum(
+                len(tests)
+                for gpid, tests in generated_by_plugin.items()
+                if gpid == baseline_pid or gpid.startswith(baseline_pid + ":")
+            )
+
         # Start with all generated tests, then supplement any thin plugin categories
         merged_tests = list(generated_tests)
         for pid, fallback_tests in sorted(baseline_by_plugin.items()):
-            gen_count = len(generated_by_plugin.get(pid, []))
+            gen_count = gen_count_for(pid)
             if gen_count < args.min_per_plugin:
                 needed = args.min_per_plugin - gen_count
                 supplement = fallback_tests[:needed]
@@ -95,8 +104,12 @@ def main() -> None:
                 )
                 merged_tests.extend(supplement)
 
-    # --- Build output config (use baseline's target/provider/defaultTest block) ---
-    output_config = {k: v for k, v in baseline_config.items() if k != "tests"}
+    # --- Build output config ---
+    # When generation succeeded, use the generated config's top-level structure
+    # (it carries purpose:, targets:, redteam: needed by `promptfoo redteam eval`).
+    # Fall back to baseline's top-level structure when generation was skipped entirely.
+    base_config = generated_config if generated_tests else baseline_config
+    output_config = {k: v for k, v in base_config.items() if k != "tests"}
     output_config["tests"] = merged_tests
 
     # Summarise by plugin
