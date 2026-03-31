@@ -768,9 +768,23 @@ JERBS_SCHEDULED=true
 Run jerbs in automated scheduled mode. Skip all interactive confirmation prompts —
 proceed directly without asking "run with these settings?".
 
+**Lock guard — do this first, before reading criteria or searching Gmail:**
+Run: python3 /Users/pjunod/code/jerbs/scripts/update_run.py --check-lock
+If the output is "LOCKED", print "Previous run still in progress — skipping." and stop.
+Otherwise, immediately set the lock:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --set-lock
+
 Run both Gmail passes, screen all results, generate draft replies for pass/maybe verdicts,
 and present the full results report. Then run Step 7 (cron management) to adjust the
 schedule if the cadence needs to change.
+
+**After Step 7 completes** (or if the run produced no new emails), clear the lock:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --clear-lock
+
+**When saving screened message IDs** (after Step 3), use the update script instead of
+writing criteria.json directly:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --add-ids ID1 ID2 ...
+This also sets last_run_date automatically — no separate write needed.
 ```
 
 When `JERBS_SCHEDULED=true` is present: skip the Step 2 confirmation prompt entirely and
@@ -848,8 +862,7 @@ No change needed. Do not touch the cron jobs. Save nothing.
 
 ### Cron prompt template
 
-When creating business-hours or off-hours crons, use this prompt (substituting the
-scheduled run prompt from the auto-scheduler section):
+When creating business-hours, off-hours, or rapid-mode crons, use this prompt verbatim:
 
 ```
 JERBS_SCHEDULED=true
@@ -857,7 +870,21 @@ JERBS_SCHEDULED=true
 Run jerbs in automated scheduled mode. Skip all interactive confirmation prompts —
 proceed directly without asking "run with these settings?".
 
+**Lock guard — do this first, before reading criteria or searching Gmail:**
+Run: python3 /Users/pjunod/code/jerbs/scripts/update_run.py --check-lock
+If the output is "LOCKED", print "Previous run still in progress — skipping." and stop.
+Otherwise, immediately set the lock:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --set-lock
+
 Run both Gmail passes, screen all results, generate draft replies for pass/maybe verdicts,
 and present the full results report. Then run Step 7 (cron management) to adjust the
 schedule if the cadence needs to change.
+
+**After Step 7 completes** (or if the run produced no new emails), clear the lock:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --clear-lock
+
+**When saving screened message IDs** (after Step 3), use the update script instead of
+writing criteria.json directly:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --add-ids ID1 ID2 ...
+This also sets last_run_date automatically — no separate write needed.
 ```
