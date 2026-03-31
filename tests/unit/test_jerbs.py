@@ -340,3 +340,419 @@ class TestRunScreen:
                     had_drafts = jerbs.run_screen(criteria, gmail, screener)
 
         assert had_drafts is False
+
+
+# ---------------------------------------------------------------------------
+# log
+# ---------------------------------------------------------------------------
+
+
+class TestLog:
+    def test_prints_timestamped_message(self, capsys):
+        jerbs.log("hello world", path=Path("/nonexistent/__nope__/jerbs.log"))
+        captured = capsys.readouterr()
+        assert "hello world" in captured.out
+        assert "[" in captured.out  # timestamp bracket
+
+    def test_writes_to_log_file(self, tmp_path):
+        log_path = tmp_path / "jerbs.log"
+        jerbs.log("written to file", path=log_path)
+        assert log_path.exists()
+        assert "written to file" in log_path.read_text()
+
+    def test_swallows_write_exception(self, tmp_path):
+        log_path = tmp_path / "jerbs.log"
+        with patch("builtins.open", side_effect=PermissionError("denied")):
+            # Should not raise even if the file write fails
+            jerbs.log("test", path=log_path)
+
+    def test_appends_to_existing_log(self, tmp_path):
+        log_path = tmp_path / "jerbs.log"
+        jerbs.log("first", path=log_path)
+        jerbs.log("second", path=log_path)
+        content = log_path.read_text()
+        assert "first" in content
+        assert "second" in content
+
+
+# ---------------------------------------------------------------------------
+# run_screen — branch coverage
+# ---------------------------------------------------------------------------
+
+
+def _minimal_criteria():
+    return {
+        "profile_name": "Test",
+        "compensation": {"base_salary_floor": 200000, "total_comp_target": 350000},
+        "screened_message_ids": [],
+        "last_run_date": "",
+        "search_settings": {},
+    }
+
+
+class TestRunScreenBranches:
+    def test_empty_results_returns_false(self):
+        screener = MagicMock()
+        screener.run.return_value = ([], False)
+        gmail = MagicMock()
+        criteria = _minimal_criteria()
+        with patch("jerbs.log"):
+            result = jerbs.run_screen(criteria, gmail, screener)
+        assert result is False
+
+    def test_dealbreaker_is_logged(self):
+        screener = MagicMock()
+        screener.run.return_value = (
+            [
+                {
+                    "verdict": "maybe",
+                    "company": "Acme",
+                    "role": "SRE",
+                    "dealbreaker": "No remote",
+                    "missing_fields": [],
+                    "reply_draft": None,
+                    "message_id": "m1",
+                }
+            ],
+            False,
+        )
+        gmail = MagicMock()
+        criteria = _minimal_criteria()
+        log_calls = []
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            with patch("jerbs.save_criteria"):
+                jerbs.run_screen(criteria, gmail, screener)
+        assert any("No remote" in c for c in log_calls)
+
+    def test_missing_fields_are_logged(self):
+        screener = MagicMock()
+        screener.run.return_value = (
+            [
+                {
+                    "verdict": "pass",
+                    "company": "Acme",
+                    "role": "SRE",
+                    "dealbreaker": None,
+                    "missing_fields": ["salary", "location"],
+                    "reply_draft": None,
+                    "message_id": "m2",
+                }
+            ],
+            False,
+        )
+        gmail = MagicMock()
+        criteria = _minimal_criteria()
+        log_calls = []
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            with patch("jerbs.save_criteria"):
+                jerbs.run_screen(criteria, gmail, screener)
+        assert any("salary" in c for c in log_calls)
+
+    def test_send_mode_calls_send_draft(self):
+        screener = MagicMock()
+        screener.run.return_value = (
+            [
+                {
+                    "verdict": "pass",
+                    "company": "Acme",
+                    "role": "SRE",
+                    "dealbreaker": None,
+                    "missing_fields": [],
+                    "reply_draft": "Hi there!",
+                    "thread_id": "t99",
+                    "message_id": "m3",
+                }
+            ],
+            True,
+        )
+        gmail = MagicMock()
+        criteria = _minimal_criteria()
+        with patch("jerbs.log"):
+            with patch("jerbs.save_criteria"):
+                with patch("jerbs._send_draft") as mock_send:
+                    jerbs.run_screen(criteria, gmail, screener, send_mode=True)
+        mock_send.assert_called_once()
+
+    def test_export_mode_calls_export_results(self):
+        screener = MagicMock()
+        screener.run.return_value = (
+            [
+                {
+                    "verdict": "fail",
+                    "company": "Acme",
+                    "role": "SRE",
+                    "dealbreaker": None,
+                    "missing_fields": [],
+                    "reply_draft": None,
+                    "message_id": "m4",
+                }
+            ],
+            False,
+        )
+        gmail = MagicMock()
+        criteria = _minimal_criteria()
+        with patch("jerbs.log"):
+            with patch("jerbs.save_criteria"):
+                with patch("jerbs._export_results") as mock_export:
+                    jerbs.run_screen(criteria, gmail, screener, export=True)
+        mock_export.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _send_draft
+# ---------------------------------------------------------------------------
+
+
+class TestSendDraft:
+    def test_skips_if_no_draft(self):
+        gmail = MagicMock()
+        jerbs._send_draft(gmail, {"thread_id": "t1", "reply_draft": None}, {})
+        gmail.send_reply.assert_not_called()
+
+    def test_skips_if_no_thread_id(self):
+        gmail = MagicMock()
+        jerbs._send_draft(gmail, {"thread_id": None, "reply_draft": "Hi!"}, {})
+        gmail.send_reply.assert_not_called()
+
+    def test_sends_reply_with_signature(self):
+        gmail = MagicMock()
+        result = {"thread_id": "t1", "reply_draft": "Hi!", "company": "Acme", "role": "SWE"}
+        criteria = {"reply_settings": {"signature": "Best, Alex"}}
+        with patch("jerbs.log"):
+            jerbs._send_draft(gmail, result, criteria)
+        gmail.send_reply.assert_called_once_with(
+            thread_id="t1", body="Hi!", signature="Best, Alex"
+        )
+
+    def test_sends_reply_with_empty_signature_when_missing(self):
+        gmail = MagicMock()
+        result = {"thread_id": "t1", "reply_draft": "Hi!", "company": "Acme", "role": "SWE"}
+        with patch("jerbs.log"):
+            jerbs._send_draft(gmail, result, {})
+        gmail.send_reply.assert_called_once_with(thread_id="t1", body="Hi!", signature="")
+
+    def test_logs_error_on_send_exception(self):
+        gmail = MagicMock()
+        gmail.send_reply.side_effect = Exception("network error")
+        result = {"thread_id": "t1", "reply_draft": "Hi!", "company": "Acme", "role": "SWE"}
+        log_calls = []
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            jerbs._send_draft(gmail, result, {})
+        assert any("Failed" in c or "network error" in c for c in log_calls)
+
+
+# ---------------------------------------------------------------------------
+# _export_results
+# ---------------------------------------------------------------------------
+
+
+class TestExportResults:
+    def test_calls_export_to_xlsx(self):
+        mock_module = MagicMock()
+        with patch.dict("sys.modules", {"export_results": mock_module}):
+            with patch("jerbs.log"):
+                jerbs._export_results([{"verdict": "pass"}], {})
+        mock_module.export_to_xlsx.assert_called_once()
+
+    def test_includes_results_in_export_payload(self):
+        mock_module = MagicMock()
+        results = [{"verdict": "pass", "company": "Acme"}]
+        with patch.dict("sys.modules", {"export_results": mock_module}):
+            with patch("jerbs.log"):
+                jerbs._export_results(results, {})
+        payload = mock_module.export_to_xlsx.call_args[0][0]
+        assert payload["results"] == results
+
+    def test_logs_export_path_on_success(self):
+        mock_module = MagicMock()
+        log_calls = []
+        with patch.dict("sys.modules", {"export_results": mock_module}):
+            with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+                jerbs._export_results([], {})
+        assert any("Exported" in c or "jerbs_" in c for c in log_calls)
+
+    def test_logs_error_on_exception(self):
+        mock_module = MagicMock()
+        mock_module.export_to_xlsx.side_effect = Exception("disk full")
+        log_calls = []
+        with patch.dict("sys.modules", {"export_results": mock_module}):
+            with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+                jerbs._export_results([], {})
+        assert any("Export failed" in c or "disk full" in c for c in log_calls)
+
+
+# ---------------------------------------------------------------------------
+# main()
+# ---------------------------------------------------------------------------
+
+
+def _write_criteria(path: Path) -> None:
+    criteria = {
+        "profile_name": "Test Search",
+        "compensation": {"base_salary_floor": 200000, "total_comp_target": 350000},
+        "screened_message_ids": [],
+        "last_run_date": "never",
+        "search_settings": {
+            "biz_start_hour": 9,
+            "biz_end_hour": 17,
+            "timezone": "America/New_York",
+        },
+    }
+    path.write_text(json.dumps(criteria))
+
+
+class TestMain:
+    def test_setup_flag_runs_wizard(self, tmp_path):
+        cfile = tmp_path / "criteria.json"
+        with patch("sys.argv", ["jerbs", "--setup", "--criteria", str(cfile)]):
+            with patch("jerbs.run_setup_wizard") as mock_wizard:
+                with patch("builtins.print"):
+                    jerbs.main()
+        mock_wizard.assert_called_once_with(cfile)
+
+    def test_once_mode_calls_run_screen_then_exits(self, tmp_path):
+        cfile = tmp_path / "criteria.json"
+        _write_criteria(cfile)
+        with patch("sys.argv", ["jerbs", "--once", "--criteria", str(cfile)]):
+            with patch("jerbs.GmailClient"):
+                with patch("jerbs.Screener"):
+                    with patch("jerbs.run_screen", return_value=False) as mock_run:
+                        with patch("builtins.print"):
+                            jerbs.main()
+        mock_run.assert_called_once()
+
+    def test_send_mode_cancelled_skips_screening(self, tmp_path):
+        cfile = tmp_path / "criteria.json"
+        _write_criteria(cfile)
+        with patch("sys.argv", ["jerbs", "--send", "--once", "--criteria", str(cfile)]):
+            with patch("builtins.input", return_value="no"):
+                with patch("builtins.print"):
+                    with patch("jerbs.run_screen") as mock_run:
+                        jerbs.main()
+        mock_run.assert_not_called()
+
+    def test_send_mode_confirmed_proceeds(self, tmp_path):
+        cfile = tmp_path / "criteria.json"
+        _write_criteria(cfile)
+        with patch("sys.argv", ["jerbs", "--send", "--once", "--criteria", str(cfile)]):
+            with patch("builtins.input", return_value="yes"):
+                with patch("builtins.print"):
+                    with patch("jerbs.GmailClient"):
+                        with patch("jerbs.Screener"):
+                            with patch("jerbs.run_screen", return_value=False) as mock_run:
+                                jerbs.main()
+        mock_run.assert_called_once()
+
+    def test_daemon_loop_runs_one_iteration(self, tmp_path):
+        cfile = tmp_path / "criteria.json"
+        _write_criteria(cfile)
+
+        mock_event = MagicMock()
+        # is_set: False (enter loop) → True (exit loop after one iteration)
+        mock_event.is_set.side_effect = [False, True]
+        mock_event.wait.return_value = False  # don't break early inside loop
+
+        with patch("sys.argv", ["jerbs", "--criteria", str(cfile)]):
+            with patch("jerbs.GmailClient"):
+                with patch("jerbs.Screener"):
+                    with patch("jerbs.run_screen", return_value=False) as mock_run:
+                        with patch("jerbs.log"):
+                            with patch("builtins.print"):
+                                with patch("jerbs.signal.signal"):
+                                    with patch("threading.Event", return_value=mock_event):
+                                        jerbs.main()
+        mock_run.assert_called_once()
+
+    def test_daemon_loop_triggers_rapid_mode_on_drafts(self, tmp_path):
+        cfile = tmp_path / "criteria.json"
+        _write_criteria(cfile)
+
+        mock_event = MagicMock()
+        mock_event.is_set.side_effect = [False, True]
+        mock_event.wait.return_value = False
+
+        mock_scheduler = MagicMock()
+        mock_scheduler.biz_start = 9
+        mock_scheduler.biz_end = 17
+        mock_scheduler.tz_name = "America/New_York"
+        mock_scheduler.current_interval.return_value = 300
+        mock_scheduler.current_mode.return_value = "normal"
+
+        with patch("sys.argv", ["jerbs", "--criteria", str(cfile)]):
+            with patch("jerbs.GmailClient"):
+                with patch("jerbs.Screener"):
+                    with patch("jerbs.run_screen", return_value=True):
+                        with patch("jerbs.Scheduler", return_value=mock_scheduler):
+                            with patch("jerbs.log"):
+                                with patch("builtins.print"):
+                                    with patch("jerbs.signal.signal"):
+                                        with patch("threading.Event", return_value=mock_event):
+                                            jerbs.main()
+        mock_scheduler.trigger_rapid.assert_called_once()
+        mock_scheduler.tick.assert_called_once()
+
+    def test_daemon_loop_breaks_when_wait_returns_true(self, tmp_path):
+        """Covers the `break` on line 230 when stop_event.wait() returns True."""
+        cfile = tmp_path / "criteria.json"
+        _write_criteria(cfile)
+
+        mock_event = MagicMock()
+        mock_event.is_set.return_value = False  # enter the loop
+        mock_event.wait.return_value = True  # break immediately
+
+        with patch("sys.argv", ["jerbs", "--criteria", str(cfile)]):
+            with patch("jerbs.GmailClient"):
+                with patch("jerbs.Screener"):
+                    with patch("jerbs.run_screen") as mock_run:
+                        with patch("jerbs.log"):
+                            with patch("builtins.print"):
+                                with patch("jerbs.signal.signal"):
+                                    with patch("threading.Event", return_value=mock_event):
+                                        jerbs.main()
+        # run_screen should not be reached because we broke out before it
+        mock_run.assert_not_called()
+
+    def test_handle_signal_logs_and_sets_stop_event(self, tmp_path):
+        """Covers handle_signal body (lines 214-215): log + stop_event.set()."""
+        import signal as _signal
+
+        cfile = tmp_path / "criteria.json"
+        _write_criteria(cfile)
+
+        captured = {}
+
+        def capture_signal(sig, handler):
+            captured[sig] = handler
+
+        mock_event = MagicMock()
+        mock_event.is_set.return_value = True  # skip the loop
+
+        log_calls = []
+
+        with patch("sys.argv", ["jerbs", "--criteria", str(cfile)]):
+            with patch("jerbs.GmailClient"):
+                with patch("jerbs.Screener"):
+                    with patch(
+                        "jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)
+                    ):
+                        with patch("builtins.print"):
+                            with patch("jerbs.signal.signal", side_effect=capture_signal):
+                                with patch("threading.Event", return_value=mock_event):
+                                    jerbs.main()
+                            # Call the captured handler while jerbs.log is still patched
+                            captured[_signal.SIGINT](_signal.SIGINT, None)
+
+        assert any("Shutting down" in c for c in log_calls)
+        mock_event.set.assert_called_once()
+
+    def test_script_guard_calls_main(self, tmp_path):
+        """Covers `if __name__ == '__main__': main()` on line 245."""
+        import runpy
+
+        cfile = tmp_path / "criteria.json"
+        jerbs_path = str(Path(__file__).parent.parent.parent / "claude-code" / "jerbs.py")
+
+        with patch("sys.argv", ["jerbs.py", "--setup", "--criteria", str(cfile)]):
+            with patch("setup_wizard.run_setup_wizard"):
+                with patch("builtins.print"):
+                    runpy.run_path(jerbs_path, run_name="__main__")
