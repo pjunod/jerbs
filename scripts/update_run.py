@@ -16,7 +16,7 @@ Usage:
 import argparse
 import json
 import os
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 CRITERIA_PATH = os.path.expanduser("~/.claude/jerbs/criteria.json")
 LOCK_PATH = os.path.expanduser("~/.claude/jerbs/.running")
@@ -38,7 +38,7 @@ def check_lock():
 
 def set_lock():
     with open(LOCK_PATH, "w", encoding="utf-8") as f:
-        f.write(datetime.now(timezone.utc).isoformat())
+        f.write(datetime.now(UTC).isoformat())
     print("Lock set.")
 
 
@@ -114,18 +114,10 @@ def clear_rapid_mode(cron_job_ids):
 def main():
     parser = argparse.ArgumentParser(description="jerbs criteria updater and lock guard")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument(
-        "--check-lock", action="store_true", help="Print LOCKED or CLEAR"
-    )
-    group.add_argument(
-        "--set-lock", action="store_true", help="Create the lock file"
-    )
-    group.add_argument(
-        "--clear-lock", action="store_true", help="Remove the lock file"
-    )
-    group.add_argument(
-        "--add-ids", nargs="+", metavar="ID", help="Add screened message IDs"
-    )
+    group.add_argument("--check-lock", action="store_true", help="Print LOCKED or CLEAR")
+    group.add_argument("--set-lock", action="store_true", help="Create the lock file")
+    group.add_argument("--clear-lock", action="store_true", help="Remove the lock file")
+    group.add_argument("--add-ids", nargs="+", metavar="ID", help="Add screened message IDs")
     group.add_argument(
         "--enable-scheduler",
         nargs="+",
