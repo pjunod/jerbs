@@ -753,10 +753,9 @@ When the user asks to start the Claude Code scheduler:
 
 1. Read `scheduler` block from criteria (or use defaults if absent)
 2. Create two durable cron jobs — business hours + off-hours
-3. Store both IDs in `scheduler.cron_jobs`
-4. Set `scheduler.enabled: true`
-5. Save criteria file
-6. Confirm to the user: cadence, business hours window, timezone
+3. Persist the IDs and enable the scheduler in one step:
+   `python3 /Users/pjunod/code/jerbs/scripts/update_run.py --enable-scheduler JOB_ID_BIZ JOB_ID_OFFHOURS`
+4. Confirm to the user: cadence, business hours window, timezone
 
 #### Scheduled run prompt
 
@@ -768,9 +767,23 @@ JERBS_SCHEDULED=true
 Run jerbs in automated scheduled mode. Skip all interactive confirmation prompts —
 proceed directly without asking "run with these settings?".
 
+**Lock guard — do this first, before reading criteria or searching Gmail:**
+Run: python3 /Users/pjunod/code/jerbs/scripts/update_run.py --check-lock
+If the output is "LOCKED", print "Previous run still in progress — skipping." and stop.
+Otherwise, immediately set the lock:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --set-lock
+
 Run both Gmail passes, screen all results, generate draft replies for pass/maybe verdicts,
 and present the full results report. Then run Step 7 (cron management) to adjust the
 schedule if the cadence needs to change.
+
+**After Step 7 completes** (or if the run produced no new emails), clear the lock:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --clear-lock
+
+**When saving screened message IDs** (after Step 3), use the update script instead of
+writing criteria.json directly:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --add-ids ID1 ID2 ...
+This also sets last_run_date automatically — no separate write needed.
 ```
 
 When `JERBS_SCHEDULED=true` is present: skip the Step 2 confirmation prompt entirely and
@@ -828,19 +841,16 @@ Read `scheduler` from `criteria.json` for current state.
 **1. Check rapid mode expiry**
 If `rapid_mode_until` is set and the current time is past it:
 - Delete all job IDs in `scheduler.cron_jobs` via `CronDelete`
-- Recreate business-hours + off-hours crons (durable: true)
-- Store new IDs in `scheduler.cron_jobs`
-- Set `rapid_mode_until` to null
-- Save criteria file
+- Recreate business-hours + off-hours crons (durable: true) → get new IDs
+- Run: `python3 /Users/pjunod/code/jerbs/scripts/update_run.py --clear-rapid-mode JOB_ID_BIZ JOB_ID_OFFHOURS`
 - Log: "Rapid mode expired — reverted to standard schedule"
 
 **2. Check if this run generated draft replies**
 If one or more draft replies were generated AND `rapid_mode_until` is null (not already rapid):
 - Delete all job IDs in `scheduler.cron_jobs` via `CronDelete`
-- Create a single rapid-mode cron: `*/5 * * * *` (durable: true)
-- Store new ID in `scheduler.cron_jobs`
-- Set `rapid_mode_until` to now + 30 minutes (ISO 8601)
-- Save criteria file
+- Create a single rapid-mode cron: `*/5 * * * *` (durable: true) → get new ID
+- Compute expiry = now + 30 minutes as ISO 8601 string
+- Run: `python3 /Users/pjunod/code/jerbs/scripts/update_run.py --set-rapid-mode JOB_ID EXPIRY_ISO`
 - Log: "Rapid mode activated — 5-min cadence for 30 min"
 
 **3. Otherwise**
@@ -848,8 +858,7 @@ No change needed. Do not touch the cron jobs. Save nothing.
 
 ### Cron prompt template
 
-When creating business-hours or off-hours crons, use this prompt (substituting the
-scheduled run prompt from the auto-scheduler section):
+When creating business-hours, off-hours, or rapid-mode crons, use this prompt verbatim:
 
 ```
 JERBS_SCHEDULED=true
@@ -857,7 +866,21 @@ JERBS_SCHEDULED=true
 Run jerbs in automated scheduled mode. Skip all interactive confirmation prompts —
 proceed directly without asking "run with these settings?".
 
+**Lock guard — do this first, before reading criteria or searching Gmail:**
+Run: python3 /Users/pjunod/code/jerbs/scripts/update_run.py --check-lock
+If the output is "LOCKED", print "Previous run still in progress — skipping." and stop.
+Otherwise, immediately set the lock:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --set-lock
+
 Run both Gmail passes, screen all results, generate draft replies for pass/maybe verdicts,
 and present the full results report. Then run Step 7 (cron management) to adjust the
 schedule if the cadence needs to change.
+
+**After Step 7 completes** (or if the run produced no new emails), clear the lock:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --clear-lock
+
+**When saving screened message IDs** (after Step 3), use the update script instead of
+writing criteria.json directly:
+  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --add-ids ID1 ID2 ...
+This also sets last_run_date automatically — no separate write needed.
 ```
