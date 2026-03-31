@@ -2,10 +2,12 @@
 Unit tests for export_results.py — xlsx export logic.
 """
 
+import json
 import os
 import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from openpyxl import load_workbook
 
@@ -289,3 +291,47 @@ class TestStatusDropdown:
         assert "Offer accepted" in STATUS_PIPELINE
         assert "Filtered out" in STATUS_PIPELINE
         assert "Interviewing" in STATUS_PIPELINE
+
+    def test_pre_existing_status_preserved_in_export(self):
+        r = make_result(status="Interviewing")
+        assert r["status"] == "Interviewing"
+        wb = run_export([r])
+        ws = wb["Results"]
+        headers = {cell.value: cell.column for cell in ws[1]}
+        status_col = headers.get("Status")
+        assert ws.cell(row=2, column=status_col).value == "Interviewing"
+
+
+# ---------------------------------------------------------------------------
+# export_results.py __main__ guard
+# ---------------------------------------------------------------------------
+
+
+class TestScriptGuard:
+    _export_path = str(
+        Path(__file__).parent.parent.parent / "shared" / "scripts" / "export_results.py"
+    )
+
+    def test_too_few_args_exits_with_error(self):
+        import runpy
+
+        import pytest
+
+        with patch("sys.argv", ["export_results.py"]):
+            with patch("builtins.print"):
+                with pytest.raises(SystemExit) as exc_info:
+                    runpy.run_path(self._export_path, run_name="__main__")
+        assert exc_info.value.code == 1
+
+    def test_runs_export_when_args_provided(self, tmp_path):
+        import runpy
+
+        data = {"run_date": "2026-03-28", "results": []}
+        data_file = tmp_path / "data.json"
+        data_file.write_text(json.dumps(data))
+        output_file = tmp_path / "out.xlsx"
+
+        with patch("sys.argv", ["export_results.py", str(data_file), str(output_file)]):
+            with patch("builtins.print"):
+                runpy.run_path(self._export_path, run_name="__main__")
+        assert output_file.exists()

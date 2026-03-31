@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
 
 from screener import Screener
@@ -390,3 +392,63 @@ class TestRun:
         results, had_drafts = s.run(criteria, gmail, lookback_days=1)
         assert results == []
         assert had_drafts is False
+
+    def test_extra_keywords_applied_to_pass1_query(self):
+        s = make_screener()
+        criteria = {
+            **MINIMAL_CRITERIA,
+            "screened_message_ids": [],
+            "search_settings": {"extra_keywords": ["python", "django"], "extra_exclusions": []},
+        }
+        gmail = self._mock_gmail([], SAMPLE_EMAIL)
+        s.run(criteria, gmail)
+        # Verify search was called (extra_kw branch executed without error)
+        gmail.search.assert_called()
+
+    def test_extra_exclusions_applied_to_pass2_query(self):
+        s = make_screener()
+        criteria = {
+            **MINIMAL_CRITERIA,
+            "screened_message_ids": [],
+            "search_settings": {"extra_keywords": [], "extra_exclusions": ["spam@evil.com"]},
+        }
+        gmail = self._mock_gmail([], SAMPLE_EMAIL)
+        s.run(criteria, gmail)
+        gmail.search.assert_called()
+
+    def test_warns_when_max_results_limit_hit(self, capsys):
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        # Return exactly max_per_pass messages so the limit warning fires
+        gmail = MagicMock()
+        gmail.search.return_value = [{"id": f"m{i}"} for i in range(5)]
+        gmail.get_message.return_value = {}  # empty → skipped
+        s.run(criteria, gmail, max_per_pass=5)
+        captured = capsys.readouterr()
+        assert "limit" in captured.out.lower() or "more" in captured.out.lower()
+
+    def test_skips_empty_message_from_get_message(self):
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = MagicMock()
+        gmail.search.return_value = [{"id": "m1"}]
+        gmail.get_message.return_value = {}  # falsy → continue
+        results, _ = s.run(criteria, gmail)
+        assert results == []
+
+
+# ---------------------------------------------------------------------------
+# ImportError handler (screener.py lines 13–14)
+# ---------------------------------------------------------------------------
+
+
+class TestImportError:
+    def test_raises_helpful_message_when_anthropic_missing(self):
+        import importlib
+
+        import screener as screener_mod
+
+        with patch.dict(sys.modules, {"anthropic": None}):
+            with pytest.raises(ImportError, match="Anthropic SDK not installed"):
+                importlib.reload(screener_mod)
+        importlib.reload(screener_mod)  # restore to working state

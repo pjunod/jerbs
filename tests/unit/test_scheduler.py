@@ -6,7 +6,6 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
@@ -18,16 +17,6 @@ from scheduler import (
     RAPID_INTERVAL_S,
     Scheduler,
 )
-
-
-def make_scheduler(hour: int, tz: str = "America/New_York") -> Scheduler:
-    """Return a Scheduler with is_biz_hours patched to reflect the given hour."""
-    s = Scheduler(biz_start_hour=9, biz_end_hour=17, timezone=tz)
-    mock_dt = datetime(2026, 3, 28, hour, 0, 0, tzinfo=ZoneInfo(tz))
-    with patch("scheduler.datetime") as mock:
-        mock.now.return_value = mock_dt
-        yield s
-
 
 # ---------------------------------------------------------------------------
 # is_biz_hours
