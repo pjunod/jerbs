@@ -85,18 +85,39 @@ jobs:
           print('Smoke test passed.')
           "
 
+      - name: Generate red team test cases
+        # Allowed to fail — merge_prompts.py will fall back to stored baseline
+        # prompts for any plugin category that doesn't meet the minimum threshold.
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Force generation through the local Anthropic provider instead of
+          # the promptfoo.app cloud service (intermittent Cloudflare 524 timeouts).
+          PROMPTFOO_REMOTE_GENERATION: "false"
+        run: |
+          npx --yes promptfoo@latest redteam generate \
+            --config tests/redteam/promptfooconfig.yaml \
+            --no-cache \
+            --output /tmp/redteam-generated.yaml
+
+      - name: Merge generated prompts with baseline fallback
+        # For any plugin with fewer than 5 generated tests, supplements from
+        # the stored baseline so every category always has adequate coverage.
+        run: |
+          python3 tests/redteam/merge_prompts.py \
+            --generated /tmp/redteam-generated.yaml \
+            --baseline  tests/redteam/prompts-baseline.yaml \
+            --output    /tmp/redteam-merged.yaml \
+            --min-per-plugin 5
+
       - name: Run auto-generated red team
         id: redteam
         continue-on-error: true
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Force all attack generation through the local Anthropic provider
-          # (set in promptfooconfig.yaml) instead of the promptfoo.app cloud
-          # service, which has intermittent Cloudflare 524 timeouts.
-          PROMPTFOO_REMOTE_GENERATION: "false"
         run: |
-          promptfoo redteam run \
-            --config tests/redteam/promptfooconfig.yaml \
+          promptfoo eval \
+            --config /tmp/redteam-merged.yaml \
             --no-cache \
             --max-concurrency 7 \
             --output /tmp/redteam-results.json
