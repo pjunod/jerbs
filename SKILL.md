@@ -645,7 +645,15 @@ Key fields:
   "send_mode": { "enabled": false, "enabled_at": "" },
   "correspondence_log_path": "~/.claude/jerbs/correspondence.json",
   "search_settings": { "lookback_days", "max_results_per_pass", "extra_keywords" },
-  "screened_message_ids": []
+  "screened_message_ids": [],
+  "scheduler": {
+    "enabled": false,
+    "biz_hours_start": 9,
+    "biz_hours_end": 17,
+    "timezone": "America/New_York",
+    "rapid_mode_until": null,
+    "cron_jobs": []
+  }
 }
 ```
 
@@ -681,9 +689,15 @@ The correspondence log lives at `correspondence_log_path`. It is a JSON array of
 
 ## Auto-scheduler (optional)
 
-The scheduler widget runs jerbs automatically on a variable cadence. It lives in the
-conversation as a persistent widget and uses JavaScript timers to fire `sendPrompt()`
-with the full screening command.
+jerbs supports two scheduler implementations depending on the environment:
+
+- **Claude Code** — durable cron jobs managed via `CronCreate`/`CronDelete`. Runs as a
+  background agent even when no conversation is open. Dynamic interval switching is handled
+  by the agent itself at the end of each run.
+- **Web / browser** — the `scheduler.html` widget runs in the browser tab and uses
+  JavaScript timers + `MutationObserver` to fire `sendPrompt()`. Requires the tab to be open.
+
+Both implementations share the same interval state machine. Only the mechanism differs.
 
 ### Interval state machine
 
@@ -691,54 +705,84 @@ with the full screening command.
 |---|---|---|
 | Off-hours | 60 min | Outside user-defined business hours |
 | Business hours | 15 min | Within business hours |
-| Rapid response | 5 min | For 30 min after a reply was sent |
+| Rapid response | 5 min | For 30 min after a run generated draft replies |
 
-Rapid mode reverts after 30 minutes with no new replies — back to business hours (15 min)
+Rapid mode reverts after 30 minutes with no new drafts — back to business hours (15 min)
 or off-hours (60 min), whichever applies at that moment.
 
 ### Business hours definition
 User sets: timezone, start hour, end hour. Defaults to 9 AM–5 PM Eastern.
 
-### Automatic rapid mode trigger
-Rapid mode is triggered automatically — no user action required. At the very end of any
-screening response that includes one or more draft replies, Claude MUST include the exact
-token on its own line:
+---
+
+### Claude Code cron scheduler
+
+Cron jobs are created with `CronCreate` (durable: true) and deleted with `CronDelete`.
+Job IDs are persisted in `criteria.json` under `scheduler.cron_jobs` so they can be
+deleted and recreated when the interval needs to change.
+
+#### Scheduler block in criteria.json
+
+```json
+"scheduler": {
+  "enabled": true,
+  "biz_hours_start": 9,
+  "biz_hours_end": 17,
+  "timezone": "America/New_York",
+  "rapid_mode_until": null,
+  "cron_jobs": ["job_id_biz", "job_id_offhours"]
+}
+```
+
+`rapid_mode_until` is an ISO 8601 timestamp or null. When set, it marks when rapid mode
+expires and the schedule should revert to standard intervals.
+
+#### Cron expressions (for 9am–5pm ET defaults)
+
+| State | Expression | Description |
+|---|---|---|
+| Business hours | `*/15 9-16 * * *` | Every 15 min, hours 9–16 (9:00am–4:45pm) |
+| Off-hours | `7 0-8,17-23 * * *` | Every hour at :07, hours 0–8 and 17–23 |
+| Rapid | `*/5 * * * *` | Every 5 min, all hours |
+
+Adapt the hour ranges to match `biz_hours_start` and `biz_hours_end` from criteria.
+
+#### Initial setup
+
+When the user asks to start the Claude Code scheduler:
+
+1. Read `scheduler` block from criteria (or use defaults if absent)
+2. Create two durable cron jobs — business hours + off-hours
+3. Store both IDs in `scheduler.cron_jobs`
+4. Set `scheduler.enabled: true`
+5. Save criteria file
+6. Confirm to the user: cadence, business hours window, timezone
+
+#### Scheduled run prompt
+
+Each cron job fires the following prompt:
 
 ```
-JERBS:RAPID_START
+JERBS_SCHEDULED=true
+
+Run jerbs in automated scheduled mode. Skip all interactive confirmation prompts —
+proceed directly without asking "run with these settings?".
+
+Run both Gmail passes, screen all results, generate draft replies for pass/maybe verdicts,
+and present the full results report. Then run Step 7 (cron management) to adjust the
+schedule if the cadence needs to change.
 ```
 
-Do not explain or annotate this token — just include it silently at the end. The scheduler
-widget watches the conversation via MutationObserver and triggers rapid mode the moment it
-detects the token. This is the only mechanism for rapid mode — there is no manual button.
-
-### What the scheduler sends
-When the timer fires, it sends `sendPrompt()` with the full jerbs screening command
-including all criteria, read-only mode instruction, and the instruction to include
-`JERBS:RAPID_START` if any draft replies were generated.
-
-### Controls
-- Start / Pause — toggle the scheduler on and off
-- Run now — fires an immediate run without resetting the timer
-- I sent a reply — triggers rapid mode manually
-
-### Important note
-The scheduler only runs while the browser tab with this conversation is open. It is not
-a background service — it requires the Claude.ai tab to be active.
+When `JERBS_SCHEDULED=true` is present: skip the Step 2 confirmation prompt entirely and
+proceed directly to Step 2.5. All other steps run normally.
 
 ---
 
-## Scheduler widget
+### Browser scheduler widget
 
 The scheduler is bundled at `assets/scheduler.html`. Display it using the `show_widget`
-tool (read the file contents and pass as `widget_code`) whenever the user asks to:
-- "start the scheduler"
-- "automate jerbs"
-- "run jerbs automatically"
-- "set up the scheduler"
-- or any similar phrasing
-
-### How to render it
+tool (read the file contents and pass as `widget_code`) whenever the user asks to start
+the scheduler **and Claude Code cron is not available**.
 
 ```python
 with open("assets/scheduler.html") as f:
@@ -749,20 +793,71 @@ with open("assets/scheduler.html") as f:
 The widget is self-contained — it handles all timer logic, business hours detection,
 mode switching, and automatic rapid mode via MutationObserver. No additional setup needed.
 
-### Rapid mode token
+### Rapid mode token (browser only)
 
-When a screening run generates draft replies, Claude MUST include this token on its own
-line at the very end of the response:
+When a screening run generates draft replies **in browser mode**, Claude MUST include this
+token on its own line at the very end of the response:
 
 ```
 JERBS:RAPID_START
 ```
 
-The widget's MutationObserver detects this token and triggers rapid mode (5 min × 30 min)
-automatically. Do not explain the token — just include it silently when drafts were generated.
+The widget's MutationObserver detects this token and triggers rapid mode automatically.
+Do not explain the token — include it silently when drafts were generated.
 
-### Widget persistence
+In Claude Code mode, rapid mode is managed by Step 7 cron management instead — do NOT
+emit this token.
 
-The widget runs only while the browser tab is open. Inform the user of this if they ask
-about true background automation — the Claude Code local daemon version is the answer for
-always-on operation without a browser.
+### Important note (browser)
+The widget only runs while the browser tab is open. It is not a background service.
+
+---
+
+---
+
+## Step 7 — Cron management (Claude Code only)
+
+**Only runs during automated scheduled runs** (`JERBS_SCHEDULED=true` in the prompt).
+Skip entirely during interactive sessions.
+
+At the end of every automated run, evaluate whether the cron schedule needs to change.
+Read `scheduler` from `criteria.json` for current state.
+
+### Decision logic
+
+**1. Check rapid mode expiry**
+If `rapid_mode_until` is set and the current time is past it:
+- Delete all job IDs in `scheduler.cron_jobs` via `CronDelete`
+- Recreate business-hours + off-hours crons (durable: true)
+- Store new IDs in `scheduler.cron_jobs`
+- Set `rapid_mode_until` to null
+- Save criteria file
+- Log: "Rapid mode expired — reverted to standard schedule"
+
+**2. Check if this run generated draft replies**
+If one or more draft replies were generated AND `rapid_mode_until` is null (not already rapid):
+- Delete all job IDs in `scheduler.cron_jobs` via `CronDelete`
+- Create a single rapid-mode cron: `*/5 * * * *` (durable: true)
+- Store new ID in `scheduler.cron_jobs`
+- Set `rapid_mode_until` to now + 30 minutes (ISO 8601)
+- Save criteria file
+- Log: "Rapid mode activated — 5-min cadence for 30 min"
+
+**3. Otherwise**
+No change needed. Do not touch the cron jobs. Save nothing.
+
+### Cron prompt template
+
+When creating business-hours or off-hours crons, use this prompt (substituting the
+scheduled run prompt from the auto-scheduler section):
+
+```
+JERBS_SCHEDULED=true
+
+Run jerbs in automated scheduled mode. Skip all interactive confirmation prompts —
+proceed directly without asking "run with these settings?".
+
+Run both Gmail passes, screen all results, generate draft replies for pass/maybe verdicts,
+and present the full results report. Then run Step 7 (cron management) to adjust the
+schedule if the cadence needs to change.
+```
