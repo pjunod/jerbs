@@ -7,11 +7,11 @@ Ordered by impact. Mark items with `[x]` when complete.
 
 ## High Impact
 
-- [ ] **Prompt caching** — Add `cache_control: ephemeral` to system prompt in `screener.py`. Cuts 75%+ of input token cost on multi-email runs. 2-line change.
+- [x] **Prompt caching** — Add `cache_control: ephemeral` to system prompt in `screener.py`. Cuts 75%+ of input token cost on multi-email runs. 2-line change. _(pjunod/jerbs#30)_
 
-- [ ] **Tool use for output** — Replace `json.loads()` string parsing in `screener.py` with Claude's native tool use / function calling. Eliminates all parse failures; lets you remove the JSON spec block from the system prompt (~15 lines saved per call).
+- [x] **Tool use for output** — Replace `json.loads()` string parsing in `screener.py` with Claude's native tool use / function calling. Eliminates all parse failures; lets you remove the JSON spec block from the system prompt (~15 lines saved per call). _(pjunod/jerbs#30)_
 
-- [ ] **SKILL.md bloat cleanup** — Remove duplicate schema sections (criteria + correspondence log each appear twice), merge duplicate scheduler/widget docs, condense setup wizard Q&A from scripted dialogue to a compact field list. Estimated savings: ~175 lines (~15-20% of file).
+- [x] **SKILL.md bloat cleanup** — Remove duplicate schema sections (criteria + correspondence log each appear twice), merge duplicate scheduler/widget docs, condense setup wizard Q&A from scripted dialogue to a compact field list. ~175 lines removed (~15-20% of file). _(pjunod/jerbs#31)_
 
 - [ ] **Model tiering** — Use Haiku for clear-fail fast-path screening, Sonnet only for pass/maybe verdicts requiring real judgment. Most Pass 2 spam can be rejected by Haiku in milliseconds for pennies.
 
