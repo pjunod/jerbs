@@ -57,6 +57,62 @@ class Screener:
     def __init__(self, api_key: str | None = None):
         self.client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
         self.model = "claude-sonnet-4-20250514"
+        self._prompt_cache: str | None = None
+        self._criteria_hash: str | None = None
+
+    def _get_prompt(self, criteria: dict) -> str:
+        """Return cached system prompt, rebuilding only when criteria changes."""
+        import hashlib
+        import json
+
+        h = hashlib.md5(json.dumps(criteria, sort_keys=True).encode()).hexdigest()[:8]
+        if h != self._criteria_hash:
+            self._prompt_cache = self._build_prompt(criteria)
+            self._criteria_hash = h
+        return self._prompt_cache  # type: ignore[return-value]
+
+    def _build_pass1_query(self, criteria: dict, lookback_days: int) -> str:
+        """Build Gmail query for job alert digest emails (LinkedIn, Indeed, etc.)."""
+        base_keywords = ["opportunity", "role", "position", "opening", "hiring"]
+        extra = criteria.get("search_settings", {}).get("extra_keywords", [])
+        kw_clause = " OR ".join(base_keywords + extra)
+        sources = "linkedin.com OR jobalerts.indeed.com OR indeedemail.com"
+        return f"(subject:({kw_clause}) OR from:({sources})) newer_than:{lookback_days}d"
+
+    def _build_pass2_query(self, criteria: dict, lookback_days: int) -> str:
+        """Build Gmail query for direct recruiter outreach emails."""
+        exclusions = [
+            "-from:linkedin.com",
+            "-from:jobalerts.indeed.com",
+            "-from:indeedemail.com",
+            "-from:noreply",
+            "-from:no-reply",
+        ]
+        for ex in criteria.get("search_settings", {}).get("extra_exclusions", []):
+            exclusions.append(f"-from:{ex}")
+        excl_str = " ".join(exclusions)
+
+        subject_kw = [
+            "opportunity",
+            "role",
+            "position",
+            "opening",
+            "hiring",
+            '"reaching out"',
+            '"your background"',
+            '"your profile"',
+            '"came across"',
+        ]
+        body_phrases = [
+            '"your experience"',
+            '"came across your profile"',
+            '"reaching out"',
+            '"great fit"',
+            '"perfect fit"',
+        ]
+        subj_str = " OR ".join(subject_kw)
+        body_str = " OR ".join(body_phrases)
+        return f"newer_than:{lookback_days}d {excl_str} (subject:({subj_str}) OR ({body_str}))"
 
     def run(
         self,
@@ -74,33 +130,11 @@ class Screener:
         screened_ids = {e["id"] if isinstance(e, dict) else e for e in raw_ids}
         results = []
         had_drafts = False
-        prompt = self._build_prompt(criteria)
-
-        pass1_query = (
-            f"(subject:(opportunity OR role OR position OR opening OR hiring) OR "
-            f"from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com)) "
-            f"newer_than:{lookback_days}d"
-        )
-        pass2_query = (
-            f"newer_than:{lookback_days}d -from:linkedin.com -from:jobalerts.indeed.com "
-            f"-from:indeedemail.com -from:noreply -from:no-reply "
-            f"(subject:(opportunity OR role OR position OR opening OR hiring OR "
-            f'"reaching out" OR "your background" OR "your profile" OR "came across") OR '
-            f'("your experience" OR "came across your profile" OR "reaching out" OR '
-            f'"great fit" OR "perfect fit"))'
-        )
-
-        extra_kw = criteria.get("search_settings", {}).get("extra_keywords", [])
-        if extra_kw:
-            pass1_query = pass1_query.replace("newer_than:", " OR ".join(extra_kw) + " newer_than:")
-
-        extra_ex = criteria.get("search_settings", {}).get("extra_exclusions", [])
-        for ex in extra_ex:
-            pass2_query += f" -from:{ex}"
+        prompt = self._get_prompt(criteria)
 
         for pass_num, query, source_label in [
-            (1, pass1_query, "LinkedIn Alert"),
-            (2, pass2_query, "Direct Outreach"),
+            (1, self._build_pass1_query(criteria, lookback_days), "LinkedIn Alert"),
+            (2, self._build_pass2_query(criteria, lookback_days), "Direct Outreach"),
         ]:
             messages = gmail.search(query, max_results=max_per_pass)
             new_msgs = [m for m in messages if m["id"] not in screened_ids]
