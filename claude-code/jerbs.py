@@ -58,8 +58,11 @@ def log(msg: str, path: Path = LOG_PATH):
 
 
 def _log_result(
-    result: dict, gmail: GmailClient, criteria: dict,
-    send_mode: bool, linkedin=None,
+    result: dict,
+    gmail: GmailClient,
+    criteria: dict,
+    send_mode: bool,
+    linkedin=None,
 ):
     """Log a single screening result and optionally send a draft reply."""
     verdict = result["verdict"]
@@ -251,9 +254,7 @@ def main():
     parser.add_argument(
         "--send", action="store_true", help="Auto-send draft replies (use carefully)"
     )
-    parser.add_argument(
-        "--linkedin", action="store_true", help="Include LinkedIn DM screening"
-    )
+    parser.add_argument("--linkedin", action="store_true", help="Include LinkedIn DM screening")
     parser.add_argument("--criteria", default=str(CRITERIA_PATH), help="Path to criteria JSON file")
     args = parser.parse_args()
 
@@ -282,11 +283,14 @@ def main():
         try:
             from linkedin_client import LinkedInClient
 
-            lookback = 7 if not criteria.get("screened_message_ids") else (
-                criteria.get("search_settings", {}).get("lookback_days", 1)
+            lookback = (
+                7
+                if not criteria.get("screened_message_ids")
+                else (criteria.get("search_settings", {}).get("lookback_days", 1))
             )
             linkedin = LinkedInClient(
-                send_mode=args.send, lookback_days=lookback,
+                send_mode=args.send,
+                lookback_days=lookback,
             )
             log("LinkedIn DM screening enabled.")
         except ImportError:
@@ -296,9 +300,13 @@ def main():
 
     if args.once:
         run_screen(
-            criteria, gmail, screener,
-            send_mode=args.send, export=args.export,
-            interactive=True, linkedin=linkedin,
+            criteria,
+            gmail,
+            screener,
+            send_mode=args.send,
+            export=args.export,
+            interactive=True,
+            linkedin=linkedin,
         )
         return
 
@@ -331,8 +339,11 @@ def main():
 
         criteria = load_criteria(criteria_path)
         had_drafts = run_screen(
-            criteria, gmail, screener,
-            send_mode=args.send, export=args.export,
+            criteria,
+            gmail,
+            screener,
+            send_mode=args.send,
+            export=args.export,
             linkedin=linkedin,
         )
 

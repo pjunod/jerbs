@@ -1,24 +1,26 @@
 ---
 name: jerbs
 description: >
-  Screens job-related emails in Gmail against a candidate's personal criteria and drafts
-  follow-up replies for anything worth pursuing. Use this skill whenever a user wants to
-  filter recruiter emails, screen job opportunities, triage job alert digests, evaluate
-  inbound recruiter outreach, or automate any part of the applicant-side hiring process.
-  Also use when the user says things like "check my job emails", "screen my recruiter
-  emails", "what job leads came in this week", "run my job screener", "set up my job
-  screener", or "update my screening criteria". Requires Gmail to be connected. Runs two
-  passes automatically (job alert digests + direct outreach) and combines results into one
-  report. Optionally exports results to a formatted .xlsx / Google Sheets file with a
-  built-in pipeline status tracker.
-compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_read_thread). Requires gmail_send_message when send mode is enabled. Never use gmail_create_draft or take any write action on emails unless the user has explicitly enabled send mode."
+  Screens job-related emails in Gmail and LinkedIn DMs against a candidate's personal
+  criteria and drafts follow-up replies for anything worth pursuing. Use this skill whenever
+  a user wants to filter recruiter emails, screen job opportunities, triage job alert
+  digests, evaluate inbound recruiter outreach, screen LinkedIn messages, or automate any
+  part of the applicant-side hiring process. Also use when the user says things like "check
+  my job emails", "screen my recruiter emails", "what job leads came in this week", "run my
+  job screener", "set up my job screener", "check my LinkedIn messages", or "update my
+  screening criteria". Requires Gmail to be connected. Optionally screens LinkedIn DMs if
+  the LinkedIn MCP is connected. Runs up to three passes automatically (job alert digests +
+  direct outreach + LinkedIn DMs) and combines results into one report. Optionally exports
+  results to a formatted .xlsx / Google Sheets file with a built-in pipeline status tracker.
+compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_read_thread). Requires gmail_send_message when send mode is enabled. LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_create_draft or take any write action on emails unless the user has explicitly enabled send mode."
 ---
 
 # Job Email Screener
 
 A fully configurable job email screener that works for any role, industry, and experience
-level. Screens Gmail in two passes, applies the user's criteria, surfaces draft replies,
-and optionally exports results to a spreadsheet pipeline tracker.
+level. Screens Gmail in two passes (plus an optional LinkedIn DM pass), applies the user's
+criteria, surfaces draft replies, and optionally exports results to a spreadsheet pipeline
+tracker.
 
 Supports two modes:
 - **Dry-run (default)** — replies are generated as copy-paste text; nothing is sent
@@ -170,6 +172,7 @@ examples. Skip sections that clearly don't apply (e.g. tech/stack for non-engine
 - **1h Interview process** *(optional):* max_rounds, no_unpaid_takehome, other_dealbreakers[]
 - **1i Reply settings:** tone, signature
 - **1j Search settings:** extra_keywords[], extra_exclusions[]
+- **1k LinkedIn (optional):** If the LinkedIn MCP is connected, ask if the user wants to enable LinkedIn DM screening. If yes, cookies are configured via the setup wizard in the daemon or via MCP connection in Claude Code/Claude.ai.
 
 Do NOT ask about lookback window or max results — set automatically from run history (Step 3).
 
@@ -190,6 +193,7 @@ At the start of every screening run, print a concise summary so the user can ver
    Dealbreakers: [list]
    Required info: [list]
    Looking back: [N] days  |  Max per pass: [N]
+   LinkedIn DMs: [enabled / not connected]
 
 ⚡ SEND MODE: ON  — replies will be sent automatically and logged
         — OR —
@@ -222,7 +226,7 @@ If there are no open threads, skip this section entirely — don't mention it.
 
 ---
 
-## Step 3 — Run two Gmail passes
+## Step 3 — Run screening passes
 
 ### Search window and result limits
 
@@ -275,6 +279,22 @@ Apply the "generic mass email" dealbreaker here: no name, boilerplate, no refere
 specific background = hard fail.
 
 Skip any message IDs already in `screened_message_ids`.
+
+### Pass 3 — LinkedIn DMs (optional)
+
+If the LinkedIn MCP is connected (`linkedin_search_messages`, `linkedin_read_message` available), run a third pass:
+
+1. Use `linkedin_search_messages` with `lookback_days` matching the search window
+2. Skip any message IDs already in `screened_message_ids`
+3. For each new message, use `linkedin_read_message` to get the full content
+4. LinkedIn DMs have no real subject line — the "subject" is synthesized from the sender name and first line of the message
+5. Apply the same screening criteria as Pass 2 (direct outreach). The "generic mass email" dealbreaker applies — generic InMail templates with no personalization are a hard fail
+
+For replies in LinkedIn:
+- **Dry-run mode:** Show the reply as copy-paste text, labelled "📋 Draft LinkedIn reply (copy and send manually):"
+- **Send mode:** Use `linkedin_send_message` to reply in the conversation thread. Log to correspondence log with source "linkedin".
+
+If the LinkedIn MCP is not connected, skip Pass 3 silently — do not prompt the user to connect it.
 
 After screening, add all newly screened message IDs to `screened_message_ids`, set
 `last_run_date` to today, and save the criteria file.
@@ -384,7 +404,22 @@ JOB ALERT LISTINGS (Pass 1)
 DIRECT OUTREACH (Pass 2)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LINKEDIN DMs (Pass 3)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🟢 INTERESTED
+...
+
+🟡 MAYBE
+...
+
+🔴 FILTERED OUT
+...
 ```
+
+If Pass 3 was skipped (LinkedIn MCP not connected), omit the section entirely.
 
 For each result include:
 - Company + role + location

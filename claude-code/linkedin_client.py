@@ -13,7 +13,6 @@ Cookies are saved to ~/.jerbs/linkedin_cookies.json.
 """
 
 import json
-import time
 from datetime import UTC, datetime, timedelta
 from email.utils import formatdate
 from pathlib import Path
@@ -21,9 +20,7 @@ from pathlib import Path
 try:
     from linkedin_api import Linkedin
 except ImportError as e:
-    raise ImportError(
-        "linkedin-api not installed. Run:\n  pip install linkedin-api"
-    ) from e
+    raise ImportError("linkedin-api not installed. Run:\n  pip install linkedin-api") from e
 
 COOKIES_PATH = Path.home() / ".jerbs" / "linkedin_cookies.json"
 
@@ -141,9 +138,7 @@ class LinkedInClient:
 
         # Extract message body
         msg_event = event.get("eventContent", {})
-        msg_body_data = msg_event.get(
-            "com.linkedin.voyager.messaging.event.MessageEvent", {}
-        )
+        msg_body_data = msg_event.get("com.linkedin.voyager.messaging.event.MessageEvent", {})
         body = msg_body_data.get("attributedBody", {}).get("text", "")
 
         # Synthesize a pseudo-subject from sender + first line
@@ -181,9 +176,7 @@ class LinkedInClient:
         if signature:
             full_body += f"\n\n{signature}"
 
-        err = self.api.send_message(
-            message_body=full_body, conversation_urn_id=thread_id
-        )
+        err = self.api.send_message(message_body=full_body, conversation_urn_id=thread_id)
         if err:
             raise RuntimeError(f"LinkedIn send_message failed for conversation {thread_id}")
 

@@ -1103,9 +1103,7 @@ class TestLinkedInRouting:
 
     def test_linkedin_dm_routes_to_linkedin_client(self):
         """When source is 'LinkedIn DM', _send_draft should receive the linkedin client."""
-        result = self._base_result(
-            "pass", reply_draft="Hi!", thread_id="t1", source="LinkedIn DM"
-        )
+        result = self._base_result("pass", reply_draft="Hi!", thread_id="t1", source="LinkedIn DM")
         gmail = self._make_gmail()
         linkedin = self._make_linkedin()
         with (
@@ -1134,9 +1132,7 @@ class TestLinkedInRouting:
 
     def test_linkedin_dm_without_linkedin_client_falls_back_to_gmail(self):
         """When source is 'LinkedIn DM' but linkedin=None, routes to gmail."""
-        result = self._base_result(
-            "pass", reply_draft="Hi!", thread_id="t1", source="LinkedIn DM"
-        )
+        result = self._base_result("pass", reply_draft="Hi!", thread_id="t1", source="LinkedIn DM")
         gmail = self._make_gmail()
         with (
             patch("jerbs.log"),
@@ -1153,6 +1149,4 @@ class TestLinkedInRouting:
         criteria = {"reply_settings": {"signature": "Alex"}}
         with patch("jerbs.log"):
             jerbs._send_draft(client, result, criteria)
-        client.send_reply.assert_called_once_with(
-            thread_id="t1", body="Hi!", signature="Alex"
-        )
+        client.send_reply.assert_called_once_with(thread_id="t1", body="Hi!", signature="Alex")

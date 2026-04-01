@@ -1228,9 +1228,7 @@ class TestLinkedInPass:
             "missing_fields": [],
             "reply_draft": None,
         }
-        with patch.object(
-            s.client.messages, "create", return_value=mock_api_response(api_result)
-        ):
+        with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
             results, _ = s.run(criteria, gmail, linkedin=linkedin)
 
         li_results = [r for r in results if r["source"] == "LinkedIn DM"]

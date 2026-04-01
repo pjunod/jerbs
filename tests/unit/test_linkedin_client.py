@@ -6,7 +6,6 @@ linkedin-api is stubbed as a MagicMock via conftest.py.
 
 import json
 import sys
-import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -15,8 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
 
-import linkedin_client
-from linkedin_client import COOKIES_PATH, LinkedInClient
+from linkedin_client import LinkedInClient
 
 
 def make_client(send_mode: bool = False, lookback_days: int = 7) -> LinkedInClient:
@@ -31,8 +29,12 @@ def _epoch_ms(days_ago: int = 0) -> int:
     return int(dt.timestamp() * 1000)
 
 
-def _make_conversation(conv_id: str, days_ago: int = 0, sender: str = "Jane Doe",
-                       body: str = "Hi, I have a great role for you") -> dict:
+def _make_conversation(
+    conv_id: str,
+    days_ago: int = 0,
+    sender: str = "Jane Doe",
+    body: str = "Hi, I have a great role for you",
+) -> dict:
     """Build a synthetic LinkedIn conversation element."""
     event_urn = f"urn:li:fs_event:({conv_id},1234)"
     return {
@@ -61,8 +63,12 @@ def _make_conversation(conv_id: str, days_ago: int = 0, sender: str = "Jane Doe"
     }
 
 
-def _make_conversation_events(conv_id: str, days_ago: int = 0, sender: str = "Jane Doe",
-                              body: str = "Hi, I have a great role for you") -> dict:
+def _make_conversation_events(
+    conv_id: str,
+    days_ago: int = 0,
+    sender: str = "Jane Doe",
+    body: str = "Hi, I have a great role for you",
+) -> dict:
     """Build the response from get_conversation() (message events)."""
     return {
         "elements": [
@@ -178,9 +184,7 @@ class TestSearch:
     def test_max_results_limits_count(self):
         c = make_client(lookback_days=30)
         c.api.get_conversations.return_value = {
-            "elements": [
-                _make_conversation(f"conv{i}", days_ago=i) for i in range(10)
-            ]
+            "elements": [_make_conversation(f"conv{i}", days_ago=i) for i in range(10)]
         }
         results = c.search("", max_results=3)
         assert len(results) == 3
@@ -226,9 +230,7 @@ class TestGetMessage:
 
     def test_accepts_plain_conversation_id(self):
         c = make_client()
-        c.api.get_conversation.return_value = _make_conversation_events(
-            "conv1", body="Hello"
-        )
+        c.api.get_conversation.return_value = _make_conversation_events("conv1", body="Hello")
         result = c.get_message("conv1")
         assert result["threadId"] == "conv1"
         c.api.get_conversation.assert_called_with("conv1")
@@ -246,18 +248,14 @@ class TestGetMessage:
     def test_body_truncated_at_2000_chars(self):
         c = make_client()
         long_body = "x" * 3000
-        c.api.get_conversation.return_value = _make_conversation_events(
-            "conv1", body=long_body
-        )
+        c.api.get_conversation.return_value = _make_conversation_events("conv1", body=long_body)
         result = c.get_message("conv1")
         assert len(result["body"]) == 2000
 
     def test_snippet_truncated_at_200_chars(self):
         c = make_client()
         long_body = "y" * 500
-        c.api.get_conversation.return_value = _make_conversation_events(
-            "conv1", body=long_body
-        )
+        c.api.get_conversation.return_value = _make_conversation_events("conv1", body=long_body)
         result = c.get_message("conv1")
         assert len(result["snippet"]) == 200
 
@@ -270,8 +268,9 @@ class TestGetMessage:
 class TestNormalizeEvent:
     def test_synthesizes_subject_from_sender_and_body(self):
         c = make_client()
-        event = _make_conversation_events("conv1", sender="Alice Smith",
-                                          body="Exciting opportunity at TechCo")["elements"][0]
+        event = _make_conversation_events(
+            "conv1", sender="Alice Smith", body="Exciting opportunity at TechCo"
+        )["elements"][0]
         result = c._normalize_event(event, "conv1", "msg1")
         assert result["subject"] == "Alice Smith -- Exciting opportunity at TechCo"
 
