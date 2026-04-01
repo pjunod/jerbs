@@ -745,3 +745,396 @@ class TestImportError:
             with pytest.raises(ImportError, match="Anthropic SDK not installed"):
                 importlib.reload(screener_mod)
         importlib.reload(screener_mod)  # restore to working state
+
+
+# ---------------------------------------------------------------------------
+# on_result callback (run real-time path, screener.py line 189)
+# ---------------------------------------------------------------------------
+
+
+class TestOnResultCallback:
+    def _mock_gmail(self, messages, email):
+        gmail = MagicMock()
+        gmail.search.return_value = messages
+        gmail.get_message.return_value = email
+        return gmail
+
+    def test_on_result_called_for_each_screened_email(self):
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = self._mock_gmail([{"id": "msg001"}], SAMPLE_EMAIL)
+        api_result = {
+            "company": "TechCorp",
+            "role": "Staff Engineer",
+            "location": "Remote",
+            "verdict": "pass",
+            "reason": "Clears criteria.",
+            "dealbreaker_triggered": None,
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
+        }
+        collected = []
+        with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
+            s.run(criteria, gmail, on_result=lambda r: collected.append(r))
+        # Two passes each with one new message → two calls
+        assert len(collected) == 2
+        assert all(r["company"] == "TechCorp" for r in collected)
+
+    def test_on_result_not_called_when_none(self):
+        """Passing on_result=None should not raise and run normally."""
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = self._mock_gmail([{"id": "msg001"}], SAMPLE_EMAIL)
+        api_result = {
+            "verdict": "fail",
+            "reason": "Bad fit.",
+            "dealbreaker_triggered": "Junior",
+            "company": "",
+            "role": "",
+            "location": "",
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
+        }
+        with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
+            results, _ = s.run(criteria, gmail, on_result=None)
+        assert isinstance(results, list)
+
+
+# ---------------------------------------------------------------------------
+# _screen_batch (screener.py lines 308–355)
+# ---------------------------------------------------------------------------
+
+
+def _make_batch_result_item(custom_id: str, tool_input: dict):
+    """Build a mock batch result item that looks like the Anthropic SDK's BatchResult."""
+    tool_block = MagicMock()
+    tool_block.type = "tool_use"
+    tool_block.input = tool_input
+
+    inner = MagicMock()
+    inner.type = "succeeded"
+    inner.message = MagicMock()
+    inner.message.content = [tool_block]
+
+    item = MagicMock()
+    item.custom_id = custom_id
+    item.result = inner
+    return item
+
+
+def _make_failed_batch_item(custom_id: str):
+    item = MagicMock()
+    item.custom_id = custom_id
+    item.result = MagicMock()
+    item.result.type = "errored"
+    return item
+
+
+class TestScreenBatch:
+    def _msgs(self, n: int) -> list[dict]:
+        return [
+            {
+                "id": f"msg{i}",
+                "threadId": f"t{i}",
+                "subject": f"Role {i}",
+                "from": f"r{i}@co.com",
+                "date": "2026-03-28",
+                "body": "Hi, interested?",
+                "_source": "Direct Outreach",
+                "_pass_num": 2,
+            }
+            for i in range(n)
+        ]
+
+    def _haiku_fail(self) -> dict:
+        return {
+            "verdict": "fail",
+            "reason": "Bad fit.",
+            "dealbreaker_triggered": "Junior",
+            "company": "BadCo",
+            "role": "Junior Dev",
+            "location": "Onsite",
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
+        }
+
+    def _pass_result(self) -> dict:
+        return {
+            "verdict": "pass",
+            "reason": "Great fit.",
+            "dealbreaker_triggered": None,
+            "company": "GoodCo",
+            "role": "Staff Engineer",
+            "location": "Remote",
+            "comp_assessment": "Strong.",
+            "missing_fields": [],
+            "reply_draft": "Hi,\n\nAlex",
+        }
+
+    def test_all_haiku_fails_no_sonnet_batch(self):
+        """When every Haiku verdict is fail, no Sonnet batch should be submitted."""
+        s = make_screener()
+        msgs = self._msgs(2)
+        fail = self._haiku_fail()
+
+        haiku_items = [_make_batch_result_item(f"h{i}", fail) for i in range(2)]
+        mock_batch = MagicMock()
+        mock_batch.id = "batch-haiku"
+        mock_batch.processing_status = "ended"
+
+        with (
+            patch.object(s.client.messages.batches, "create", return_value=mock_batch) as mock_create,
+            patch.object(s.client.messages.batches, "retrieve", return_value=mock_batch),
+            patch.object(s.client.messages.batches, "results", return_value=iter(haiku_items)),
+        ):
+            results = s._screen_batch(msgs, "prompt")
+
+        # Only one batch (Haiku); Sonnet never submitted
+        mock_create.assert_called_once()
+        assert len(results) == 2
+        assert all(r["verdict"] == "fail" for r in results)
+
+    def test_pass_verdict_triggers_sonnet_batch(self):
+        """pass/maybe Haiku verdicts escalate to a second Sonnet batch."""
+        s = make_screener()
+        msgs = self._msgs(2)
+        haiku_pass = self._pass_result()
+        sonnet_pass = {**self._pass_result(), "company": "SonnetCo"}
+
+        haiku_items = [_make_batch_result_item(f"h{i}", haiku_pass) for i in range(2)]
+        sonnet_items = [_make_batch_result_item(f"s{i}", sonnet_pass) for i in range(2)]
+
+        haiku_batch = MagicMock()
+        haiku_batch.id = "batch-haiku"
+        haiku_batch.processing_status = "ended"
+        sonnet_batch = MagicMock()
+        sonnet_batch.id = "batch-sonnet"
+        sonnet_batch.processing_status = "ended"
+
+        create_calls = [haiku_batch, sonnet_batch]
+        retrieve_map = {"batch-haiku": haiku_batch, "batch-sonnet": sonnet_batch}
+        results_map = {"batch-haiku": iter(haiku_items), "batch-sonnet": iter(sonnet_items)}
+
+        with (
+            patch.object(s.client.messages.batches, "create", side_effect=create_calls),
+            patch.object(
+                s.client.messages.batches,
+                "retrieve",
+                side_effect=lambda bid: retrieve_map[bid],
+            ),
+            patch.object(
+                s.client.messages.batches,
+                "results",
+                side_effect=lambda bid: results_map[bid],
+            ),
+        ):
+            results = s._screen_batch(msgs, "prompt")
+
+        assert len(results) == 2
+        assert all(r["company"] == "SonnetCo" for r in results)
+
+    def test_failed_batch_item_returns_none_verdict(self):
+        """A batch item with result.type != 'succeeded' yields an empty parsed dict."""
+        s = make_screener()
+        msgs = self._msgs(1)
+        failed_item = _make_failed_batch_item("h0")
+
+        batch = MagicMock()
+        batch.id = "batch-haiku"
+        batch.processing_status = "ended"
+
+        with (
+            patch.object(s.client.messages.batches, "create", return_value=batch),
+            patch.object(s.client.messages.batches, "retrieve", return_value=batch),
+            patch.object(s.client.messages.batches, "results", return_value=iter([failed_item])),
+        ):
+            results = s._screen_batch(msgs, "prompt")
+
+        assert len(results) == 1
+        # verdict falls back to empty parsed dict → "maybe" default
+        assert results[0]["verdict"] == "maybe"
+
+
+# ---------------------------------------------------------------------------
+# _wait_for_batch — polling loop (screener.py lines 359–377)
+# ---------------------------------------------------------------------------
+
+
+class TestWaitForBatch:
+    def test_polls_until_ended(self):
+        """retrieve is called repeatedly until processing_status == 'ended'."""
+        s = make_screener()
+
+        pending = MagicMock()
+        pending.processing_status = "in_progress"
+        ended = MagicMock()
+        ended.processing_status = "ended"
+
+        tool_input = {"verdict": "pass", "reason": "ok", "missing_fields": []}
+        item = _make_batch_result_item("c0", tool_input)
+
+        with (
+            patch.object(
+                s.client.messages.batches,
+                "retrieve",
+                side_effect=[pending, ended],
+            ),
+            patch.object(s.client.messages.batches, "results", return_value=iter([item])),
+            patch("screener.time.sleep"),
+        ):
+            result = s._wait_for_batch("batch-abc", poll_interval=1)
+
+        assert result == {"c0": tool_input}
+
+    def test_returns_none_for_failed_items(self):
+        s = make_screener()
+        ended = MagicMock()
+        ended.processing_status = "ended"
+        failed = _make_failed_batch_item("c0")
+
+        with (
+            patch.object(s.client.messages.batches, "retrieve", return_value=ended),
+            patch.object(s.client.messages.batches, "results", return_value=iter([failed])),
+        ):
+            result = s._wait_for_batch("batch-xyz")
+
+        assert result == {"c0": None}
+
+    def test_returns_none_when_no_tool_block(self):
+        """A succeeded item with no tool_use block yields None."""
+        s = make_screener()
+        ended = MagicMock()
+        ended.processing_status = "ended"
+
+        item = MagicMock()
+        item.custom_id = "c0"
+        item.result = MagicMock()
+        item.result.type = "succeeded"
+        item.result.message = MagicMock()
+        item.result.message.content = []  # no tool_use block
+
+        with (
+            patch.object(s.client.messages.batches, "retrieve", return_value=ended),
+            patch.object(s.client.messages.batches, "results", return_value=iter([item])),
+        ):
+            result = s._wait_for_batch("batch-xyz")
+
+        assert result == {"c0": None}
+
+
+# ---------------------------------------------------------------------------
+# use_batch path in run() (screener.py lines 172–177)
+# ---------------------------------------------------------------------------
+
+
+class TestRunBatchPath:
+    def _mock_gmail(self, n: int) -> MagicMock:
+        msgs = [{"id": f"m{i}"} for i in range(n)]
+        email = {
+            "id": "m0",
+            "threadId": "t0",
+            "subject": "Role",
+            "from": "r@co.com",
+            "date": "2026-03-28",
+            "body": "Hi",
+        }
+        gmail = MagicMock()
+        gmail.search.return_value = msgs
+        gmail.get_message.return_value = email
+        return gmail
+
+    def test_batch_path_taken_when_use_batch_and_above_threshold(self):
+        from screener import _BATCH_THRESHOLD
+
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = self._mock_gmail(_BATCH_THRESHOLD + 1)
+
+        batch_result = {
+            "verdict": "fail",
+            "reason": "No.",
+            "dealbreaker_triggered": "x",
+            "company": "",
+            "role": "",
+            "location": "",
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
+            "message_id": "m0",
+        }
+
+        with patch.object(s, "_screen_batch", return_value=[batch_result] * (_BATCH_THRESHOLD + 1)) as mock_batch, \
+             patch.object(s, "_screen_one") as mock_rt:
+            results, _ = s.run(criteria, gmail, use_batch=True)
+
+        mock_batch.assert_called_once()
+        mock_rt.assert_not_called()
+
+    def test_realtime_path_taken_when_use_batch_false(self):
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = self._mock_gmail(1)
+
+        fail_result = {
+            "verdict": "fail",
+            "reason": "No.",
+            "dealbreaker_triggered": "x",
+            "company": "",
+            "role": "",
+            "location": "",
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
+        }
+
+        with patch.object(s, "_screen_batch") as mock_batch, \
+             patch.object(s, "_screen_one", return_value={**fail_result, "source": "LinkedIn Alert", "message_id": "m0", "thread_id": "t0", "subject": "Role", "from": "r@co.com", "email_date": "2026-03-28"}) as mock_rt:
+            s.run(criteria, gmail, use_batch=False)
+
+        mock_batch.assert_not_called()
+        mock_rt.assert_called()
+
+    def test_realtime_path_when_below_threshold(self):
+        """Even with use_batch=True, fewer than threshold emails use real-time path."""
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = self._mock_gmail(1)  # below threshold
+
+        with patch.object(s, "_screen_batch") as mock_batch, \
+             patch.object(s, "_screen_one", return_value=None):
+            s.run(criteria, gmail, use_batch=True)
+
+        mock_batch.assert_not_called()
+
+    def test_had_drafts_true_in_batch_path(self):
+        from screener import _BATCH_THRESHOLD
+
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = self._mock_gmail(_BATCH_THRESHOLD + 1)
+
+        draft_result = {
+            "verdict": "pass",
+            "reason": "Great.",
+            "dealbreaker_triggered": None,
+            "company": "Co",
+            "role": "SWE",
+            "location": "Remote",
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": "Hi!\n\nAlex",
+            "source": "LinkedIn Alert",
+            "message_id": "m0",
+            "thread_id": "t0",
+            "subject": "Role",
+            "from": "r@co.com",
+            "email_date": "2026-03-28",
+        }
+
+        with patch.object(s, "_screen_batch", return_value=[draft_result] * (_BATCH_THRESHOLD + 1)):
+            _, had_drafts = s.run(criteria, gmail, use_batch=True)
+
+        assert had_drafts is True

@@ -908,3 +908,171 @@ class TestPruneCorrespondenceLog:
         with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
             jerbs._prune_correspondence_log(criteria)
         assert any("2" in c or "Pruned" in c for c in log_calls)
+
+
+# ---------------------------------------------------------------------------
+# _log_result (jerbs.py line 100 — early return for fail verdict)
+# ---------------------------------------------------------------------------
+
+
+class TestLogResult:
+    def _make_gmail(self):
+        return MagicMock()
+
+    def _base_result(self, verdict: str, **extra) -> dict:
+        return {
+            "verdict": verdict,
+            "company": "TechCorp",
+            "role": "Staff Engineer",
+            "dealbreaker": None,
+            "missing_fields": [],
+            "reply_draft": None,
+            **extra,
+        }
+
+    def test_fail_verdict_returns_early_without_logging(self):
+        log_calls = []
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            jerbs._log_result(self._base_result("fail"), self._make_gmail(), {}, False)
+        assert log_calls == []
+
+    def test_pass_verdict_logs_interested(self):
+        log_calls = []
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            jerbs._log_result(self._base_result("pass"), self._make_gmail(), {}, False)
+        assert any("INTERESTED" in c for c in log_calls)
+
+    def test_maybe_verdict_logs_maybe(self):
+        log_calls = []
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            jerbs._log_result(self._base_result("maybe"), self._make_gmail(), {}, False)
+        assert any("MAYBE" in c for c in log_calls)
+
+    def test_logs_dealbreaker_when_present(self):
+        log_calls = []
+        result = self._base_result("pass", dealbreaker="Too junior")
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            jerbs._log_result(result, self._make_gmail(), {}, False)
+        assert any("Too junior" in c for c in log_calls)
+
+    def test_logs_missing_fields_when_present(self):
+        log_calls = []
+        result = self._base_result("maybe", missing_fields=["Base salary", "Remote policy"])
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            jerbs._log_result(result, self._make_gmail(), {}, False)
+        assert any("Base salary" in c for c in log_calls)
+
+    def test_logs_draft_generated_when_present(self):
+        log_calls = []
+        result = self._base_result("pass", reply_draft="Hi!\n\nAlex")
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            jerbs._log_result(result, self._make_gmail(), {}, False)
+        assert any("Draft" in c for c in log_calls)
+
+    def test_send_mode_calls_send_draft(self):
+        result = self._base_result("pass", reply_draft="Hi", thread_id="t1")
+        with (
+            patch("jerbs.log"),
+            patch("jerbs._send_draft") as mock_send,
+        ):
+            jerbs._log_result(result, self._make_gmail(), {}, send_mode=True)
+        mock_send.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _prune_correspondence_log — exception path (jerbs.py lines 215–216)
+# ---------------------------------------------------------------------------
+
+
+class TestPruneCorrespondenceLogException:
+    def test_logs_error_on_invalid_json(self, tmp_path):
+        log_path = tmp_path / "correspondence.json"
+        log_path.write_text("NOT VALID JSON")
+        criteria = {"correspondence_log_path": str(log_path)}
+        log_calls = []
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            jerbs._prune_correspondence_log(criteria)
+        assert any("fail" in c.lower() or "error" in c.lower() for c in log_calls)
+
+
+# ---------------------------------------------------------------------------
+# run_screen interactive=True — on_result closure (jerbs.py line 100)
+# ---------------------------------------------------------------------------
+
+
+class TestRunScreenInteractive:
+    def _make_deps(self, api_json: dict):
+        from screener import Screener
+
+        screener = Screener(api_key="test")
+        tool_block = MagicMock()
+        tool_block.type = "tool_use"
+        tool_block.input = api_json
+        mock_response = MagicMock()
+        mock_response.content = [tool_block]
+
+        gmail = MagicMock()
+        gmail.search.return_value = [{"id": "msg001"}]
+        gmail.get_message.return_value = {
+            "id": "msg001",
+            "threadId": "t001",
+            "subject": "Staff Eng at TechCorp",
+            "from": "r@tc.com",
+            "date": "2026-03-28",
+            "body": "Hi, Staff Eng role, $300k, remote.",
+        }
+        return screener, gmail, mock_response
+
+    def _base_criteria(self):
+        return {
+            "profile_name": "Test",
+            "compensation": {"base_salary_floor": 200000, "total_comp_target": 350000},
+            "screened_message_ids": [],
+            "last_run_date": "",
+            "search_settings": {},
+            "identity": {
+                "name": "Alex",
+                "background_summary": "",
+                "seniority_level": "",
+                "target_roles": [],
+            },
+            "target_companies": {
+                "industries": [],
+                "prestige_requirement": "",
+                "whitelist": [],
+                "blacklist": [],
+            },
+            "role_requirements": {"employment_type": ["full-time"], "remote_preference": ""},
+            "tech_stack": {"required": [], "dealbreaker": [], "preferred": []},
+            "hard_dealbreakers": [],
+            "required_info": [],
+            "reply_settings": {"tone": "professional", "signature": "Alex"},
+        }
+
+    def test_on_result_closure_called_in_interactive_mode(self, tmp_path):
+        """interactive=True fires _log_result for each email as it arrives (line 100)."""
+        api_result = {
+            "company": "TechCorp",
+            "role": "Staff Engineer",
+            "location": "Remote",
+            "verdict": "pass",
+            "reason": "Clears criteria.",
+            "dealbreaker_triggered": None,
+            "comp_assessment": "Strong.",
+            "missing_fields": [],
+            "reply_draft": "Hi!\n\nAlex",
+        }
+        screener, gmail, mock_response = self._make_deps(api_result)
+        criteria = self._base_criteria()
+
+        log_calls = []
+        with (
+            patch.object(screener.client.messages, "create", return_value=mock_response),
+            patch("jerbs.CRITERIA_PATH", tmp_path / "c.json"),
+            patch("jerbs.save_criteria"),
+            patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)),
+        ):
+            jerbs.run_screen(criteria, gmail, screener, interactive=True)
+
+        # on_result fires for pass/maybe — INTERESTED should appear in logs
+        assert any("INTERESTED" in c for c in log_calls)
