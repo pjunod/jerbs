@@ -55,132 +55,28 @@ only that section — never make them redo everything.
 Walk through these sections conversationally. Ask one section at a time. Don't overwhelm.
 Offer sensible defaults and examples. At the end, confirm the full profile before saving.
 
-### 1a — Identity
-```
-What's your name and current title? 
-Briefly describe your background (e.g. "10 years backend engineering, Apple and Meta").
-What roles are you targeting? (can be multiple, e.g. "Staff Engineer, Principal SRE, Engineering Manager")
-What seniority level? (e.g. Senior and above / mid-level and above / executive)
-```
+Collect these fields conversationally, one section at a time. Offer sensible defaults and
+examples. Skip sections that clearly don't apply (e.g. tech/stack for non-engineering roles).
 
-### 1b — Target companies
-```
-What industries or company types are you interested in?
-  Examples: FAANG-tier tech, fintech, crypto, hedge funds / HFT, healthcare tech,
-  e-commerce, startups, enterprise SaaS, government, non-profit
+- **1a Identity:** name, current_title, background_summary, target_roles[], seniority_level
+- **1b Target companies:** industries[], company_types[], company_stages[], prestige_requirement,
+  whitelist[] (dream companies), blacklist[] (always ignore), target_industries_blocklist[]
+- **1c Role requirements:** employment_type[], remote_preference, max_office_days_if_hybrid,
+  max_travel_pct, visa_sponsorship_required
+- **1d Compensation:** base_salary_floor + currency (hard floor), total_comp_target,
+  equity_required, cash_bonus_acceptable, sliding_scale_notes (nuanced factors: remote
+  flexibility, prestige trade-off, startup equity, role scope, CoL)
+- **1e Tech/stack** *(skip if not applicable):* required[], dealbreaker[], preferred[]
+- **1f Hard dealbreakers:** suggest common ones (contract-only, wrong seniority, no-name
+  company, generic mass email, blacklisted company/industry, unpaid take-home); let user
+  add custom entries
+- **1g Required info:** suggest common ones (comp range, equity, remote policy, office days,
+  interview process, company name if obscured); let user add or remove
+- **1h Interview process** *(optional):* max_rounds, no_unpaid_takehome, other_dealbreakers[]
+- **1i Reply settings:** tone, signature
+- **1j Search settings:** extra_keywords[], extra_exclusions[]
 
-Any company stages you prefer? (early-stage, Series B+, public, any)
-
-Any prestige / pedigree requirement? 
-  Examples: "top-tier only — no unknown companies", "any legitimate company", "prefer well-known brands"
-
-Are there specific companies you ALWAYS want to hear about (dream companies)?
-Are there specific companies or recruiters you want to ALWAYS ignore (blacklist)?
-
-Any entire industries to block?
-  Examples: defense / weapons, tobacco, gambling, MLM, predatory lending
-```
-
-### 1c — Role requirements
-```
-Employment type: full-time only / open to contract / open to part-time?
-Remote preference: remote only / hybrid OK / depends on location / open to on-site?
-  If hybrid is OK, what's the max number of in-office days per week you'd consider?
-Maximum travel you'd accept? (e.g. none, <10%, <25%, doesn't matter)
-Do you need visa/work authorization sponsorship?
-```
-
-### 1d — Compensation
-```
-What's your minimum acceptable base salary? (hard floor — reject anything explicitly listed below this)
-  Currency? (USD, GBP, EUR, etc.)
-
-What's your target total compensation? (including equity, bonus, etc.)
-
-Is equity required, or is a strong cash bonus acceptable instead?
-
-Any nuances to your comp expectations? This is your sliding scale — describe how your 
-expectations shift based on factors like:
-  - Remote vs. in-office (and how many days)
-  - How interesting / novel the work is
-  - Company prestige or brand value
-  - Startup equity upside potential
-  - Seniority / scope of the role
-  - Cost of living / location
-
-Examples:
-  "I'll accept lower base for fully remote roles or for genuinely exciting greenfield work"
-  "In-office 4+ days needs to pay significantly more to be worth it"
-  "Founding-team equity can offset a lower base if the company is promising"
-```
-
-### 1e — Tech/stack (skip if not applicable)
-```
-Any tech/stack that's a hard requirement? (e.g. Linux-only environments, specific languages)
-Any tech/stack that's an immediate dealbreaker? (e.g. Windows servers, legacy COBOL)
-Any preferred stack or tech that would make a role more attractive?
-```
-
-### 1f — Hard dealbreakers
-Start with common suggestions and let them add/remove:
-
-Suggested defaults (user picks which apply):
-- Contract / part-time / freelance (when targeting full-time)
-- Wrong seniority level (junior/intern/mid-level if targeting senior)
-- Salary explicitly listed below base floor
-- Generic/mass emails with no personalization (no name, boilerplate, "Hi there")
-- Completely unknown company with no pedigree, funding signal, or recognizable name
-- Company on personal blacklist
-- Industry on personal blocklist
-- Requires relocation to unwanted location
-- Unpaid trial or take-home assignment
-- Requires security clearance (if not applicable)
-- Role is in entirely wrong field
-
-Let user add any custom dealbreakers.
-
-### 1g — Required info (what to always ask about if missing)
-Start with common suggestions:
-
-Suggested defaults:
-- Salary / compensation range (base + total comp)
-- Equity details (type, vesting schedule)
-- Remote / hybrid / in-office policy
-- Number of in-office days if hybrid
-- Interview process overview
-- Company name (if obscured)
-
-Additional options:
-- Nature of work (greenfield vs. maintenance)
-- Tech stack details
-- Team size
-- Reporting structure
-- Benefits (health, 401k, etc.)
-- Bonus structure
-- Start date flexibility
-
-### 1h — Interview process preferences (optional)
-```
-Maximum number of interview rounds you'll tolerate? (or leave blank for no limit)
-Unpaid take-home assignments: dealbreaker yes/no?
-Any other interview process dealbreakers?
-```
-
-### 1i — Reply settings
-```
-What tone should draft replies use? (professional / direct / warm / brief)
-What name/signature should replies use?
-  Example: "Best, Sarah Chen" or "Thanks, Marcus | Staff Engineer"
-```
-
-### 1j — Search settings
-```
-Any extra keywords to include in searches beyond the defaults?
-Any specific senders or domains to always exclude?
-```
-
-Note: Do NOT ask about lookback window or max results during setup — these are set
-automatically based on run history (see Step 3).
+Do NOT ask about lookback window or max results — set automatically from run history (Step 3).
 
 ### Confirm and save
 Show the full criteria summary and ask: "Does this look right? Anything to adjust before
@@ -399,36 +295,19 @@ Always confirm changes before saving: "Got it — I'll [change]. Save?"
 
 ---
 
-## Criteria file schema reference
+## Schema reference
 
-See `criteria_template.json` for the full schema with all fields, types, and defaults.
-Key fields:
-
-```json
-{
-  "profile_name": "My Job Search",
-  "identity": { "name", "background_summary", "seniority_level", "target_roles" },
-  "target_companies": { "industries", "company_types", "whitelist", "blacklist" },
-  "target_industries_blocklist": [],
-  "role_requirements": { "employment_type", "remote_preference", "visa_sponsorship_required" },
-  "compensation": { "base_salary_floor", "total_comp_target", "sliding_scale_notes" },
-  "tech_stack": { "required", "dealbreaker", "preferred" },
-  "hard_dealbreakers": [],
-  "required_info": [],
-  "interview_process": { "no_unpaid_takehome", "max_rounds" },
-  "reply_settings": { "tone", "signature" },
-  "search_settings": { "lookback_days", "max_results_per_pass", "extra_keywords" },
-  "screened_message_ids": []
-}
-```
+See `criteria_template.json` for the full criteria schema with all fields, types, and
+defaults. See the **How correspondence is tracked** section above for the correspondence
+log entry format.
 
 ---
 
 ## Auto-scheduler (optional)
 
-The scheduler widget runs jerbs automatically on a variable cadence. It lives in the
-conversation as a persistent widget and uses JavaScript timers to fire `sendPrompt()`
-with the full screening command.
+The scheduler widget runs jerbs automatically on a variable cadence. The widget is bundled
+at `assets/scheduler.html`. Display it using the `show_widget` tool (read file, pass as
+`widget_code`) whenever the user asks to start, automate, or set up the scheduler.
 
 ### Interval state machine
 
@@ -438,76 +317,25 @@ with the full screening command.
 | Business hours | 15 min | Within business hours |
 | Rapid response | 5 min | For 30 min after a reply was sent |
 
-Rapid mode reverts after 30 minutes with no new replies — back to business hours (15 min)
-or off-hours (60 min), whichever applies at that moment.
-
-### Business hours definition
-User sets: timezone, start hour, end hour. Defaults to 9 AM–5 PM Eastern.
-
-### Automatic rapid mode trigger
-Rapid mode is triggered automatically — no user action required. At the very end of any
-screening response that includes one or more draft replies, Claude MUST include the exact
-token on its own line:
-
-```
-JERBS:RAPID_START
-```
-
-Do not explain or annotate this token — just include it silently at the end. The scheduler
-widget watches the conversation via MutationObserver and triggers rapid mode the moment it
-detects the token. This is the only mechanism for rapid mode — there is no manual button.
-
-### What the scheduler sends
-When the timer fires, it sends `sendPrompt()` with the full jerbs screening command
-including all criteria, read-only mode instruction, and the instruction to include
-`JERBS:RAPID_START` if any draft replies were generated.
-
-### Controls
-- Start / Pause — toggle the scheduler on and off
-- Run now — fires an immediate run without resetting the timer
-- I sent a reply — triggers rapid mode manually
-
-### Important note
-The scheduler only runs while the browser tab with this conversation is open. It is not
-a background service — it requires the Claude.ai tab to be active.
-
----
-
-## Scheduler widget
-
-The scheduler is bundled at `assets/scheduler.html`. Display it using the `show_widget`
-tool (read the file contents and pass as `widget_code`) whenever the user asks to:
-- "start the scheduler"
-- "automate jerbs"
-- "run jerbs automatically"
-- "set up the scheduler"
-- or any similar phrasing
-
-### How to render it
-
-```python
-with open("assets/scheduler.html") as f:
-    html = f.read()
-# Pass html as widget_code to show_widget
-```
-
-The widget is self-contained — it handles all timer logic, business hours detection,
-mode switching, and automatic rapid mode via MutationObserver. No additional setup needed.
+Business hours: user-defined timezone, start/end hour. Defaults to 9 AM–5 PM Eastern.
+Rapid mode reverts after 30 minutes with no new replies.
 
 ### Rapid mode token
 
-When a screening run generates draft replies, Claude MUST include this token on its own
-line at the very end of the response:
+At the very end of any response that includes draft replies, Claude MUST silently include:
 
 ```
 JERBS:RAPID_START
 ```
 
-The widget's MutationObserver detects this token and triggers rapid mode (5 min × 30 min)
-automatically. Do not explain the token — just include it silently when drafts were generated.
+The widget's MutationObserver detects this token and triggers rapid mode automatically.
+Do not explain or annotate the token — just emit it. This is the only rapid mode trigger.
 
-### Widget persistence
+### Controls
+- Start / Pause — toggle on and off
+- Run now — immediate run without resetting timer
+- I sent a reply — manual rapid mode trigger
 
-The widget runs only while the browser tab is open. Inform the user of this if they ask
-about true background automation — the Claude Code local daemon version is the answer for
-always-on operation without a browser.
+### Important note
+The widget runs only while the browser tab is open — it is not a background service.
+For always-on automation, use the Claude Code local daemon instead.
