@@ -20,16 +20,34 @@ def _import_server():
     if server_dir not in sys.path:
         sys.path.insert(0, server_dir)
 
-    # Stub modules that the server imports at top level
+    # Stub heavy modules that the server imports at top level so we can
+    # run these tests without uvicorn/fastapi/anthropic installed.
     fake_anthropic = types.ModuleType("anthropic")
     fake_anthropic.Anthropic = lambda **kw: None  # type: ignore[attr-defined]
     fake_anthropic.types = types.ModuleType("anthropic.types")
     fake_anthropic.types.Message = object  # type: ignore[attr-defined]
 
+    fake_uvicorn = types.ModuleType("uvicorn")
+
+    fake_fastapi = types.ModuleType("fastapi")
+    fake_fastapi.FastAPI = lambda **kw: type(
+        "App", (), {"post": lambda *a, **k: lambda f: f, "get": lambda *a, **k: lambda f: f}
+    )()  # type: ignore[attr-defined]
+    fake_fastapi.Request = object  # type: ignore[attr-defined]
+
+    fake_responses = types.ModuleType("fastapi.responses")
+    fake_responses.JSONResponse = dict  # type: ignore[attr-defined]
+
+    stubs = {
+        "anthropic": fake_anthropic,
+        "anthropic.types": fake_anthropic.types,
+        "uvicorn": fake_uvicorn,
+        "fastapi": fake_fastapi,
+        "fastapi.responses": fake_responses,
+    }
+
     with (
-        patch.dict(
-            sys.modules, {"anthropic": fake_anthropic, "anthropic.types": fake_anthropic.types}
-        ),
+        patch.dict(sys.modules, stubs),
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_text", return_value='{"identity": {}}'),
     ):
