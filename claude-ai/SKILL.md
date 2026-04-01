@@ -53,11 +53,22 @@ only that section — never make them redo everything.
 
 ## Step 1 — Setup wizard (first-time or full reset)
 
-Walk through these sections conversationally. Ask one section at a time. Don't overwhelm.
-Offer sensible defaults and examples. At the end, confirm the full profile before saving.
+Walk through these sections one at a time. Don't overwhelm. Skip sections that clearly
+don't apply (e.g. tech/stack for non-engineering roles).
 
-Collect these fields conversationally, one section at a time. Offer sensible defaults and
-examples. Skip sections that clearly don't apply (e.g. tech/stack for non-engineering roles).
+**Interactive selection via `AskUserQuestion`:** For any field that collects a list
+(industries, target roles, dealbreakers, required info, tech stack, blacklist, etc.),
+use `AskUserQuestion` with `multiSelect: true`. Present the most common/obvious defaults
+as checkbox options (up to the 4-option limit per question). If there are more than 4
+common defaults for a field, list the extras in the question text itself so the user can
+see all suggestions and add any of them (or their own) via the built-in "Other" freeform
+input. This gives users quick checkboxes for the obvious picks plus full flexibility.
+
+For scalar fields (name, salary floor, tone, etc.), use `AskUserQuestion` with common
+choices where applicable, or ask conversationally for truly open-ended fields.
+
+**Batch related questions** — use up to 4 questions per `AskUserQuestion` call to reduce
+round-trips (e.g. name + current title + seniority + target roles in one call).
 
 - **1a Identity:** name, current_title, background_summary, target_roles[], seniority_level
 - **1b Target companies:** industries[], company_types[], company_stages[], prestige_requirement,
@@ -260,6 +271,9 @@ If Pass 3 was skipped (LinkedIn MCP not connected), omit the section entirely.
 
 For each result include:
 - Company + role + location
+- **Links:** link to the original email (Gmail URL) or LinkedIn message, and link to the
+  job posting URL if one is present in the email/message body. Users should be able to
+  click straight through to both the source message and the job listing without digging.
 - Verdict reason (one sentence; name specific dealbreaker for fails)
 - Comp assessment (honest sliding-scale take)
 - Missing fields (if any)
@@ -393,7 +407,8 @@ Rapid mode reverts after 30 minutes with no new replies.
 
 ### Rapid mode token
 
-At the very end of any response that includes draft replies, Claude MUST silently include:
+At the very end of any response that includes draft replies, **only when the scheduler
+widget is active in a web/Claude.ai session**, Claude MUST include on its own line:
 
 ```
 JERBS:RAPID_START
@@ -401,6 +416,9 @@ JERBS:RAPID_START
 
 The widget's MutationObserver detects this token and triggers rapid mode automatically.
 Do not explain or annotate the token — just emit it. This is the only rapid mode trigger.
+
+**Never emit this token in Claude Code sessions** — there is no widget to consume it and
+it displays as visible garbage.
 
 ### Controls
 - Start / Pause — toggle on and off
