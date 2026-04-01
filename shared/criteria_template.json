@@ -75,6 +75,10 @@
     "extra_exclusions": [],
     "_note": "lookback_days and max_results_per_pass are set automatically: 7 days / unlimited on first run, 1 day / 100 on subsequent runs. Set to a number to override."
   },
+  "linkedin": {
+    "enabled": false,
+    "_note": "When true, jerbs screens LinkedIn DMs in addition to Gmail. Requires linkedin_cookies.json in ~/.jerbs/."
+  },
   "screened_message_ids": [],
   "last_run_date": ""
 }

@@ -10,6 +10,7 @@ Usage:
     python jerbs.py --once           # Single run, then exit
     python jerbs.py --export         # Run once and export to xlsx
     python jerbs.py --send           # Enable auto-sending draft replies (careful!)
+    python jerbs.py --linkedin       # Include LinkedIn DM screening
 """
 
 import argparse
@@ -56,7 +57,10 @@ def log(msg: str, path: Path = LOG_PATH):
         pass
 
 
-def _log_result(result: dict, gmail: GmailClient, criteria: dict, send_mode: bool):
+def _log_result(
+    result: dict, gmail: GmailClient, criteria: dict,
+    send_mode: bool, linkedin=None,
+):
     """Log a single screening result and optionally send a draft reply."""
     verdict = result["verdict"]
     if verdict == "fail":
@@ -70,7 +74,10 @@ def _log_result(result: dict, gmail: GmailClient, criteria: dict, send_mode: boo
     if result.get("reply_draft"):
         log("    Draft reply generated.")
         if send_mode:
-            _send_draft(gmail, result, criteria)
+            if result.get("source") == "LinkedIn DM" and linkedin:
+                _send_draft(linkedin, result, criteria)
+            else:
+                _send_draft(gmail, result, criteria)
 
 
 def run_screen(
@@ -80,6 +87,7 @@ def run_screen(
     send_mode: bool = False,
     export: bool = False,
     interactive: bool = False,
+    linkedin=None,
 ) -> bool:
     """
     Run one full screening pass. Returns True if any draft replies were generated
@@ -97,7 +105,7 @@ def run_screen(
     log(f"Starting screen — lookback={lookback}d, max={max_per_pass or 'unlimited'}")
 
     def on_result(result: dict):
-        _log_result(result, gmail, criteria, send_mode)
+        _log_result(result, gmail, criteria, send_mode, linkedin=linkedin)
 
     results, had_drafts = screener.run(
         criteria=criteria,
@@ -106,6 +114,7 @@ def run_screen(
         max_per_pass=max_per_pass,
         use_batch=not interactive,
         on_result=on_result if interactive else None,
+        linkedin=linkedin,
     )
 
     if not results:
@@ -121,7 +130,7 @@ def run_screen(
     # In interactive mode results were already logged as they arrived; only log in batch/daemon mode.
     if not interactive:
         for r in results:
-            _log_result(r, gmail, criteria, send_mode)
+            _log_result(r, gmail, criteria, send_mode, linkedin=linkedin)
 
     if export:
         _export_results(results, criteria)
@@ -135,14 +144,14 @@ def run_screen(
     return had_drafts
 
 
-def _send_draft(gmail: GmailClient, result: dict, criteria: dict):
+def _send_draft(client, result: dict, criteria: dict):
     """Send a draft reply if send_mode is enabled."""
     thread_id = result.get("thread_id")
     draft = result.get("reply_draft")
     if not draft or not thread_id:
         return
     try:
-        gmail.send_reply(
+        client.send_reply(
             thread_id=thread_id,
             body=draft,
             signature=criteria.get("reply_settings", {}).get("signature", ""),
@@ -242,6 +251,9 @@ def main():
     parser.add_argument(
         "--send", action="store_true", help="Auto-send draft replies (use carefully)"
     )
+    parser.add_argument(
+        "--linkedin", action="store_true", help="Include LinkedIn DM screening"
+    )
     parser.add_argument("--criteria", default=str(CRITERIA_PATH), help="Path to criteria JSON file")
     args = parser.parse_args()
 
@@ -265,9 +277,28 @@ def main():
     gmail = GmailClient()
     screener = Screener()
 
+    linkedin = None
+    if args.linkedin:
+        try:
+            from linkedin_client import LinkedInClient
+
+            lookback = 7 if not criteria.get("screened_message_ids") else (
+                criteria.get("search_settings", {}).get("lookback_days", 1)
+            )
+            linkedin = LinkedInClient(
+                send_mode=args.send, lookback_days=lookback,
+            )
+            log("LinkedIn DM screening enabled.")
+        except ImportError:
+            log("Warning: linkedin-api not installed. Skipping LinkedIn DMs.")
+        except (FileNotFoundError, ValueError) as e:
+            log(f"Warning: LinkedIn auth failed — {e}. Skipping LinkedIn DMs.")
+
     if args.once:
         run_screen(
-            criteria, gmail, screener, send_mode=args.send, export=args.export, interactive=True
+            criteria, gmail, screener,
+            send_mode=args.send, export=args.export,
+            interactive=True, linkedin=linkedin,
         )
         return
 
@@ -299,7 +330,11 @@ def main():
             break
 
         criteria = load_criteria(criteria_path)
-        had_drafts = run_screen(criteria, gmail, screener, send_mode=args.send, export=args.export)
+        had_drafts = run_screen(
+            criteria, gmail, screener,
+            send_mode=args.send, export=args.export,
+            linkedin=linkedin,
+        )
 
         if had_drafts:
             scheduler.trigger_rapid()

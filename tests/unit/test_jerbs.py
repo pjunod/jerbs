@@ -1076,3 +1076,83 @@ class TestRunScreenInteractive:
 
         # on_result fires for pass/maybe — INTERESTED should appear in logs
         assert any("INTERESTED" in c for c in log_calls)
+
+
+# ---------------------------------------------------------------------------
+# LinkedIn DM routing (_log_result sends via linkedin client)
+# ---------------------------------------------------------------------------
+
+
+class TestLinkedInRouting:
+    def _make_gmail(self):
+        return MagicMock()
+
+    def _make_linkedin(self):
+        return MagicMock()
+
+    def _base_result(self, verdict: str, **extra) -> dict:
+        return {
+            "verdict": verdict,
+            "company": "TechCorp",
+            "role": "Staff Engineer",
+            "dealbreaker": None,
+            "missing_fields": [],
+            "reply_draft": None,
+            **extra,
+        }
+
+    def test_linkedin_dm_routes_to_linkedin_client(self):
+        """When source is 'LinkedIn DM', _send_draft should receive the linkedin client."""
+        result = self._base_result(
+            "pass", reply_draft="Hi!", thread_id="t1", source="LinkedIn DM"
+        )
+        gmail = self._make_gmail()
+        linkedin = self._make_linkedin()
+        with (
+            patch("jerbs.log"),
+            patch("jerbs._send_draft") as mock_send,
+        ):
+            jerbs._log_result(result, gmail, {}, send_mode=True, linkedin=linkedin)
+        # _send_draft should be called with linkedin, not gmail
+        mock_send.assert_called_once()
+        assert mock_send.call_args[0][0] is linkedin
+
+    def test_gmail_result_routes_to_gmail_client(self):
+        """When source is not 'LinkedIn DM', _send_draft should receive the gmail client."""
+        result = self._base_result(
+            "pass", reply_draft="Hi!", thread_id="t1", source="Direct Outreach"
+        )
+        gmail = self._make_gmail()
+        linkedin = self._make_linkedin()
+        with (
+            patch("jerbs.log"),
+            patch("jerbs._send_draft") as mock_send,
+        ):
+            jerbs._log_result(result, gmail, {}, send_mode=True, linkedin=linkedin)
+        mock_send.assert_called_once()
+        assert mock_send.call_args[0][0] is gmail
+
+    def test_linkedin_dm_without_linkedin_client_falls_back_to_gmail(self):
+        """When source is 'LinkedIn DM' but linkedin=None, routes to gmail."""
+        result = self._base_result(
+            "pass", reply_draft="Hi!", thread_id="t1", source="LinkedIn DM"
+        )
+        gmail = self._make_gmail()
+        with (
+            patch("jerbs.log"),
+            patch("jerbs._send_draft") as mock_send,
+        ):
+            jerbs._log_result(result, gmail, {}, send_mode=True, linkedin=None)
+        mock_send.assert_called_once()
+        assert mock_send.call_args[0][0] is gmail
+
+    def test_send_draft_uses_client_agnostic_interface(self):
+        """_send_draft should call client.send_reply regardless of client type."""
+        client = MagicMock()
+        result = {"thread_id": "t1", "reply_draft": "Hi!", "company": "Co", "role": "SWE"}
+        criteria = {"reply_settings": {"signature": "Alex"}}
+        with patch("jerbs.log"):
+            jerbs._send_draft(client, result, criteria)
+        client.send_reply.assert_called_once_with(
+            thread_id="t1", body="Hi!", signature="Alex"
+        )
