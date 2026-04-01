@@ -12,6 +12,9 @@ try:
 except ImportError as e:
     raise ImportError("Anthropic SDK not installed. Run: pip install anthropic") from e
 
+_HAIKU_MODEL = "claude-haiku-4-5-20251001"
+_THINKING_BUDGET = 5000  # tokens; only used when escalating to Sonnet
+
 _SCREENING_TOOL = {
     "name": "record_screening_result",
     "description": "Record the structured screening verdict for a job email or listing.",
@@ -159,8 +162,45 @@ class Screener:
 
         return results, had_drafts
 
+    def _call_api(
+        self,
+        user_content: str,
+        system_prompt: str,
+        model: str,
+        extended_thinking: bool = False,
+    ) -> dict:
+        """Call the Anthropic API and return the tool_use input dict."""
+        kwargs: dict = {
+            "model": model,
+            "system": [
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            "tools": [_SCREENING_TOOL],
+            "tool_choice": {"type": "tool", "name": "record_screening_result"},
+            "messages": [{"role": "user", "content": user_content}],
+        }
+        if extended_thinking:
+            kwargs["thinking"] = {"type": "enabled", "budget_tokens": _THINKING_BUDGET}
+            kwargs["max_tokens"] = _THINKING_BUDGET + 1024
+        else:
+            kwargs["max_tokens"] = 1024
+
+        response = self.client.messages.create(**kwargs)
+        tool_block = next(b for b in response.content if b.type == "tool_use")
+        return tool_block.input
+
     def _screen_one(self, msg: dict, system_prompt: str, source: str, pass_num: int) -> dict | None:
-        """Screen a single email and return a result dict."""
+        """
+        Screen a single email using two-tier model selection.
+
+        Haiku handles the fast-path: clear fails are returned immediately at low cost.
+        Haiku pass/maybe results escalate to Sonnet with extended thinking for reliable
+        judgment on ambiguous or high-value cases.
+        """
         user_content = (
             f"Subject: {msg.get('subject', '')}\n"
             f"From: {msg.get('from', '')}\n"
@@ -169,22 +209,15 @@ class Screener:
         )
 
         try:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=1024,
-                system=[
-                    {
-                        "type": "text",
-                        "text": system_prompt,
-                        "cache_control": {"type": "ephemeral"},
-                    }
-                ],
-                tools=[_SCREENING_TOOL],
-                tool_choice={"type": "tool", "name": "record_screening_result"},
-                messages=[{"role": "user", "content": user_content}],
-            )
-            tool_block = next(b for b in response.content if b.type == "tool_use")
-            parsed = tool_block.input
+            # Stage 1: Haiku fast path — cheap rejection of clear fails
+            haiku = self._call_api(user_content, system_prompt, _HAIKU_MODEL)
+            if haiku.get("verdict") == "fail":
+                parsed = haiku
+            else:
+                # Stage 2: Sonnet with extended thinking for genuine judgment calls
+                parsed = self._call_api(
+                    user_content, system_prompt, self.model, extended_thinking=True
+                )
         except Exception as e:
             return {
                 "source": source,

@@ -171,7 +171,18 @@ class TestBuildPrompt:
 class TestScreenOne:
     def test_pass_verdict_parsed(self):
         s = make_screener()
-        api_result = {
+        haiku_result = {
+            "company": "TechCorp",
+            "role": "Staff Engineer",
+            "location": "Remote",
+            "verdict": "pass",
+            "reason": "Looks good.",
+            "dealbreaker_triggered": None,
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
+        }
+        sonnet_result = {
             "company": "TechCorp",
             "role": "Staff Engineer",
             "location": "Remote",
@@ -182,7 +193,11 @@ class TestScreenOne:
             "missing_fields": ["Equity details"],
             "reply_draft": "Hi, I'm interested. Can you share equity details?\n\nAlex Rivera",
         }
-        with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
+        with patch.object(
+            s.client.messages,
+            "create",
+            side_effect=[mock_api_response(haiku_result), mock_api_response(sonnet_result)],
+        ):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
         assert result["verdict"] == "pass"
@@ -205,6 +220,7 @@ class TestScreenOne:
             "missing_fields": [],
             "reply_draft": None,
         }
+        # Fail verdict: only Haiku is called — single response
         with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
@@ -214,7 +230,18 @@ class TestScreenOne:
 
     def test_maybe_verdict_parsed(self):
         s = make_screener()
-        api_result = {
+        haiku_result = {
+            "company": "MaybeCorp",
+            "role": "Staff Engineer",
+            "location": "Hybrid",
+            "verdict": "maybe",
+            "reason": "Needs more info.",
+            "dealbreaker_triggered": None,
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
+        }
+        sonnet_result = {
             "company": "MaybeCorp",
             "role": "Staff Engineer",
             "location": "Hybrid",
@@ -225,7 +252,11 @@ class TestScreenOne:
             "missing_fields": ["Base salary range", "Remote policy"],
             "reply_draft": "Interested — can you share comp details?\n\nAlex Rivera",
         }
-        with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
+        with patch.object(
+            s.client.messages,
+            "create",
+            side_effect=[mock_api_response(haiku_result), mock_api_response(sonnet_result)],
+        ):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
 
         assert result["verdict"] == "maybe"
@@ -244,6 +275,7 @@ class TestScreenOne:
             "missing_fields": [],
             "reply_draft": None,
         }
+        # Fail verdict: single Haiku call
         with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
             result = s._screen_one(SAMPLE_EMAIL, "system prompt", "LinkedIn Alert", 1)
 
@@ -279,6 +311,216 @@ class TestScreenOneErrors:
 
 
 # ---------------------------------------------------------------------------
+# Model tiering and _call_api
+# ---------------------------------------------------------------------------
+
+
+class TestModelTiering:
+    def _fail_result(self):
+        return {
+            "company": "BadCo",
+            "role": "Junior Dev",
+            "location": "On-site",
+            "verdict": "fail",
+            "reason": "Junior role.",
+            "dealbreaker_triggered": "Junior role",
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
+        }
+
+    def _pass_result(self):
+        return {
+            "company": "GoodCo",
+            "role": "Staff Engineer",
+            "location": "Remote",
+            "verdict": "pass",
+            "reason": "Clears all criteria.",
+            "dealbreaker_triggered": None,
+            "comp_assessment": "Strong.",
+            "missing_fields": [],
+            "reply_draft": "Interested!\n\nAlex Rivera",
+        }
+
+    def test_fail_verdict_calls_api_once(self):
+        """Haiku says fail → Sonnet is never called."""
+        s = make_screener()
+        with patch.object(
+            s.client.messages, "create", return_value=mock_api_response(self._fail_result())
+        ) as mock_create:
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+        assert mock_create.call_count == 1
+
+    def test_pass_verdict_calls_api_twice(self):
+        """Haiku says pass → Sonnet is called for full judgment."""
+        s = make_screener()
+        with patch.object(
+            s.client.messages,
+            "create",
+            side_effect=[
+                mock_api_response(self._pass_result()),
+                mock_api_response(self._pass_result()),
+            ],
+        ) as mock_create:
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+        assert mock_create.call_count == 2
+
+    def test_haiku_model_used_for_first_call(self):
+        """First API call must use the Haiku model."""
+        from screener import _HAIKU_MODEL
+
+        s = make_screener()
+        with patch.object(
+            s.client.messages,
+            "create",
+            side_effect=[
+                mock_api_response(self._pass_result()),
+                mock_api_response(self._pass_result()),
+            ],
+        ) as mock_create:
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+        first_call_model = (
+            mock_create.call_args_list[0].kwargs.get("model")
+            or mock_create.call_args_list[0].args[0]
+        )
+        assert first_call_model == _HAIKU_MODEL
+
+    def test_sonnet_model_used_for_second_call(self):
+        """Second API call must use the Sonnet model."""
+        s = make_screener()
+        with patch.object(
+            s.client.messages,
+            "create",
+            side_effect=[
+                mock_api_response(self._pass_result()),
+                mock_api_response(self._pass_result()),
+            ],
+        ) as mock_create:
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+        second_call_kwargs = mock_create.call_args_list[1].kwargs
+        assert second_call_kwargs["model"] == s.model
+
+    def test_sonnet_call_includes_extended_thinking(self):
+        """The Sonnet escalation call must pass thinking parameters."""
+        s = make_screener()
+        with patch.object(
+            s.client.messages,
+            "create",
+            side_effect=[
+                mock_api_response(self._pass_result()),
+                mock_api_response(self._pass_result()),
+            ],
+        ) as mock_create:
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+        second_call_kwargs = mock_create.call_args_list[1].kwargs
+        assert "thinking" in second_call_kwargs
+        assert second_call_kwargs["thinking"]["type"] == "enabled"
+
+    def test_haiku_call_has_no_extended_thinking(self):
+        """The Haiku fast-path must NOT use extended thinking."""
+        from screener import _HAIKU_MODEL
+
+        s = make_screener()
+        with patch.object(
+            s.client.messages,
+            "create",
+            side_effect=[
+                mock_api_response(self._pass_result()),
+                mock_api_response(self._pass_result()),
+            ],
+        ) as mock_create:
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+        first_call_kwargs = mock_create.call_args_list[0].kwargs
+        assert "thinking" not in first_call_kwargs
+        assert first_call_kwargs["model"] == _HAIKU_MODEL
+
+    def test_sonnet_result_used_when_haiku_passes(self):
+        """When Haiku escalates, the final result comes from Sonnet, not Haiku."""
+        s = make_screener()
+        haiku_shallow = {**self._pass_result(), "company": "HaikuGuess", "comp_assessment": None}
+        sonnet_deep = {
+            **self._pass_result(),
+            "company": "SonnetAccurate",
+            "comp_assessment": "Top quartile.",
+        }
+        with patch.object(
+            s.client.messages,
+            "create",
+            side_effect=[mock_api_response(haiku_shallow), mock_api_response(sonnet_deep)],
+        ):
+            result = s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+        assert result["company"] == "SonnetAccurate"
+        assert result["comp_assessment"] == "Top quartile."
+
+
+class TestCallApi:
+    def test_returns_tool_input(self):
+        s = make_screener()
+        expected = {"verdict": "pass", "reason": "good", "missing_fields": []}
+        with patch.object(s.client.messages, "create", return_value=mock_api_response(expected)):
+            result = s._call_api("content", "system", s.model)
+        assert result == expected
+
+    def test_extended_thinking_sets_thinking_param(self):
+        from screener import _THINKING_BUDGET
+
+        s = make_screener()
+        with patch.object(
+            s.client.messages,
+            "create",
+            return_value=mock_api_response(
+                {"verdict": "pass", "reason": "x", "missing_fields": []}
+            ),
+        ) as mock_create:
+            s._call_api("content", "system", s.model, extended_thinking=True)
+        kwargs = mock_create.call_args.kwargs
+        assert kwargs["thinking"] == {"type": "enabled", "budget_tokens": _THINKING_BUDGET}
+
+    def test_extended_thinking_increases_max_tokens(self):
+        from screener import _THINKING_BUDGET
+
+        s = make_screener()
+        with patch.object(
+            s.client.messages,
+            "create",
+            return_value=mock_api_response(
+                {"verdict": "pass", "reason": "x", "missing_fields": []}
+            ),
+        ) as mock_create:
+            s._call_api("content", "system", s.model, extended_thinking=True)
+        kwargs = mock_create.call_args.kwargs
+        assert kwargs["max_tokens"] == _THINKING_BUDGET + 1024
+
+    def test_no_extended_thinking_uses_standard_max_tokens(self):
+        s = make_screener()
+        with patch.object(
+            s.client.messages,
+            "create",
+            return_value=mock_api_response(
+                {"verdict": "pass", "reason": "x", "missing_fields": []}
+            ),
+        ) as mock_create:
+            s._call_api("content", "system", s.model, extended_thinking=False)
+        kwargs = mock_create.call_args.kwargs
+        assert kwargs["max_tokens"] == 1024
+        assert "thinking" not in kwargs
+
+    def test_thinking_blocks_in_response_are_ignored(self):
+        """If API returns thinking + tool_use blocks, only tool_use input is returned."""
+        s = make_screener()
+        thinking_block = MagicMock()
+        thinking_block.type = "thinking"
+        tool_block = MagicMock()
+        tool_block.type = "tool_use"
+        tool_block.input = {"verdict": "pass", "reason": "ok", "missing_fields": []}
+        response = MagicMock()
+        response.content = [thinking_block, tool_block]
+        with patch.object(s.client.messages, "create", return_value=response):
+            result = s._call_api("content", "system", s.model, extended_thinking=True)
+        assert result["verdict"] == "pass"
+
+
+# ---------------------------------------------------------------------------
 # run — integration with mocked Gmail and API
 # ---------------------------------------------------------------------------
 
@@ -307,6 +549,7 @@ class TestRun:
     def test_new_message_is_screened(self):
         s = make_screener()
         criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        # Two passes × one email each = up to 4 calls if both pass Haiku
         gmail = self._mock_gmail([{"id": "msg001"}], SAMPLE_EMAIL)
 
         api_result = {
@@ -320,7 +563,12 @@ class TestRun:
             "missing_fields": [],
             "reply_draft": "Interested!\n\nAlex Rivera",
         }
-        with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
+        # Pass verdict: Haiku + Sonnet per message (2 passes × 2 calls = 4)
+        with patch.object(
+            s.client.messages,
+            "create",
+            side_effect=[mock_api_response(api_result)] * 4,
+        ):
             results, had_drafts = s.run(criteria, gmail, lookback_days=1)
 
         assert len(results) >= 1
