@@ -5,13 +5,52 @@ Builds the screening prompt from user criteria, runs two Gmail passes,
 screens each email/listing, and returns structured results.
 """
 
-import json
 import os
 
 try:
     import anthropic
 except ImportError as e:
     raise ImportError("Anthropic SDK not installed. Run: pip install anthropic") from e
+
+_SCREENING_TOOL = {
+    "name": "record_screening_result",
+    "description": "Record the structured screening verdict for a job email or listing.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "company": {
+                "type": "string",
+                "description": "Company name, or empty string if unknown",
+            },
+            "role": {"type": "string", "description": "Job title"},
+            "location": {"type": "string", "description": "City, region, or 'remote'"},
+            "verdict": {
+                "type": "string",
+                "enum": ["pass", "fail", "maybe"],
+                "description": "pass = interested, fail = dealbreaker hit, maybe = needs more info",
+            },
+            "reason": {"type": "string", "description": "One sentence explaining the verdict"},
+            "dealbreaker_triggered": {
+                "type": ["string", "null"],
+                "description": "The specific dealbreaker that caused a fail, or null",
+            },
+            "comp_assessment": {
+                "type": ["string", "null"],
+                "description": "Honest 1-2 sentence sliding-scale comp take, or null",
+            },
+            "missing_fields": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Required info fields absent from the email",
+            },
+            "reply_draft": {
+                "type": ["string", "null"],
+                "description": "Draft reply for pass/maybe requesting missing info, or null for fail",
+            },
+        },
+        "required": ["verdict", "reason", "missing_fields"],
+    },
+}
 
 
 class Screener:
@@ -99,13 +138,20 @@ class Screener:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=1024,
-                system=system_prompt,
+                system=[
+                    {
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                tools=[_SCREENING_TOOL],
+                tool_choice={"type": "tool", "name": "record_screening_result"},
                 messages=[{"role": "user", "content": user_content}],
             )
-            text = response.content[0].text.strip()
-            text = text.replace("```json", "").replace("```", "").strip()
-            parsed = json.loads(text)
-        except (json.JSONDecodeError, Exception) as e:
+            tool_block = next(b for b in response.content if b.type == "tool_use")
+            parsed = tool_block.input
+        except Exception as e:
             return {
                 "source": source,
                 "message_id": msg["id"],
@@ -117,7 +163,7 @@ class Screener:
                 "role": msg.get("subject", "?"),
                 "location": "",
                 "verdict": "maybe",
-                "reason": f"Screening parse error: {e}",
+                "reason": f"Screening error: {e}",
                 "dealbreaker": None,
                 "comp_assessment": None,
                 "missing_fields": [],
@@ -199,17 +245,4 @@ REPLY SETTINGS:
 Tone: {tone}
 Sign off: {sig}
 Draft replies for pass/maybe only. Direct opener — no sycophantic greeting. Request all
-missing info in one message.
-
-Respond ONLY with valid JSON:
-{{
-  "company": "company name or empty string",
-  "role": "job title",
-  "location": "city or remote",
-  "verdict": "pass" | "fail" | "maybe",
-  "reason": "one sentence",
-  "dealbreaker_triggered": "specific dealbreaker or null",
-  "comp_assessment": "honest 1-2 sentence sliding-scale take or null",
-  "missing_fields": ["list of absent required fields"],
-  "reply_draft": "direct reply requesting missing info, signed '{sig}', or null if fail"
-}}"""
+missing info in one message."""

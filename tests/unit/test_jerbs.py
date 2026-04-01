@@ -227,15 +227,14 @@ class TestCompRangeRuleInPrompt:
 
 class TestRunScreen:
     def _make_deps(self, api_json: dict):
-        import json as _json
-
         from screener import Screener
 
         screener = Screener(api_key="test")
-        content_block = MagicMock()
-        content_block.text = _json.dumps(api_json)
+        tool_block = MagicMock()
+        tool_block.type = "tool_use"
+        tool_block.input = api_json
         mock_response = MagicMock()
-        mock_response.content = [content_block]
+        mock_response.content = [tool_block]
 
         gmail = MagicMock()
         gmail.search.return_value = [{"id": "msg001"}]
