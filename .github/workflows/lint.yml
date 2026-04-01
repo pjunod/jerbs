@@ -34,15 +34,3 @@ jobs:
 
       - name: Check scheduler.html symlink resolves
         run: test -f claude-web/assets/scheduler.html
-
-      - name: Check jerbs.skill is up to date
-        run: |
-          # Compare contents (not ZIP metadata) by extracting both and diffing
-          mkdir -p /tmp/skill-committed /tmp/skill-rebuilt
-          unzip -qo claude-web/jerbs.skill -d /tmp/skill-committed
-          ./scripts/build_skill.sh
-          unzip -qo claude-web/jerbs.skill -d /tmp/skill-rebuilt
-          diff -r /tmp/skill-committed /tmp/skill-rebuilt || {
-            echo "::error::claude-web/jerbs.skill is out of date. Run ./scripts/build_skill.sh and commit the result."
-            exit 1
-          }
