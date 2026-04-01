@@ -17,7 +17,7 @@ import json
 import signal
 import sys
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from gmail_client import GmailClient
@@ -109,11 +109,9 @@ def run_screen(
         _export_results(results, criteria)
 
     criteria["last_run_date"] = datetime.now(UTC).strftime("%Y-%m-%d")
-    already = set(criteria.get("screened_message_ids", []))
-    for r in results:
-        if r.get("message_id"):
-            already.add(r["message_id"])
-    criteria["screened_message_ids"] = list(already)
+    new_ids = [r["message_id"] for r in results if r.get("message_id")]
+    _update_screened_ids(criteria, new_ids)
+    _prune_correspondence_log(criteria)
     save_criteria(criteria, CRITERIA_PATH)
 
     return had_drafts
@@ -147,6 +145,57 @@ def _export_results(results: list, criteria: dict):
         log(f"Exported to {out}")
     except Exception as e:
         log(f"Export failed: {e}")
+
+
+def _update_screened_ids(criteria: dict, new_ids: list[str]) -> None:
+    """
+    Migrate screened_message_ids to object format, add new IDs, and prune entries
+    older than 60 days.
+
+    Legacy format: list of plain strings — migrated to objects on first write.
+    Object format: [{"id": "...", "screened_at": "YYYY-MM-DD"}, ...]
+    """
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    cutoff = (datetime.now(UTC) - timedelta(days=60)).strftime("%Y-%m-%d")
+
+    existing: dict[str, str] = {}
+    for entry in criteria.get("screened_message_ids", []):
+        if isinstance(entry, dict):
+            existing[entry["id"]] = entry["screened_at"]
+        else:
+            # Legacy string — assign today so it expires 60 days from migration
+            existing[str(entry)] = today
+
+    for msg_id in new_ids:
+        if msg_id not in existing:
+            existing[msg_id] = today
+
+    criteria["screened_message_ids"] = [
+        {"id": id_, "screened_at": sa} for id_, sa in existing.items() if sa >= cutoff
+    ]
+
+
+def _prune_correspondence_log(criteria: dict) -> None:
+    """Prune closed correspondence log entries (replied_at set) older than 90 days."""
+    log_path_str = criteria.get("correspondence_log_path", "~/.jerbs/correspondence.json")
+    log_path = Path(log_path_str).expanduser()
+
+    if not log_path.exists():
+        return
+
+    try:
+        with open(log_path) as f:
+            entries = json.load(f)
+
+        cutoff = (datetime.now(UTC) - timedelta(days=90)).isoformat()
+        pruned = [e for e in entries if not (e.get("replied_at") and e["replied_at"] < cutoff)]
+
+        if len(pruned) < len(entries):
+            with open(log_path, "w") as f:
+                json.dump(pruned, f, indent=2)
+            log(f"Pruned {len(entries) - len(pruned)} closed correspondence entries (>90 days old)")
+    except Exception as e:
+        log(f"Correspondence log pruning failed: {e}")
 
 
 def print_summary(criteria: dict):

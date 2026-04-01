@@ -751,3 +751,160 @@ class TestMain:
             with patch("setup_wizard.run_setup_wizard"):
                 with patch("builtins.print"):
                     runpy.run_path(jerbs_path, run_name="__main__")
+
+
+# ---------------------------------------------------------------------------
+# _update_screened_ids
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateScreenedIds:
+    def test_adds_new_ids_as_objects(self):
+        criteria = {"screened_message_ids": []}
+        jerbs._update_screened_ids(criteria, ["abc123"])
+        ids = criteria["screened_message_ids"]
+        assert len(ids) == 1
+        assert ids[0]["id"] == "abc123"
+        assert "screened_at" in ids[0]
+
+    def test_migrates_legacy_string_entries(self):
+        criteria = {"screened_message_ids": ["old_id_1", "old_id_2"]}
+        jerbs._update_screened_ids(criteria, [])
+        ids = criteria["screened_message_ids"]
+        id_keys = {e["id"] for e in ids}
+        assert "old_id_1" in id_keys
+        assert "old_id_2" in id_keys
+
+    def test_preserves_existing_object_entries(self):
+        criteria = {"screened_message_ids": [{"id": "existing", "screened_at": "2026-03-01"}]}
+        jerbs._update_screened_ids(criteria, [])
+        assert any(e["id"] == "existing" for e in criteria["screened_message_ids"])
+
+    def test_does_not_duplicate_existing_ids(self):
+        criteria = {"screened_message_ids": [{"id": "dup", "screened_at": "2026-03-01"}]}
+        jerbs._update_screened_ids(criteria, ["dup"])
+        count = sum(1 for e in criteria["screened_message_ids"] if e["id"] == "dup")
+        assert count == 1
+
+    def test_prunes_entries_older_than_60_days(self):
+        from datetime import UTC, datetime, timedelta
+
+        old_date = (datetime.now(UTC) - timedelta(days=61)).strftime("%Y-%m-%d")
+        recent_date = (datetime.now(UTC) - timedelta(days=10)).strftime("%Y-%m-%d")
+        criteria = {
+            "screened_message_ids": [
+                {"id": "old", "screened_at": old_date},
+                {"id": "recent", "screened_at": recent_date},
+            ]
+        }
+        jerbs._update_screened_ids(criteria, [])
+        ids = {e["id"] for e in criteria["screened_message_ids"]}
+        assert "old" not in ids
+        assert "recent" in ids
+
+    def test_empty_new_ids_with_empty_existing(self):
+        criteria = {"screened_message_ids": []}
+        jerbs._update_screened_ids(criteria, [])
+        assert criteria["screened_message_ids"] == []
+
+    def test_output_is_list_of_dicts(self):
+        criteria = {"screened_message_ids": ["s1", "s2"]}
+        jerbs._update_screened_ids(criteria, ["s3"])
+        for entry in criteria["screened_message_ids"]:
+            assert isinstance(entry, dict)
+            assert "id" in entry
+            assert "screened_at" in entry
+
+
+# ---------------------------------------------------------------------------
+# _prune_correspondence_log
+# ---------------------------------------------------------------------------
+
+
+class TestPruneCorrespondenceLog:
+    def test_no_op_when_log_file_missing(self, tmp_path):
+        criteria = {"correspondence_log_path": str(tmp_path / "missing.json")}
+        # Should not raise
+        with patch("jerbs.log"):
+            jerbs._prune_correspondence_log(criteria)
+
+    def test_keeps_open_threads(self, tmp_path):
+        log_path = tmp_path / "correspondence.json"
+        entries = [
+            {"id": "1", "replied_at": None, "awaiting_reply": True},
+            {"id": "2", "replied_at": None, "awaiting_reply": True},
+        ]
+        log_path.write_text(json.dumps(entries))
+        criteria = {"correspondence_log_path": str(log_path)}
+        with patch("jerbs.log"):
+            jerbs._prune_correspondence_log(criteria)
+        result = json.loads(log_path.read_text())
+        assert len(result) == 2
+
+    def test_keeps_recently_closed_threads(self, tmp_path):
+        from datetime import UTC, datetime, timedelta
+
+        log_path = tmp_path / "correspondence.json"
+        recent = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        entries = [{"id": "1", "replied_at": recent, "awaiting_reply": False}]
+        log_path.write_text(json.dumps(entries))
+        criteria = {"correspondence_log_path": str(log_path)}
+        with patch("jerbs.log"):
+            jerbs._prune_correspondence_log(criteria)
+        result = json.loads(log_path.read_text())
+        assert len(result) == 1
+
+    def test_prunes_old_closed_threads(self, tmp_path):
+        from datetime import UTC, datetime, timedelta
+
+        log_path = tmp_path / "correspondence.json"
+        old = (datetime.now(UTC) - timedelta(days=91)).isoformat()
+        entries = [{"id": "1", "replied_at": old, "awaiting_reply": False}]
+        log_path.write_text(json.dumps(entries))
+        criteria = {"correspondence_log_path": str(log_path)}
+        with patch("jerbs.log"):
+            jerbs._prune_correspondence_log(criteria)
+        result = json.loads(log_path.read_text())
+        assert len(result) == 0
+
+    def test_only_prunes_closed_old_not_open_old(self, tmp_path):
+        from datetime import UTC, datetime, timedelta
+
+        log_path = tmp_path / "correspondence.json"
+        old = (datetime.now(UTC) - timedelta(days=91)).isoformat()
+        entries = [
+            {"id": "open_old", "replied_at": None, "awaiting_reply": True},
+            {"id": "closed_old", "replied_at": old, "awaiting_reply": False},
+        ]
+        log_path.write_text(json.dumps(entries))
+        criteria = {"correspondence_log_path": str(log_path)}
+        with patch("jerbs.log"):
+            jerbs._prune_correspondence_log(criteria)
+        result = json.loads(log_path.read_text())
+        ids = {e["id"] for e in result}
+        assert "open_old" in ids
+        assert "closed_old" not in ids
+
+    def test_does_not_rewrite_file_if_nothing_pruned(self, tmp_path):
+        log_path = tmp_path / "correspondence.json"
+        entries = [{"id": "1", "replied_at": None}]
+        log_path.write_text(json.dumps(entries))
+        mtime_before = log_path.stat().st_mtime
+        criteria = {"correspondence_log_path": str(log_path)}
+        with patch("jerbs.log"):
+            jerbs._prune_correspondence_log(criteria)
+        mtime_after = log_path.stat().st_mtime
+        assert mtime_before == mtime_after
+
+    def test_logs_pruned_count(self, tmp_path):
+        from datetime import UTC, datetime, timedelta
+
+        log_path = tmp_path / "correspondence.json"
+        old = (datetime.now(UTC) - timedelta(days=91)).isoformat()
+        entries = [{"id": "1", "replied_at": old}, {"id": "2", "replied_at": old}]
+        log_path.write_text(json.dumps(entries))
+        criteria = {"correspondence_log_path": str(log_path)}
+        log_calls = []
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            jerbs._prune_correspondence_log(criteria)
+        assert any("2" in c or "Pruned" in c for c in log_calls)
