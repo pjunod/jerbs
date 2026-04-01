@@ -35,8 +35,8 @@ jerbs/
 ├── .yamllint.yaml                   ← YAML linter config
 ├── criteria_template.json           ← (legacy root copy — see shared/)
 │
-├── claude-ai/                       ← Claude.ai browser version
-│   ├── SKILL.md                     ← skill definition for Claude.ai Projects
+├── claude-web/                       ← Claude.ai browser version (see "Two SKILL.md files" below)
+│   ├── SKILL.md                     ← streamlined skill spec for Claude.ai web/project sessions
 │   ├── jerbs.skill                  ← packaged .skill file for one-click install
 │   └── assets/
 │       └── scheduler.html           ← auto-scheduler widget (rendered inline by Claude)
@@ -66,6 +66,22 @@ jerbs/
 └── docs/
     └── setup.md                     ← detailed setup guide for all deployment modes
 ```
+
+### Two SKILL.md files
+
+There are two versions of the skill spec, each tailored for its deployment context:
+
+| File | Used by | What it includes |
+|---|---|---|
+| `SKILL.md` (root) | Claude Code | **Full spec.** Environment detection, filesystem paths, correspondence tracking, send mode with safety caps, active thread management (Step 2.5), screened ID pruning, and all security guards. |
+| `claude-web/SKILL.md` | Claude.ai web/project sessions | **Streamlined subset.** Same screening logic, criteria, setup wizard, and result format, but omits Claude Code filesystem paths, correspondence log, send mode details, active threads, and pruning to reduce context usage. |
+
+**Keeping them in sync:** When changing shared behavior (screening logic, criteria fields,
+setup wizard, result format, security rules), update **both files**. When changing Claude
+Code-only features (environment detection, correspondence log, send mode toggle, Step 2.5,
+screened ID pruning), only the root file needs changes. After editing `claude-web/SKILL.md`,
+run `./scripts/build_skill.sh` to rebuild the packaged `.skill` file — CI will fail if
+it's stale.
 
 **Runtime files** (not in the repo — created automatically on first run):
 
@@ -256,7 +272,7 @@ The scheduler runs jerbs automatically without manual prompting. Ask Claude to
 | Off-hours | 60 min | Outside business hours |
 | Rapid response | 5 min for 30 min | Auto-triggered when draft replies are generated |
 
-The browser scheduler (`claude-ai/assets/scheduler.html`) runs while the Claude.ai tab is
+The browser scheduler (`claude-web/assets/scheduler.html`) runs while the Claude.ai tab is
 open. It is not a background service — it requires an active browser tab.
 
 The local daemon (`claude-code/`) runs continuously as a true background process and does
