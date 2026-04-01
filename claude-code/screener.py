@@ -127,15 +127,19 @@ class Screener:
         max_per_pass: int | None = 100,
         use_batch: bool = False,
         on_result=None,
+        linkedin=None,
     ) -> tuple[list[dict], bool]:
         """
-        Run both Gmail passes and screen all results.
+        Run Gmail passes and an optional LinkedIn DM pass, screen all results.
 
         Args:
             use_batch: Use Anthropic Batch API when >3 emails (50% cost reduction).
                        Ideal for daemon runs; keep False for interactive sessions.
-            on_result: Optional callback invoked immediately after each email is screened.
-                       Called with the result dict. Only fires in real-time (non-batch) mode.
+            on_result: Optional callback invoked immediately after each message is
+                       screened. Called with the result dict. Only fires in
+                       real-time (non-batch) mode.
+            linkedin: Optional LinkedInClient instance. When provided, adds a 3rd
+                      pass that screens recent LinkedIn DMs.
         Returns (results, had_drafts).
         """
         raw_ids = criteria.get("screened_message_ids", [])
@@ -144,23 +148,28 @@ class Screener:
         had_drafts = False
         prompt = self._get_prompt(criteria)
 
-        # Collect all new full messages up front (required for batch; fine for streaming too)
+        # Build pass list: Gmail passes + optional LinkedIn pass
+        passes = [
+            (1, self._build_pass1_query(criteria, lookback_days), "LinkedIn Alert", gmail),
+            (2, self._build_pass2_query(criteria, lookback_days), "Direct Outreach", gmail),
+        ]
+        if linkedin:
+            passes.append((3, "", "LinkedIn DM", linkedin))
+
+        # Collect all new full messages up front
         all_messages: list[dict] = []
-        for pass_num, query, source_label in [
-            (1, self._build_pass1_query(criteria, lookback_days), "LinkedIn Alert"),
-            (2, self._build_pass2_query(criteria, lookback_days), "Direct Outreach"),
-        ]:
-            messages = gmail.search(query, max_results=max_per_pass)
+        for pass_num, query, source_label, client in passes:
+            messages = client.search(query, max_results=max_per_pass)
             new_msgs = [m for m in messages if m["id"] not in screened_ids]
 
             if max_per_pass and len(messages) >= max_per_pass:
                 print(
-                    f"\nPass {pass_num} hit the {max_per_pass}-result limit — "
-                    f"there may be more emails. Run with a larger --max to fetch more."
+                    f"\nPass {pass_num} hit the {max_per_pass}-result limit"
+                    f" — there may be more. Run with a larger --max."
                 )
 
             for meta in new_msgs:
-                msg = gmail.get_message(meta["id"])
+                msg = client.get_message(meta["id"])
                 if msg:
                     msg["_source"] = source_label
                     msg["_pass_num"] = pass_num
@@ -428,6 +437,12 @@ REQUIRED INFO (flag missing, request in reply draft):
 
 Pass 2 only (direct outreach): Generic/mass email (no name, boilerplate, no reference
 to specific background) = hard fail. Pass 1 (digest alerts) = exempt from this rule.
+
+Pass 3 (LinkedIn DMs): Direct messages from recruiters on LinkedIn. The "subject"
+field is synthesized from the sender name and first line of the message (LinkedIn
+DMs have no real subject). Apply the same criteria as Pass 2 — the generic mass
+message dealbreaker applies: a generic InMail template with no personalization is
+a hard fail.
 
 REPLY SETTINGS:
 Tone: {tone}

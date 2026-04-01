@@ -134,8 +134,8 @@ class TestAskBool:
 # ---------------------------------------------------------------------------
 
 # Input values for a full wizard run accepting all defaults (empty string = accept default).
-# The wizard makes exactly 31 input() calls.
-_ALL_DEFAULTS = [""] * 31
+# The wizard makes exactly 32 input() calls (31 original + 1 LinkedIn opt-in).
+_ALL_DEFAULTS = [""] * 32
 
 
 class TestRunSetupWizard:
@@ -163,7 +163,7 @@ class TestRunSetupWizard:
     def test_custom_name_saved(self, tmp_path):
         out = tmp_path / "criteria.json"
         # Provide "Alice" as name (first input), rest default
-        inputs = ["Alice"] + [""] * 30
+        inputs = ["Alice"] + [""] * 31
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         data = json.loads(out.read_text())
@@ -172,7 +172,7 @@ class TestRunSetupWizard:
     def test_cancel_does_not_save(self, tmp_path):
         out = tmp_path / "criteria.json"
         # Return "n" on the last prompt ("Save this profile?")
-        inputs = [""] * 30 + ["n"]
+        inputs = [""] * 31 + ["n"]
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         assert not out.exists()
@@ -181,7 +181,7 @@ class TestRunSetupWizard:
         out = tmp_path / "criteria.json"
         # 4th input() call is ask_list("Target roles"), return something non-empty
         # Calls: name, title, background, seniority, target_roles(4th)
-        inputs = ["", "", "", "", "Staff Eng, Principal Eng"] + [""] * 26
+        inputs = ["", "", "", "", "Staff Eng, Principal Eng"] + [""] * 27
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         data = json.loads(out.read_text())
@@ -190,7 +190,7 @@ class TestRunSetupWizard:
     def test_full_time_only_false_includes_contract(self, tmp_path):
         out = tmp_path / "criteria.json"
         # The "Full-time only?" ask_bool is input call #11 (index 10)
-        inputs = [""] * 10 + ["n"] + [""] * 20
+        inputs = [""] * 10 + ["n"] + [""] * 21
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         data = json.loads(out.read_text())
@@ -199,7 +199,7 @@ class TestRunSetupWizard:
     def test_decline_default_dealbreakers_results_in_empty_list(self, tmp_path):
         out = tmp_path / "criteria.json"
         # "Use these defaults?" for dealbreakers is input call #21 (index 20)
-        inputs = [""] * 20 + ["n"] + [""] * 10
+        inputs = [""] * 20 + ["n"] + [""] * 11
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         data = json.loads(out.read_text())
