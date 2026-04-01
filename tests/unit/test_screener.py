@@ -401,6 +401,88 @@ class TestRun:
 
 
 # ---------------------------------------------------------------------------
+# Query builders
+# ---------------------------------------------------------------------------
+
+
+class TestQueryBuilders:
+    def test_pass1_includes_base_keywords(self):
+        s = make_screener()
+        q = s._build_pass1_query(MINIMAL_CRITERIA, 1)
+        assert "opportunity" in q
+        assert "newer_than:1d" in q
+
+    def test_pass1_includes_extra_keywords(self):
+        s = make_screener()
+        criteria = {
+            **MINIMAL_CRITERIA,
+            "search_settings": {"extra_keywords": ["python", "django"], "extra_exclusions": []},
+        }
+        q = s._build_pass1_query(criteria, 7)
+        assert "python" in q
+        assert "django" in q
+        assert "newer_than:7d" in q
+
+    def test_pass2_excludes_linkedin(self):
+        s = make_screener()
+        q = s._build_pass2_query(MINIMAL_CRITERIA, 1)
+        assert "-from:linkedin.com" in q
+        assert "-from:noreply" in q
+
+    def test_pass2_includes_extra_exclusions(self):
+        s = make_screener()
+        criteria = {
+            **MINIMAL_CRITERIA,
+            "search_settings": {"extra_keywords": [], "extra_exclusions": ["spam@evil.com"]},
+        }
+        q = s._build_pass2_query(criteria, 1)
+        assert "-from:spam@evil.com" in q
+
+    def test_pass1_extra_keywords_not_before_newer_than(self):
+        """Extra keywords must appear inside the subject clause, not floating before newer_than."""
+        s = make_screener()
+        criteria = {
+            **MINIMAL_CRITERIA,
+            "search_settings": {"extra_keywords": ["ml", "ai"], "extra_exclusions": []},
+        }
+        q = s._build_pass1_query(criteria, 1)
+        # newer_than must come at the end, not have keywords injected before it
+        assert q.endswith("newer_than:1d")
+
+
+# ---------------------------------------------------------------------------
+# Criteria hash cache
+# ---------------------------------------------------------------------------
+
+
+class TestCriteriaHashCache:
+    def test_prompt_cached_on_repeated_call(self):
+        s = make_screener()
+        p1 = s._get_prompt(MINIMAL_CRITERIA)
+        p2 = s._get_prompt(MINIMAL_CRITERIA)
+        assert p1 is p2  # same object — not rebuilt
+
+    def test_prompt_rebuilt_when_criteria_changes(self):
+        s = make_screener()
+        p1 = s._get_prompt(MINIMAL_CRITERIA)
+        changed = {
+            **MINIMAL_CRITERIA,
+            "compensation": {**MINIMAL_CRITERIA["compensation"], "base_salary_floor": 999999},
+        }
+        p2 = s._get_prompt(changed)
+        assert p1 is not p2
+        assert "999,999" in p2
+
+    def test_hash_updates_on_criteria_change(self):
+        s = make_screener()
+        s._get_prompt(MINIMAL_CRITERIA)
+        h1 = s._criteria_hash
+        changed = {**MINIMAL_CRITERIA, "profile_name": "different"}
+        s._get_prompt(changed)
+        assert s._criteria_hash != h1
+
+
+# ---------------------------------------------------------------------------
 # ImportError handler (screener.py lines 13–14)
 # ---------------------------------------------------------------------------
 
