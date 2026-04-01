@@ -13,19 +13,19 @@ Ordered by impact. Mark items with `[x]` when complete.
 
 - [x] **SKILL.md bloat cleanup** — Remove duplicate schema sections (criteria + correspondence log each appear twice), merge duplicate scheduler/widget docs, condense setup wizard Q&A from scripted dialogue to a compact field list. ~175 lines removed (~15-20% of file). _(pjunod/jerbs#31)_
 
-- [ ] **Model tiering** — Use Haiku for clear-fail fast-path screening, Sonnet only for pass/maybe verdicts requiring real judgment. Most Pass 2 spam can be rejected by Haiku in milliseconds for pennies.
+- [x] **Model tiering** — Haiku fast-path for clear fails; Sonnet + extended thinking for pass/maybe. `_call_api()` helper added. _(pjunod/jerbs#35)_
+
+- [x] **Extended thinking for ambiguous verdicts** — Sonnet escalation call always uses `thinking: {type: enabled, budget_tokens: 5000}` for reliable judgment on edge cases. _(pjunod/jerbs#35)_
 
 ---
 
 ## Medium Impact
 
-- [ ] **Fix Gmail query construction** — Replace fragile `str.replace()` surgery for `extra_keywords` injection in `screener.py` with a programmatic query builder. Current approach inserts keywords in the wrong position.
+- [x] **Fix Gmail query construction** — Replaced fragile string surgery with programmatic query builder in `screener.py`. Extra keywords now correctly inserted inside `subject:()` clause. _(pjunod/jerbs#33)_
 
-- [ ] **Fix `screened_message_ids` format in daemon mode** — Daemon writes raw string IDs instead of `{"id": ..., "screened_at": ...}` objects. The 60-day pruning logic in the skill never fires for daemon-screened IDs. Fix the save step in `jerbs.py`.
+- [x] **Fix `screened_message_ids` format in daemon mode** — Daemon now writes `{"id": ..., "screened_at": ...}` objects. Legacy strings migrated on first save. 60-day pruning active. _(pjunod/jerbs#34)_
 
-- [ ] **Batch API for daemon runs** — Use Anthropic Message Batches API for runs with >3 emails (50% cost reduction). Keep real-time API for interactive Claude Code sessions. Already architecturally clean — `_screen_one()` is a pure function.
-
-- [ ] **Extended thinking for ambiguous verdicts** — Trigger extended thinking on "maybe" results with uncertain comp ranges or partial whitelist/blacklist matches to improve accuracy on edge cases.
+- [ ] **Batch API for daemon runs** — Use Anthropic Message Batches API for runs with >3 emails (50% cost reduction). Keep real-time API for interactive Claude Code sessions. Already architecturally clean — `_call_api()` is a pure function.
 
 - [ ] **Streaming output for interactive runs** — Show results as each email is screened in Claude Code interactive sessions rather than waiting for the full batch. Improves perceived responsiveness significantly.
 
@@ -35,6 +35,6 @@ Ordered by impact. Mark items with `[x]` when complete.
 
 ## Low Impact / Hygiene
 
-- [ ] **Criteria hash cache on Screener instance** — Cache the built prompt string keyed to a criteria hash. Avoids rebuilding an identical string across repeated `screener.run()` calls in a session.
+- [x] **Criteria hash cache on Screener instance** — Cache the built prompt string keyed to a criteria hash. Avoids rebuilding an identical string across repeated `screener.run()` calls in a session. _(pjunod/jerbs#33)_
 
-- [ ] **Correspondence log pruning in daemon mode** — No pruning logic for the correspondence log (unlike `screened_message_ids`). Add pruning of closed threads (replied_at set AND >90 days old) on save.
+- [x] **Correspondence log pruning in daemon mode** — `_prune_correspondence_log()` added: prunes closed threads (replied_at set AND >90 days old) on each daemon save. _(pjunod/jerbs#34)_
