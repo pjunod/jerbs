@@ -52,6 +52,14 @@ _SCREENING_TOOL = {
                 "type": ["string", "null"],
                 "description": "Draft reply for pass/maybe requesting missing info, or null for fail",
             },
+            "posting_url": {
+                "type": ["string", "null"],
+                "description": (
+                    "URL to the job posting or application page if found in the email body. "
+                    "Extract the most direct link to the actual job listing (e.g. LinkedIn job URL, "
+                    "company careers page, Greenhouse/Lever link). Null if none found."
+                ),
+            },
         },
         "required": ["verdict", "reason", "missing_fields"],
     },
@@ -209,6 +217,11 @@ class Screener:
             f"{msg.get('body', msg.get('snippet', ''))}"
         )
 
+    @staticmethod
+    def _gmail_url(message_id: str) -> str:
+        """Build a clickable Gmail URL from a message ID."""
+        return f"https://mail.google.com/mail/u/0/#inbox/{message_id}"
+
     def _build_result_dict(self, msg: dict, parsed: dict) -> dict:
         return {
             "source": msg.get("_source", ""),
@@ -226,6 +239,8 @@ class Screener:
             "comp_assessment": parsed.get("comp_assessment"),
             "missing_fields": parsed.get("missing_fields", []),
             "reply_draft": parsed.get("reply_draft"),
+            "posting_url": parsed.get("posting_url"),
+            "email_url": self._gmail_url(msg["id"]),
         }
 
     def _build_api_params(
