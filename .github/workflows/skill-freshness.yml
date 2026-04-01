@@ -1,0 +1,38 @@
+name: Skill package freshness
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-skill:
+    name: Check jerbs.skill is up to date
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract committed .skill contents
+        run: |
+          mkdir -p /tmp/skill-committed
+          unzip -qo claude-web/jerbs.skill -d /tmp/skill-committed
+
+      - name: Rebuild .skill from sources
+        run: ./scripts/build_skill.sh
+
+      - name: Extract rebuilt .skill contents
+        run: |
+          mkdir -p /tmp/skill-rebuilt
+          unzip -qo claude-web/jerbs.skill -d /tmp/skill-rebuilt
+
+      - name: Compare contents
+        run: |
+          diff -r /tmp/skill-committed /tmp/skill-rebuilt || {
+            echo ""
+            echo "::error::claude-web/jerbs.skill is out of date."
+            echo "Run ./scripts/build_skill.sh and commit the result."
+            exit 1
+          }
+          echo "jerbs.skill is up to date."
