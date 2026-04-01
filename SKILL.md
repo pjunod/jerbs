@@ -150,132 +150,28 @@ only that section — never make them redo everything.
 Walk through these sections conversationally. Ask one section at a time. Don't overwhelm.
 Offer sensible defaults and examples. At the end, confirm the full profile before saving.
 
-### 1a — Identity
-```
-What's your name and current title?
-Briefly describe your background (e.g. "10 years backend engineering, Apple and Meta").
-What roles are you targeting? (can be multiple, e.g. "Staff Engineer, Principal SRE, Engineering Manager")
-What seniority level? (e.g. Senior and above / mid-level and above / executive)
-```
+Collect these fields conversationally, one section at a time. Offer sensible defaults and
+examples. Skip sections that clearly don't apply (e.g. tech/stack for non-engineering roles).
 
-### 1b — Target companies
-```
-What industries or company types are you interested in?
-  Examples: FAANG-tier tech, fintech, crypto, hedge funds / HFT, healthcare tech,
-  e-commerce, startups, enterprise SaaS, government, non-profit
+- **1a Identity:** name, current_title, background_summary, target_roles[], seniority_level
+- **1b Target companies:** industries[], company_types[], company_stages[], prestige_requirement,
+  whitelist[] (dream companies), blacklist[] (always ignore), target_industries_blocklist[]
+- **1c Role requirements:** employment_type[], remote_preference, max_office_days_if_hybrid,
+  max_travel_pct, visa_sponsorship_required
+- **1d Compensation:** base_salary_floor + currency (hard floor), total_comp_target,
+  equity_required, cash_bonus_acceptable, sliding_scale_notes (nuanced factors: remote
+  flexibility, prestige trade-off, startup equity, role scope, CoL)
+- **1e Tech/stack** *(skip if not applicable):* required[], dealbreaker[], preferred[]
+- **1f Hard dealbreakers:** suggest common ones (contract-only, wrong seniority, no-name
+  company, generic mass email, blacklisted company/industry, unpaid take-home); let user
+  add custom entries
+- **1g Required info:** suggest common ones (comp range, equity, remote policy, office days,
+  interview process, company name if obscured); let user add or remove
+- **1h Interview process** *(optional):* max_rounds, no_unpaid_takehome, other_dealbreakers[]
+- **1i Reply settings:** tone, signature
+- **1j Search settings:** extra_keywords[], extra_exclusions[]
 
-Any company stages you prefer? (early-stage, Series B+, public, any)
-
-Any prestige / pedigree requirement?
-  Examples: "top-tier only — no unknown companies", "any legitimate company", "prefer well-known brands"
-
-Are there specific companies you ALWAYS want to hear about (dream companies)?
-Are there specific companies or recruiters you want to ALWAYS ignore (blacklist)?
-
-Any entire industries to block?
-  Examples: defense / weapons, tobacco, gambling, MLM, predatory lending
-```
-
-### 1c — Role requirements
-```
-Employment type: full-time only / open to contract / open to part-time?
-Remote preference: remote only / hybrid OK / depends on location / open to on-site?
-  If hybrid is OK, what's the max number of in-office days per week you'd consider?
-Maximum travel you'd accept? (e.g. none, <10%, <25%, doesn't matter)
-Do you need visa/work authorization sponsorship?
-```
-
-### 1d — Compensation
-```
-What's your minimum acceptable base salary? (hard floor — reject anything explicitly listed below this)
-  Currency? (USD, GBP, EUR, etc.)
-
-What's your target total compensation? (including equity, bonus, etc.)
-
-Is equity required, or is a strong cash bonus acceptable instead?
-
-Any nuances to your comp expectations? This is your sliding scale — describe how your
-expectations shift based on factors like:
-  - Remote vs. in-office (and how many days)
-  - How interesting / novel the work is
-  - Company prestige or brand value
-  - Startup equity upside potential
-  - Seniority / scope of the role
-  - Cost of living / location
-
-Examples:
-  "I'll accept lower base for fully remote roles or for genuinely exciting greenfield work"
-  "In-office 4+ days needs to pay significantly more to be worth it"
-  "Founding-team equity can offset a lower base if the company is promising"
-```
-
-### 1e — Tech/stack (skip if not applicable)
-```
-Any tech/stack that's a hard requirement? (e.g. Linux-only environments, specific languages)
-Any tech/stack that's an immediate dealbreaker? (e.g. Windows servers, legacy COBOL)
-Any preferred stack or tech that would make a role more attractive?
-```
-
-### 1f — Hard dealbreakers
-Start with common suggestions and let them add/remove:
-
-Suggested defaults (user picks which apply):
-- Contract / part-time / freelance (when targeting full-time)
-- Wrong seniority level (junior/intern/mid-level if targeting senior)
-- Salary explicitly listed below base floor
-- Generic/mass emails with no personalization (no name, boilerplate, "Hi there")
-- Completely unknown company with no pedigree, funding signal, or recognizable name
-- Company on personal blacklist
-- Industry on personal blocklist
-- Requires relocation to unwanted location
-- Unpaid trial or take-home assignment
-- Requires security clearance (if not applicable)
-- Role is in entirely wrong field
-
-Let user add any custom dealbreakers.
-
-### 1g — Required info (what to always ask about if missing)
-Start with common suggestions:
-
-Suggested defaults:
-- Salary / compensation range (base + total comp)
-- Equity details (type, vesting schedule)
-- Remote / hybrid / in-office policy
-- Number of in-office days if hybrid
-- Interview process overview
-- Company name (if obscured)
-
-Additional options:
-- Nature of work (greenfield vs. maintenance)
-- Tech stack details
-- Team size
-- Reporting structure
-- Benefits (health, 401k, etc.)
-- Bonus structure
-- Start date flexibility
-
-### 1h — Interview process preferences (optional)
-```
-Maximum number of interview rounds you'll tolerate? (or leave blank for no limit)
-Unpaid take-home assignments: dealbreaker yes/no?
-Any other interview process dealbreakers?
-```
-
-### 1i — Reply settings
-```
-What tone should draft replies use? (professional / direct / warm / brief)
-What name/signature should replies use?
-  Example: "Best, Sarah Chen" or "Thanks, Marcus | Staff Engineer"
-```
-
-### 1j — Search settings
-```
-Any extra keywords to include in searches beyond the defaults?
-Any specific senders or domains to always exclude?
-```
-
-Note: Do NOT ask about lookback window or max results during setup — these are set
-automatically based on run history (see Step 3).
+Do NOT ask about lookback window or max results — set automatically from run history (Step 3).
 
 ### Confirm and save
 Show the full criteria summary and ask: "Does this look right? Anything to adjust before
@@ -624,80 +520,19 @@ The cap does not apply to interactive (non-scheduler) sessions where the user is
 
 ---
 
-## Criteria file schema reference
+## Schema reference
 
-See `criteria_template.json` for the full schema with all fields, types, and defaults.
-Key fields:
-
-```json
-{
-  "profile_name": "My Job Search",
-  "identity": { "name", "background_summary", "seniority_level", "target_roles" },
-  "target_companies": { "industries", "company_types", "whitelist", "blacklist" },
-  "target_industries_blocklist": [],
-  "role_requirements": { "employment_type", "remote_preference", "visa_sponsorship_required" },
-  "compensation": { "base_salary_floor", "total_comp_target", "sliding_scale_notes" },
-  "tech_stack": { "required", "dealbreaker", "preferred" },
-  "hard_dealbreakers": [],
-  "required_info": [],
-  "interview_process": { "no_unpaid_takehome", "max_rounds" },
-  "reply_settings": { "tone", "signature" },
-  "send_mode": { "enabled": false, "enabled_at": "" },
-  "correspondence_log_path": "~/.claude/jerbs/correspondence.json",
-  "search_settings": { "lookback_days", "max_results_per_pass", "extra_keywords" },
-  "screened_message_ids": [],
-  "scheduler": {
-    "enabled": false,
-    "biz_hours_start": 9,
-    "biz_hours_end": 17,
-    "timezone": "America/New_York",
-    "rapid_mode_until": null,
-    "cron_jobs": []
-  }
-}
-```
-
-## Correspondence log schema reference
-
-The correspondence log lives at `correspondence_log_path`. It is a JSON array of entries:
-
-```json
-[
-  {
-    "id": "uuid-v4",
-    "timestamp": "2026-03-28T14:32:00Z",
-    "mode": "sent",
-    "to": "recruiter@company.com",
-    "subject": "Re: Staff Engineer opportunity at Acme",
-    "company": "Acme Corp",
-    "role": "Staff Engineer",
-    "body": "Full text of the sent reply",
-    "gmail_thread_id": "18e4f...",
-    "gmail_message_id": "18e4f...",
-    "reply_to_message_id": "18e3a...",
-    "awaiting_reply": true,
-    "replied_at": null
-  }
-]
-```
-
-`mode` values: `"sent"` (send mode active) or `"draft"` (dry-run, logged for reference).
-`awaiting_reply` is set to `false` when a recruiter reply is detected in Step 2.5.
-`replied_at` is set to the ISO timestamp of the recruiter's reply when detected.
+See `criteria_template.json` for the full criteria schema with all fields, types, and
+defaults. See the **How correspondence is tracked** section above for the correspondence
+log entry format.
 
 ---
 
 ## Auto-scheduler (optional)
 
-jerbs supports two scheduler implementations depending on the environment:
-
-- **Claude Code** — durable cron jobs managed via `CronCreate`/`CronDelete`. Runs as a
-  background agent even when no conversation is open. Dynamic interval switching is handled
-  by the agent itself at the end of each run.
-- **Web / browser** — the `scheduler.html` widget runs in the browser tab and uses
-  JavaScript timers + `MutationObserver` to fire `sendPrompt()`. Requires the tab to be open.
-
-Both implementations share the same interval state machine. Only the mechanism differs.
+The scheduler widget runs jerbs automatically on a variable cadence. The widget is bundled
+at `assets/scheduler.html`. Display it using the `show_widget` tool (read file, pass as
+`widget_code`) whenever the user asks to start, automate, or set up the scheduler.
 
 ### Interval state machine
 
@@ -705,182 +540,27 @@ Both implementations share the same interval state machine. Only the mechanism d
 |---|---|---|
 | Off-hours | 60 min | Outside user-defined business hours |
 | Business hours | 15 min | Within business hours |
-| Rapid response | 5 min | For 30 min after a run generated draft replies |
+| Rapid response | 5 min | For 30 min after a reply was sent |
 
-Rapid mode reverts after 30 minutes with no new drafts — back to business hours (15 min)
-or off-hours (60 min), whichever applies at that moment.
+Business hours: user-defined timezone, start/end hour. Defaults to 9 AM–5 PM Eastern.
+Rapid mode reverts after 30 minutes with no new replies.
 
-### Business hours definition
-User sets: timezone, start hour, end hour. Defaults to 9 AM–5 PM Eastern.
+### Rapid mode token
 
----
-
-### Claude Code cron scheduler
-
-Cron jobs are created with `CronCreate` (durable: true) and deleted with `CronDelete`.
-Job IDs are persisted in `criteria.json` under `scheduler.cron_jobs` so they can be
-deleted and recreated when the interval needs to change.
-
-#### Scheduler block in criteria.json
-
-```json
-"scheduler": {
-  "enabled": true,
-  "biz_hours_start": 9,
-  "biz_hours_end": 17,
-  "timezone": "America/New_York",
-  "rapid_mode_until": null,
-  "cron_jobs": ["job_id_biz", "job_id_offhours"]
-}
-```
-
-`rapid_mode_until` is an ISO 8601 timestamp or null. When set, it marks when rapid mode
-expires and the schedule should revert to standard intervals.
-
-#### Cron expressions (for 9am–5pm ET defaults)
-
-| State | Expression | Description |
-|---|---|---|
-| Business hours | `*/15 9-16 * * *` | Every 15 min, hours 9–16 (9:00am–4:45pm) |
-| Off-hours | `7 0-8,17-23 * * *` | Every hour at :07, hours 0–8 and 17–23 |
-| Rapid | `*/5 * * * *` | Every 5 min, all hours |
-
-Adapt the hour ranges to match `biz_hours_start` and `biz_hours_end` from criteria.
-
-#### Initial setup
-
-When the user asks to start the Claude Code scheduler:
-
-1. Read `scheduler` block from criteria (or use defaults if absent)
-2. Create two durable cron jobs — business hours + off-hours
-3. Persist the IDs and enable the scheduler in one step:
-   `python3 /Users/pjunod/code/jerbs/scripts/update_run.py --enable-scheduler JOB_ID_BIZ JOB_ID_OFFHOURS`
-4. Confirm to the user: cadence, business hours window, timezone
-
-#### Scheduled run prompt
-
-Each cron job fires the following prompt:
-
-```
-JERBS_SCHEDULED=true
-
-Run jerbs in automated scheduled mode. Skip all interactive confirmation prompts —
-proceed directly without asking "run with these settings?".
-
-**Lock guard — do this first, before reading criteria or searching Gmail:**
-Run: python3 /Users/pjunod/code/jerbs/scripts/update_run.py --check-lock
-If the output is "LOCKED", print "Previous run still in progress — skipping." and stop.
-Otherwise, immediately set the lock:
-  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --set-lock
-
-Run both Gmail passes, screen all results, generate draft replies for pass/maybe verdicts,
-and present the full results report. Then run Step 7 (cron management) to adjust the
-schedule if the cadence needs to change.
-
-**After Step 7 completes** (or if the run produced no new emails), clear the lock:
-  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --clear-lock
-
-**When saving screened message IDs** (after Step 3), use the update script instead of
-writing criteria.json directly:
-  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --add-ids ID1 ID2 ...
-This also sets last_run_date automatically — no separate write needed.
-```
-
-When `JERBS_SCHEDULED=true` is present: skip the Step 2 confirmation prompt entirely and
-proceed directly to Step 2.5. All other steps run normally.
-
----
-
-### Browser scheduler widget
-
-The scheduler is bundled at `assets/scheduler.html`. Display it using the `show_widget`
-tool (read the file contents and pass as `widget_code`) whenever the user asks to start
-the scheduler **and Claude Code cron is not available**.
-
-```python
-with open("assets/scheduler.html") as f:
-    html = f.read()
-# Pass html as widget_code to show_widget
-```
-
-The widget is self-contained — it handles all timer logic, business hours detection,
-mode switching, and automatic rapid mode via MutationObserver. No additional setup needed.
-
-### Rapid mode token (browser only)
-
-When a screening run generates draft replies **in browser mode**, Claude MUST include this
-token on its own line at the very end of the response:
+At the very end of any response that includes draft replies, Claude MUST silently include:
 
 ```
 JERBS:RAPID_START
 ```
 
 The widget's MutationObserver detects this token and triggers rapid mode automatically.
-Do not explain the token — include it silently when drafts were generated.
+Do not explain or annotate the token — just emit it. This is the only rapid mode trigger.
 
-In Claude Code mode, rapid mode is managed by Step 7 cron management instead — do NOT
-emit this token.
+### Controls
+- Start / Pause — toggle on and off
+- Run now — immediate run without resetting timer
+- I sent a reply — manual rapid mode trigger
 
-### Important note (browser)
-The widget only runs while the browser tab is open. It is not a background service.
-
----
-
----
-
-## Step 7 — Cron management (Claude Code only)
-
-**Only runs during automated scheduled runs** (`JERBS_SCHEDULED=true` in the prompt).
-Skip entirely during interactive sessions.
-
-At the end of every automated run, evaluate whether the cron schedule needs to change.
-Read `scheduler` from `criteria.json` for current state.
-
-### Decision logic
-
-**1. Check rapid mode expiry**
-If `rapid_mode_until` is set and the current time is past it:
-- Delete all job IDs in `scheduler.cron_jobs` via `CronDelete`
-- Recreate business-hours + off-hours crons (durable: true) → get new IDs
-- Run: `python3 /Users/pjunod/code/jerbs/scripts/update_run.py --clear-rapid-mode JOB_ID_BIZ JOB_ID_OFFHOURS`
-- Log: "Rapid mode expired — reverted to standard schedule"
-
-**2. Check if this run generated draft replies**
-If one or more draft replies were generated AND `rapid_mode_until` is null (not already rapid):
-- Delete all job IDs in `scheduler.cron_jobs` via `CronDelete`
-- Create a single rapid-mode cron: `*/5 * * * *` (durable: true) → get new ID
-- Compute expiry = now + 30 minutes as ISO 8601 string
-- Run: `python3 /Users/pjunod/code/jerbs/scripts/update_run.py --set-rapid-mode JOB_ID EXPIRY_ISO`
-- Log: "Rapid mode activated — 5-min cadence for 30 min"
-
-**3. Otherwise**
-No change needed. Do not touch the cron jobs. Save nothing.
-
-### Cron prompt template
-
-When creating business-hours, off-hours, or rapid-mode crons, use this prompt verbatim:
-
-```
-JERBS_SCHEDULED=true
-
-Run jerbs in automated scheduled mode. Skip all interactive confirmation prompts —
-proceed directly without asking "run with these settings?".
-
-**Lock guard — do this first, before reading criteria or searching Gmail:**
-Run: python3 /Users/pjunod/code/jerbs/scripts/update_run.py --check-lock
-If the output is "LOCKED", print "Previous run still in progress — skipping." and stop.
-Otherwise, immediately set the lock:
-  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --set-lock
-
-Run both Gmail passes, screen all results, generate draft replies for pass/maybe verdicts,
-and present the full results report. Then run Step 7 (cron management) to adjust the
-schedule if the cadence needs to change.
-
-**After Step 7 completes** (or if the run produced no new emails), clear the lock:
-  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --clear-lock
-
-**When saving screened message IDs** (after Step 3), use the update script instead of
-writing criteria.json directly:
-  python3 /Users/pjunod/code/jerbs/scripts/update_run.py --add-ids ID1 ID2 ...
-This also sets last_run_date automatically — no separate write needed.
-```
+### Important note
+The widget runs only while the browser tab is open — it is not a background service.
+For always-on automation, use the Claude Code local daemon instead.
