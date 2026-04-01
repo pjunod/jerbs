@@ -149,47 +149,8 @@ only that section — never make them redo everything.
 
 ## Step 1 — Setup wizard (first-time or full reset)
 
-Walk through these sections one at a time. Don't overwhelm. Skip sections that clearly
-don't apply (e.g. tech/stack for non-engineering roles).
-
-**Interactive selection via `AskUserQuestion`:** For any field that collects a list
-(industries, target roles, dealbreakers, required info, tech stack, blacklist, etc.),
-use `AskUserQuestion` with `multiSelect: true`. Present the most common/obvious defaults
-as checkbox options (up to the 4-option limit per question). If there are more than 4
-common defaults for a field, list the extras in the question text itself so the user can
-see all suggestions and add any of them (or their own) via the built-in "Other" freeform
-input. This gives users quick checkboxes for the obvious picks plus full flexibility.
-
-For scalar fields (name, salary floor, tone, etc.), use `AskUserQuestion` with common
-choices where applicable, or ask conversationally for truly open-ended fields.
-
-**Batch related questions** — use up to 4 questions per `AskUserQuestion` call to reduce
-round-trips (e.g. name + current title + seniority + target roles in one call).
-
-- **1a Identity:** name, current_title, background_summary, target_roles[], seniority_level
-- **1b Target companies:** industries[], company_types[], company_stages[], prestige_requirement,
-  whitelist[] (dream companies), blacklist[] (always ignore), target_industries_blocklist[]
-- **1c Role requirements:** employment_type[], remote_preference, max_office_days_if_hybrid,
-  max_travel_pct, visa_sponsorship_required
-- **1d Compensation:** base_salary_floor + currency (hard floor), total_comp_target,
-  equity_required, cash_bonus_acceptable, sliding_scale_notes (nuanced factors: remote
-  flexibility, prestige trade-off, startup equity, role scope, CoL)
-- **1e Tech/stack** *(skip if not applicable):* required[], dealbreaker[], preferred[]
-- **1f Hard dealbreakers:** suggest common ones (contract-only, wrong seniority, no-name
-  company, generic mass email, blacklisted company/industry, unpaid take-home); let user
-  add custom entries
-- **1g Required info:** suggest common ones (comp range, equity, remote policy, office days,
-  interview process, company name if obscured); let user add or remove
-- **1h Interview process** *(optional):* max_rounds, no_unpaid_takehome, other_dealbreakers[]
-- **1i Reply settings:** tone, signature
-- **1j Search settings:** extra_keywords[], extra_exclusions[]
-- **1k LinkedIn (optional):** If the LinkedIn MCP is connected, ask if the user wants to enable LinkedIn DM screening. If yes, cookies are configured via the setup wizard in the daemon or via MCP connection in Claude Code/Claude.ai.
-
-Do NOT ask about lookback window or max results — set automatically from run history (Step 3).
-
-### Confirm and save
-Show the full criteria summary and ask: "Does this look right? Anything to adjust before
-I save it?" Then write to the criteria JSON file.
+Read and follow `docs/setup_wizard.md` for the full setup flow with all sections, example
+questions, suggested defaults, and probing guidance for extracting nuanced preferences.
 
 ---
 
