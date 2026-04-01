@@ -29,7 +29,7 @@ Ordered by impact. Mark items with `[x]` when complete.
 
 - [x] **Streaming output for interactive runs** — `--once` mode streams results via `on_result` callback as each email is screened. Daemon/batch mode logs summary at end. _(pjunod/jerbs#TBD)_
 
-- [x] **Symlink skill files** — `~/.claude/commands/jerbs.md` is now a symlink to root `SKILL.md`. `claude-ai/assets/scheduler.html` is a symlink to `assets/scheduler.html`. CI check added in `lint.yml`. Stale export path (`scripts/` → `shared/scripts/`) fixed in both SKILL.md files. _(pjunod/jerbs#TBD)_
+- [x] **Symlink skill files** — `~/.claude/commands/jerbs.md` is now a symlink to root `SKILL.md`. `claude-web/assets/scheduler.html` is a symlink to `assets/scheduler.html`. CI check added in `lint.yml`. Stale export path (`scripts/` → `shared/scripts/`) fixed in both SKILL.md files. _(pjunod/jerbs#TBD)_
 
 ---
 
