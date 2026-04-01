@@ -2,6 +2,8 @@ name: Red team (PR on demand)
 
 # Comment /redteam on any PR to kick off the prompt injection security suite
 # against that branch. A 🚀 reaction confirms the trigger was received.
+# Results are posted as a commit status on the PR head so they appear in the
+# PR's checks section.
 
 on:
   issue_comment:
@@ -19,9 +21,11 @@ jobs:
     permissions:
       issues: write  # post the confirmation comment
       pull-requests: write  # read PR metadata
+      statuses: write  # set commit status on the PR head
 
     outputs:
-      branch: ${{ steps.pr.outputs.result }}
+      branch: ${{ steps.pr.outputs.branch }}
+      sha: ${{ steps.pr.outputs.sha }}
 
     steps:
       - name: React to confirm receipt
@@ -35,18 +39,32 @@ jobs:
               content: 'rocket',
             });
 
-      - name: Get PR branch
+      - name: Get PR branch and SHA
         id: pr
         uses: actions/github-script@v7
         with:
-          result-encoding: string
           script: |
             const pr = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
             });
-            return pr.data.head.ref;
+            core.setOutput('branch', pr.data.head.ref);
+            core.setOutput('sha', pr.data.head.sha);
+
+      - name: Set pending commit status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ steps.pr.outputs.sha }}',
+              state: 'pending',
+              context: 'Red team / Prompt injection security',
+              description: 'Running prompt injection security tests...',
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
 
   # ---------------------------------------------------------------------------
   # Run the full red team suite against the PR branch
@@ -59,3 +77,32 @@ jobs:
       ref: ${{ needs.setup.outputs.branch }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ---------------------------------------------------------------------------
+  # Report final status back to the PR
+  # ---------------------------------------------------------------------------
+  report:
+    name: Report status to PR
+    needs: [setup, redteam]
+    if: always() && needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+
+    steps:
+      - name: Set final commit status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const passed = '${{ needs.redteam.result }}' === 'success';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ needs.setup.outputs.sha }}',
+              state: passed ? 'success' : 'failure',
+              context: 'Red team / Prompt injection security',
+              description: passed
+                ? 'All prompt injection tests passed'
+                : 'Prompt injection tests failed — see run logs',
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });

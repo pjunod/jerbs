@@ -116,11 +116,45 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          promptfoo redteam eval \
-            --config /tmp/redteam-merged.yaml \
-            --no-cache \
-            --max-concurrency 7 \
-            --output /tmp/redteam-results.json
+          # Retry loop: re-run if grader hits 429/524 transient errors.
+          # Backoff: 30s, 30s, 60s between attempts (2 min total wait max).
+          # Concurrency drops on retries to ease rate limit pressure.
+          max_attempts=4
+          backoffs=(0 30 30 60)
+          for attempt in $(seq 1 $max_attempts); do
+            concurrency=$((attempt == 1 ? 4 : 2))
+            echo "=== Attempt $attempt of $max_attempts (concurrency=$concurrency) ==="
+            promptfoo redteam eval \
+              --config /tmp/redteam-merged.yaml \
+              --no-cache \
+              --max-concurrency $concurrency \
+              --output /tmp/redteam-results.json || true
+
+            # Check if any failures were caused by rate limits / timeouts
+            if python3 -c "
+          import json, sys
+          with open('/tmp/redteam-results.json') as f:
+              data = json.load(f)
+          fails = [r for r in data.get('results', {}).get('results', []) if not r.get('success', True)]
+          rate_limited = [r for r in fails
+                         if any(s in (r.get('gradingResult') or {}).get('reason', '')
+                                for s in ('rate_limit_error', 'status 429', 'status 524', 'timeout occurred'))]
+          if rate_limited:
+              print(f'{len(rate_limited)} test(s) failed due to rate limits / timeouts')
+              sys.exit(1)
+          sys.exit(0)
+          " 2>/dev/null; then
+              echo "No rate-limit failures — done."
+              break
+            fi
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "Final attempt completed — accepting results as-is."
+              break
+            fi
+            wait=${backoffs[$attempt]}
+            echo "Backing off ${wait}s before retry..."
+            sleep $wait
+          done
 
       - name: Print auto-generated test failures
         if: always()
@@ -200,11 +234,45 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          promptfoo eval \
-            --config tests/redteam/promptfooconfig-manual.yaml \
-            --no-cache \
-            --max-concurrency 7 \
-            --output /tmp/eval-results.json
+          # Retry loop: re-run if grader hits 429/524 transient errors.
+          # Backoff: 30s, 30s, 60s between attempts (2 min total wait max).
+          # Concurrency drops on retries to ease rate limit pressure.
+          max_attempts=4
+          backoffs=(0 30 30 60)
+          for attempt in $(seq 1 $max_attempts); do
+            concurrency=$((attempt == 1 ? 4 : 2))
+            echo "=== Attempt $attempt of $max_attempts (concurrency=$concurrency) ==="
+            promptfoo eval \
+              --config tests/redteam/promptfooconfig-manual.yaml \
+              --no-cache \
+              --max-concurrency $concurrency \
+              --output /tmp/eval-results.json || true
+
+            # Check if any failures were caused by rate limits / timeouts
+            if python3 -c "
+          import json, sys
+          with open('/tmp/eval-results.json') as f:
+              data = json.load(f)
+          fails = [r for r in data.get('results', {}).get('results', []) if not r.get('success', True)]
+          rate_limited = [r for r in fails
+                         if any(s in (r.get('gradingResult') or {}).get('reason', '')
+                                for s in ('rate_limit_error', 'status 429', 'status 524', 'timeout occurred'))]
+          if rate_limited:
+              print(f'{len(rate_limited)} test(s) failed due to rate limits / timeouts')
+              sys.exit(1)
+          sys.exit(0)
+          " 2>/dev/null; then
+              echo "No rate-limit failures — done."
+              break
+            fi
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "Final attempt completed — accepting results as-is."
+              break
+            fi
+            wait=${backoffs[$attempt]}
+            echo "Backing off ${wait}s before retry..."
+            sleep $wait
+          done
 
       - name: Print hand-crafted test failures
         if: always()
@@ -259,13 +327,16 @@ jobs:
               with open(redteam_path) as f:
                   data = json.load(f)
               results = data.get("results", {}).get("results", [])
-              # Exclude infrastructure errors: empty response + no grading reason
+              # Exclude infrastructure errors: empty response + no grading reason,
+              # or rate limit errors that hit the grader (not the screening logic).
               real_fails = []
               for r in results:
                   if r.get("success", True):
                       continue
                   output = str((r.get("response") or {}).get("output", "")).strip()
                   reason = (r.get("gradingResult") or {}).get("reason", "")
+                  if any(s in reason for s in ("rate_limit_error", "status 429", "status 524", "timeout occurred")):
+                      continue
                   if output or reason:
                       real_fails.append(r)
               if real_fails:
@@ -280,7 +351,18 @@ jobs:
               with open(eval_path) as f:
                   data = json.load(f)
               results = data.get("results", {}).get("results", [])
-              real_fails = [r for r in results if not r.get("success", True)]
+              # Exclude infrastructure errors (rate limits, API errors) that
+              # hit the grader, not the screening logic itself.
+              real_fails = []
+              for r in results:
+                  if r.get("success", True):
+                      continue
+                  reason = (r.get("gradingResult") or {}).get("reason", "")
+                  if any(s in reason for s in ("rate_limit_error", "status 429", "status 524", "timeout occurred")):
+                      desc = r.get("description") or r.get("testCase", {}).get("description", "?")
+                      print(f"Skipping infra error (rate limit) on: {desc}")
+                      continue
+                  real_fails.append(r)
               if real_fails:
                   print(f"Hand-crafted kill chain: {len(real_fails)} failure(s)")
                   failed = True
