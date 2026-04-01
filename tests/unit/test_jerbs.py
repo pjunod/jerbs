@@ -1150,3 +1150,96 @@ class TestLinkedInRouting:
         with patch("jerbs.log"):
             jerbs._send_draft(client, result, criteria)
         client.send_reply.assert_called_once_with(thread_id="t1", body="Hi!", signature="Alex")
+
+
+# ---------------------------------------------------------------------------
+# LinkedIn client init in main() (jerbs.py lines 281–299)
+# ---------------------------------------------------------------------------
+
+
+class TestLinkedInClientInit:
+    def _make_args(self, linkedin=True):
+        args = MagicMock()
+        args.setup = False
+        args.once = True
+        args.export = False
+        args.send = False
+        args.linkedin = linkedin
+        args.criteria = str(Path.home() / ".jerbs" / "criteria.json")
+        return args
+
+    def _base_criteria(self):
+        return {
+            "screened_message_ids": [{"id": "m1", "screened_at": "2026-03-28"}],
+            "search_settings": {"lookback_days": 1},
+            "compensation": {"base_salary_floor": 200000, "total_comp_target": 350000},
+        }
+
+    def test_linkedin_import_error_logs_warning(self):
+        log_calls = []
+        with (
+            patch("jerbs.argparse.ArgumentParser") as mock_parser,
+            patch("jerbs.load_criteria", return_value=self._base_criteria()),
+            patch("jerbs.print_summary"),
+            patch("jerbs.GmailClient"),
+            patch("jerbs.Screener"),
+            patch("jerbs.run_screen"),
+            patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)),
+            patch.dict("sys.modules", {"linkedin_client": None}),
+        ):
+            mock_parser.return_value.parse_args.return_value = self._make_args(linkedin=True)
+            jerbs.main()
+        assert any("linkedin-api not installed" in c for c in log_calls)
+
+    def test_linkedin_file_not_found_logs_warning(self):
+        log_calls = []
+        mock_li_mod = MagicMock()
+        mock_li_mod.LinkedInClient.side_effect = FileNotFoundError("no cookies")
+        with (
+            patch("jerbs.argparse.ArgumentParser") as mock_parser,
+            patch("jerbs.load_criteria", return_value=self._base_criteria()),
+            patch("jerbs.print_summary"),
+            patch("jerbs.GmailClient"),
+            patch("jerbs.Screener"),
+            patch("jerbs.run_screen"),
+            patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)),
+            patch.dict("sys.modules", {"linkedin_client": mock_li_mod}),
+        ):
+            mock_parser.return_value.parse_args.return_value = self._make_args(linkedin=True)
+            jerbs.main()
+        assert any("LinkedIn auth failed" in c for c in log_calls)
+
+    def test_linkedin_value_error_logs_warning(self):
+        log_calls = []
+        mock_li_mod = MagicMock()
+        mock_li_mod.LinkedInClient.side_effect = ValueError("missing JSESSIONID")
+        with (
+            patch("jerbs.argparse.ArgumentParser") as mock_parser,
+            patch("jerbs.load_criteria", return_value=self._base_criteria()),
+            patch("jerbs.print_summary"),
+            patch("jerbs.GmailClient"),
+            patch("jerbs.Screener"),
+            patch("jerbs.run_screen"),
+            patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)),
+            patch.dict("sys.modules", {"linkedin_client": mock_li_mod}),
+        ):
+            mock_parser.return_value.parse_args.return_value = self._make_args(linkedin=True)
+            jerbs.main()
+        assert any("LinkedIn auth failed" in c for c in log_calls)
+
+    def test_linkedin_success_logs_enabled(self):
+        log_calls = []
+        mock_li_mod = MagicMock()
+        with (
+            patch("jerbs.argparse.ArgumentParser") as mock_parser,
+            patch("jerbs.load_criteria", return_value=self._base_criteria()),
+            patch("jerbs.print_summary"),
+            patch("jerbs.GmailClient"),
+            patch("jerbs.Screener"),
+            patch("jerbs.run_screen"),
+            patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)),
+            patch.dict("sys.modules", {"linkedin_client": mock_li_mod}),
+        ):
+            mock_parser.return_value.parse_args.return_value = self._make_args(linkedin=True)
+            jerbs.main()
+        assert any("LinkedIn DM screening enabled" in c for c in log_calls)

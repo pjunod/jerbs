@@ -4,6 +4,7 @@ Unit tests for linkedin_client.py — LinkedIn messaging wrapper.
 linkedin-api is stubbed as a MagicMock via conftest.py.
 """
 
+import importlib
 import json
 import sys
 from datetime import UTC, datetime, timedelta
@@ -14,6 +15,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
 
+import linkedin_client
 from linkedin_client import LinkedInClient
 
 
@@ -354,3 +356,83 @@ class TestCreateDraft:
         c = make_client()
         result = c.create_draft("conv1", "Draft body")
         assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# Import error handler (lines 20–23)
+# ---------------------------------------------------------------------------
+
+
+class TestImportError:
+    def test_raises_helpful_message_when_linkedin_api_missing(self):
+        null_mods = {k: None for k in sys.modules if k.startswith("linkedin_api")}
+        with patch.dict(sys.modules, null_mods):
+            with pytest.raises(ImportError, match="linkedin-api not installed"):
+                importlib.reload(linkedin_client)
+        importlib.reload(linkedin_client)  # restore
+
+
+# ---------------------------------------------------------------------------
+# Edge cases for search — empty entityUrn skipped (line 85–86)
+# ---------------------------------------------------------------------------
+
+
+class TestSearchEdgeCases:
+    def test_skips_conversation_with_empty_entity_urn(self):
+        c = make_client(lookback_days=7)
+        c.api.get_conversations.return_value = {
+            "elements": [
+                {
+                    "entityUrn": "",
+                    "lastActivityAt": _epoch_ms(0),
+                    "events": [],
+                },
+                _make_conversation("valid", days_ago=0),
+            ]
+        }
+        results = c.search("")
+        assert len(results) == 1
+        assert results[0]["threadId"] == "valid"
+
+
+# ---------------------------------------------------------------------------
+# Edge cases for get_message — event URN parse failure (lines 112–113)
+# ---------------------------------------------------------------------------
+
+
+class TestGetMessageEdgeCases:
+    def test_malformed_event_urn_falls_back_to_raw_id(self):
+        c = make_client()
+        # Malformed URN with fs_event but no parentheses
+        c.api.get_conversation.return_value = _make_conversation_events(
+            "urn:li:fs_event:broken", body="Hello"
+        )
+        result = c.get_message("urn:li:fs_event:broken")
+        # Should not crash — falls back to using the raw message_id as conv_id
+        assert result != {}
+
+
+# ---------------------------------------------------------------------------
+# Edge case for _normalize_event — createdAt=0 (line 154)
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeEventEdgeCases:
+    def test_zero_created_at_returns_empty_date(self):
+        c = make_client()
+        event = {
+            "entityUrn": "urn:li:fs_event:(conv1,1)",
+            "createdAt": 0,
+            "from": {
+                "com.linkedin.voyager.messaging.MessagingMember": {
+                    "miniProfile": {"firstName": "Jane", "lastName": "Doe"}
+                }
+            },
+            "eventContent": {
+                "com.linkedin.voyager.messaging.event.MessageEvent": {
+                    "attributedBody": {"text": "Hi"}
+                }
+            },
+        }
+        result = c._normalize_event(event, "conv1", "msg1")
+        assert result["date"] == ""
