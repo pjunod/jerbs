@@ -9,7 +9,7 @@ The Claude.ai version requires no local installation. Everything runs in your br
 - Gmail connected in Claude.ai Settings → Connectors
 
 ### Install
-1. Download `claude-ai/jerbs.skill`
+1. Download `claude-web/jerbs.skill`
 2. In Claude.ai, go to Settings → Skills → Install from file
 3. Upload the `.skill` file
 4. Go to Settings → Connectors → Gmail → Connect

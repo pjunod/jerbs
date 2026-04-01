@@ -33,4 +33,4 @@ jobs:
         run: yamllint .
 
       - name: Check scheduler.html symlink resolves
-        run: test -f claude-ai/assets/scheduler.html
+        run: test -f claude-web/assets/scheduler.html
