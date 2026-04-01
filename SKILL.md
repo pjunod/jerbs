@@ -396,11 +396,11 @@ At the end, offer: "Want me to export these to a spreadsheet?"
 
 ## Step 6 — Optional spreadsheet export
 
-See `scripts/export_results.py` for the full export logic.
+See `shared/scripts/export_results.py` for the full export logic.
 
 Run the export:
 ```bash
-python scripts/export_results.py results.json job_screener_YYYY-MM-DD.xlsx
+python shared/scripts/export_results.py results.json job_screener_YYYY-MM-DD.xlsx
 ```
 
 The spreadsheet has two sheets:

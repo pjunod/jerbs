@@ -56,16 +56,37 @@ def log(msg: str, path: Path = LOG_PATH):
         pass
 
 
+def _log_result(result: dict, gmail: GmailClient, criteria: dict, send_mode: bool):
+    """Log a single screening result and optionally send a draft reply."""
+    verdict = result["verdict"]
+    if verdict == "fail":
+        return
+    status = "INTERESTED" if verdict == "pass" else "MAYBE"
+    log(f"  [{status}] {result.get('company', '?')} — {result.get('role', '?')}")
+    if result.get("dealbreaker"):
+        log(f"    Dealbreaker: {result['dealbreaker']}")
+    if result.get("missing_fields"):
+        log(f"    Missing: {', '.join(result['missing_fields'])}")
+    if result.get("reply_draft"):
+        log("    Draft reply generated.")
+        if send_mode:
+            _send_draft(gmail, result, criteria)
+
+
 def run_screen(
     criteria: dict,
     gmail: GmailClient,
     screener: Screener,
     send_mode: bool = False,
     export: bool = False,
+    interactive: bool = False,
 ) -> bool:
     """
     Run one full screening pass. Returns True if any draft replies were generated
     (triggers rapid mode in the scheduler).
+
+    interactive=True streams results as each email is screened (for --once runs).
+    interactive=False uses the Batch API when >3 emails (for daemon runs).
     """
     is_first = not criteria.get("screened_message_ids")
     lookback = 7 if is_first else criteria.get("search_settings", {}).get("lookback_days", 1)
@@ -75,12 +96,16 @@ def run_screen(
 
     log(f"Starting screen — lookback={lookback}d, max={max_per_pass or 'unlimited'}")
 
+    def on_result(result: dict):
+        _log_result(result, gmail, criteria, send_mode)
+
     results, had_drafts = screener.run(
         criteria=criteria,
         gmail=gmail,
         lookback_days=lookback,
         max_per_pass=max_per_pass,
-        send_mode=send_mode,
+        use_batch=not interactive,
+        on_result=on_result if interactive else None,
     )
 
     if not results:
@@ -93,17 +118,10 @@ def run_screen(
 
     log(f"Results: {len(interested)} interested, {len(maybe)} maybe, {len(filtered)} filtered out")
 
-    for r in interested + maybe:
-        status = "INTERESTED" if r["verdict"] == "pass" else "MAYBE"
-        log(f"  [{status}] {r.get('company', '?')} — {r.get('role', '?')}")
-        if r.get("dealbreaker"):
-            log(f"    Dealbreaker: {r['dealbreaker']}")
-        if r.get("missing_fields"):
-            log(f"    Missing: {', '.join(r['missing_fields'])}")
-        if r.get("reply_draft"):
-            log("    Draft reply generated.")
-            if send_mode:
-                _send_draft(gmail, r, criteria)
+    # In interactive mode results were already logged as they arrived; only log in batch/daemon mode.
+    if not interactive:
+        for r in results:
+            _log_result(r, gmail, criteria, send_mode)
 
     if export:
         _export_results(results, criteria)
@@ -248,7 +266,9 @@ def main():
     screener = Screener()
 
     if args.once:
-        run_screen(criteria, gmail, screener, send_mode=args.send, export=args.export)
+        run_screen(
+            criteria, gmail, screener, send_mode=args.send, export=args.export, interactive=True
+        )
         return
 
     scheduler = Scheduler(
