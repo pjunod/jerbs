@@ -886,7 +886,9 @@ class TestScreenBatch:
         mock_batch.processing_status = "ended"
 
         with (
-            patch.object(s.client.messages.batches, "create", return_value=mock_batch) as mock_create,
+            patch.object(
+                s.client.messages.batches, "create", return_value=mock_batch
+            ) as mock_create,
             patch.object(s.client.messages.batches, "retrieve", return_value=mock_batch),
             patch.object(s.client.messages.batches, "results", return_value=iter(haiku_items)),
         ):
@@ -1066,8 +1068,12 @@ class TestRunBatchPath:
             "message_id": "m0",
         }
 
-        with patch.object(s, "_screen_batch", return_value=[batch_result] * (_BATCH_THRESHOLD + 1)) as mock_batch, \
-             patch.object(s, "_screen_one") as mock_rt:
+        with (
+            patch.object(
+                s, "_screen_batch", return_value=[batch_result] * (_BATCH_THRESHOLD + 1)
+            ) as mock_batch,
+            patch.object(s, "_screen_one") as mock_rt,
+        ):
             results, _ = s.run(criteria, gmail, use_batch=True)
 
         mock_batch.assert_called_once()
@@ -1090,8 +1096,22 @@ class TestRunBatchPath:
             "reply_draft": None,
         }
 
-        with patch.object(s, "_screen_batch") as mock_batch, \
-             patch.object(s, "_screen_one", return_value={**fail_result, "source": "LinkedIn Alert", "message_id": "m0", "thread_id": "t0", "subject": "Role", "from": "r@co.com", "email_date": "2026-03-28"}) as mock_rt:
+        with (
+            patch.object(s, "_screen_batch") as mock_batch,
+            patch.object(
+                s,
+                "_screen_one",
+                return_value={
+                    **fail_result,
+                    "source": "LinkedIn Alert",
+                    "message_id": "m0",
+                    "thread_id": "t0",
+                    "subject": "Role",
+                    "from": "r@co.com",
+                    "email_date": "2026-03-28",
+                },
+            ) as mock_rt,
+        ):
             s.run(criteria, gmail, use_batch=False)
 
         mock_batch.assert_not_called()
@@ -1103,8 +1123,10 @@ class TestRunBatchPath:
         criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
         gmail = self._mock_gmail(1)  # below threshold
 
-        with patch.object(s, "_screen_batch") as mock_batch, \
-             patch.object(s, "_screen_one", return_value=None):
+        with (
+            patch.object(s, "_screen_batch") as mock_batch,
+            patch.object(s, "_screen_one", return_value=None),
+        ):
             s.run(criteria, gmail, use_batch=True)
 
         mock_batch.assert_not_called()
