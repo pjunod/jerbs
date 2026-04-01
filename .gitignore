@@ -22,7 +22,11 @@ job_screener_*.xlsx
 
 # Test artifacts
 .promptfoo/
+.coverage
 tests/redteam/SKILL.md
+
+# Claude Code
+.claude/
 
 # macOS
 .DS_Store
