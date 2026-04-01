@@ -1160,3 +1160,91 @@ class TestRunBatchPath:
             _, had_drafts = s.run(criteria, gmail, use_batch=True)
 
         assert had_drafts is True
+
+
+# ---------------------------------------------------------------------------
+# LinkedIn DM pass (3-pass flow)
+# ---------------------------------------------------------------------------
+
+
+class TestLinkedInPass:
+    def _mock_gmail(self, messages, email):
+        gmail = MagicMock()
+        gmail.search.return_value = messages
+        gmail.get_message.return_value = email
+        return gmail
+
+    def _mock_linkedin(self, messages, dm):
+        li = MagicMock()
+        li.search.return_value = messages
+        li.get_message.return_value = dm
+        return li
+
+    def test_linkedin_pass_adds_third_pass(self):
+        """When linkedin is provided, search is called 3 times (2 Gmail + 1 LinkedIn)."""
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = self._mock_gmail([], SAMPLE_EMAIL)
+        linkedin = self._mock_linkedin([], None)
+
+        s.run(criteria, gmail, linkedin=linkedin)
+
+        assert gmail.search.call_count == 2
+        assert linkedin.search.call_count == 1
+
+    def test_no_linkedin_only_two_passes(self):
+        """Without linkedin, only 2 Gmail passes are executed."""
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = self._mock_gmail([], SAMPLE_EMAIL)
+
+        s.run(criteria, gmail, linkedin=None)
+
+        assert gmail.search.call_count == 2
+
+    def test_linkedin_dm_gets_source_label(self):
+        """LinkedIn DMs should be tagged with source='LinkedIn DM'."""
+        s = make_screener()
+        criteria = {**MINIMAL_CRITERIA, "screened_message_ids": []}
+        gmail = self._mock_gmail([], SAMPLE_EMAIL)
+        dm = {
+            "id": "li_dm_001",
+            "threadId": "li_t001",
+            "subject": "Recruiter — Interested in your profile",
+            "from": "recruiter@linkedin.com",
+            "date": "2026-03-28",
+            "body": "Hi, I came across your profile...",
+        }
+        linkedin = self._mock_linkedin([{"id": "li_dm_001"}], dm)
+
+        api_result = {
+            "company": "LinkedInCo",
+            "role": "Staff Engineer",
+            "location": "Remote",
+            "verdict": "fail",
+            "reason": "Generic InMail.",
+            "dealbreaker_triggered": "Generic mass email",
+            "comp_assessment": None,
+            "missing_fields": [],
+            "reply_draft": None,
+        }
+        with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
+            results, _ = s.run(criteria, gmail, linkedin=linkedin)
+
+        li_results = [r for r in results if r["source"] == "LinkedIn DM"]
+        assert len(li_results) >= 1
+
+    def test_linkedin_dm_screened_ids_respected(self):
+        """Already-screened LinkedIn DM IDs should be skipped."""
+        s = make_screener()
+        criteria = {
+            **MINIMAL_CRITERIA,
+            "screened_message_ids": [{"id": "li_dm_001", "screened_at": "2026-03-01"}],
+        }
+        gmail = self._mock_gmail([], SAMPLE_EMAIL)
+        linkedin = self._mock_linkedin([{"id": "li_dm_001"}], None)
+
+        results, _ = s.run(criteria, gmail, linkedin=linkedin)
+
+        # The DM was already screened, so get_message should not be called on linkedin
+        linkedin.get_message.assert_not_called()

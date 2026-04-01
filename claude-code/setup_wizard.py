@@ -36,6 +36,122 @@ def ask_bool(prompt: str, default: bool = False) -> bool:
     return val.startswith("y")
 
 
+LINKEDIN_COOKIES_PATH = Path.home() / ".jerbs" / "linkedin_cookies.json"
+
+
+def _save_linkedin_cookies(li_at: str, jsessionid: str) -> bool:
+    """Save LinkedIn cookies and validate they work. Returns True on success."""
+    LINKEDIN_COOKIES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(LINKEDIN_COOKIES_PATH, "w") as f:
+        json.dump({"li_at": li_at, "JSESSIONID": jsessionid}, f, indent=2)
+    print(f"  Cookies saved to {LINKEDIN_COOKIES_PATH}")
+    try:
+        from linkedin_client import LinkedInClient
+
+        client = LinkedInClient(send_mode=False, lookback_days=1)
+        profile = client.api.get_user_profile()
+        name = f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
+        print(f"  Authenticated as: {name or 'OK'}")
+        return True
+    except Exception as e:
+        print(f"  Warning: Cookie validation failed — {e}")
+        print("  Cookies saved anyway; they may still work for messaging.")
+        return True
+
+
+def _try_browser_cookie3(browser: str) -> tuple[str, str] | None:
+    """Try to extract LinkedIn cookies from the user's browser."""
+    try:
+        import browser_cookie3
+    except ImportError:
+        print("  browser_cookie3 not installed. Skipping auto-extract.")
+        return None
+    browser_funcs = {
+        "chrome": browser_cookie3.chrome,
+        "firefox": browser_cookie3.firefox,
+        "safari": browser_cookie3.safari,
+    }
+    func = browser_funcs.get(browser.lower())
+    if not func:
+        print(f"  Unsupported browser: {browser}")
+        return None
+    try:
+        cj = func(domain_name=".linkedin.com")
+        li_at = None
+        jsessionid = None
+        for cookie in cj:
+            if cookie.name == "li_at":
+                li_at = cookie.value
+            elif cookie.name == "JSESSIONID":
+                jsessionid = cookie.value
+        if li_at and jsessionid:
+            return (li_at, jsessionid)
+        print("  LinkedIn cookies not found in browser. Are you logged in?")
+        return None
+    except Exception as e:
+        print(f"  Could not read browser cookies: {e}")
+        return None
+
+
+def _try_playwright_login() -> tuple[str, str] | None:
+    """Open a Playwright browser for the user to log into LinkedIn."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("  Playwright not installed. Skipping browser login.")
+        print("  Install with: pip install playwright && playwright install chromium")
+        return None
+    print("  Opening browser — please log into LinkedIn...")
+    print("  (Close the browser window when you see your LinkedIn feed)")
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False)
+            context = browser.new_context()
+            page = context.new_page()
+            page.goto("https://www.linkedin.com/login")
+            page.wait_for_url("**/feed/**", timeout=300000)
+            cookies = context.cookies()
+            li_at = None
+            jsessionid = None
+            for c in cookies:
+                if c["name"] == "li_at":
+                    li_at = c["value"]
+                elif c["name"] == "JSESSIONID":
+                    jsessionid = c["value"]
+            browser.close()
+            if li_at and jsessionid:
+                return (li_at, jsessionid)
+            print("  Could not capture LinkedIn session cookies after login.")
+            return None
+    except Exception as e:
+        print(f"  Playwright login failed: {e}")
+        return None
+
+
+def _setup_linkedin() -> bool:
+    """Run the tiered LinkedIn auth flow. Returns True if cookies were saved."""
+    browser = ask("Which browser are you logged into LinkedIn with?", "chrome")
+    print(f"  Trying to extract cookies from {browser}...")
+    result = _try_browser_cookie3(browser)
+    if result:
+        print("  Cookies extracted successfully!")
+        return _save_linkedin_cookies(result[0], result[1])
+    if ask_bool("  Open a browser window to log into LinkedIn?", True):
+        result = _try_playwright_login()
+        if result:
+            print("  Cookies captured from browser login!")
+            return _save_linkedin_cookies(result[0], result[1])
+    print("\n  Manual cookie entry:")
+    print("  1. Open LinkedIn in Chrome and log in")
+    print("  2. Open DevTools (F12) → Application → Cookies → linkedin.com")
+    print("  3. Copy the values for 'li_at' and 'JSESSIONID'\n")
+    li_at = ask("  li_at cookie value")
+    jsessionid = ask("  JSESSIONID cookie value")
+    if li_at and jsessionid:
+        return _save_linkedin_cookies(li_at, jsessionid)
+    return False
+
+
 def run_setup_wizard(output_path: Path):
     print("\n" + "─" * 55)
     print("  jerbs setup wizard")
@@ -145,6 +261,17 @@ def run_setup_wizard(output_path: Path):
     criteria["search_settings"]["timezone"] = ask("Timezone", "America/New_York")
     criteria["search_settings"]["biz_start_hour"] = ask_int("Business day start (24h hour)", 9)
     criteria["search_settings"]["biz_end_hour"] = ask_int("Business day end (24h hour)", 17)
+
+    print("\n── LinkedIn DM screening (optional) ─────────────────")
+    if ask_bool("Enable LinkedIn DM screening?", False):
+        linkedin_cookies = _setup_linkedin()
+        if linkedin_cookies:
+            criteria["linkedin"] = {"enabled": True}
+        else:
+            print("  LinkedIn setup skipped — you can re-run --setup later.")
+            criteria["linkedin"] = {"enabled": False}
+    else:
+        criteria["linkedin"] = {"enabled": False}
 
     criteria["profile_name"] = ask(
         "\nProfile name",

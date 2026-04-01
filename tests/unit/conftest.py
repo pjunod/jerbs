@@ -23,3 +23,11 @@ for mod in [
     "googleapiclient.errors",
 ]:
     sys.modules.setdefault(mod, MagicMock())
+
+# Stub linkedin-api library
+for mod in [
+    "linkedin_api",
+    "requests",
+    "requests.cookies",
+]:
+    sys.modules.setdefault(mod, MagicMock())
