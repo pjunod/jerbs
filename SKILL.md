@@ -608,7 +608,8 @@ Rapid mode reverts after 30 minutes with no new replies.
 
 ### Rapid mode token
 
-At the very end of any response that includes draft replies, Claude MUST silently include:
+At the very end of any response that includes draft replies, **only when the scheduler
+widget is active in a web/Claude.ai session**, Claude MUST include on its own line:
 
 ```
 JERBS:RAPID_START
@@ -616,6 +617,9 @@ JERBS:RAPID_START
 
 The widget's MutationObserver detects this token and triggers rapid mode automatically.
 Do not explain or annotate the token — just emit it. This is the only rapid mode trigger.
+
+**Never emit this token in Claude Code sessions** — there is no widget to consume it and
+it displays as visible garbage.
 
 ### Controls
 - Start / Pause — toggle on and off
