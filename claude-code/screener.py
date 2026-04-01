@@ -6,6 +6,7 @@ screens each email/listing, and returns structured results.
 """
 
 import os
+import time
 
 try:
     import anthropic
@@ -14,6 +15,7 @@ except ImportError as e:
 
 _HAIKU_MODEL = "claude-haiku-4-5-20251001"
 _THINKING_BUDGET = 5000  # tokens; only used when escalating to Sonnet
+_BATCH_THRESHOLD = 3  # use Batch API when new email count exceeds this
 
 _SCREENING_TOOL = {
     "name": "record_screening_result",
@@ -123,10 +125,17 @@ class Screener:
         gmail,
         lookback_days: int = 1,
         max_per_pass: int | None = 100,
-        send_mode: bool = False,
+        use_batch: bool = False,
+        on_result=None,
     ) -> tuple[list[dict], bool]:
         """
         Run both Gmail passes and screen all results.
+
+        Args:
+            use_batch: Use Anthropic Batch API when >3 emails (50% cost reduction).
+                       Ideal for daemon runs; keep False for interactive sessions.
+            on_result: Optional callback invoked immediately after each email is screened.
+                       Called with the result dict. Only fires in real-time (non-batch) mode.
         Returns (results, had_drafts).
         """
         raw_ids = criteria.get("screened_message_ids", [])
@@ -135,6 +144,8 @@ class Screener:
         had_drafts = False
         prompt = self._get_prompt(criteria)
 
+        # Collect all new full messages up front (required for batch; fine for streaming too)
+        all_messages: list[dict] = []
         for pass_num, query, source_label in [
             (1, self._build_pass1_query(criteria, lookback_days), "LinkedIn Alert"),
             (2, self._build_pass2_query(criteria, lookback_days), "Direct Outreach"),
@@ -148,97 +159,50 @@ class Screener:
                     f"there may be more emails. Run with a larger --max to fetch more."
                 )
 
-            for msg_meta in new_msgs:
-                msg = gmail.get_message(msg_meta["id"])
-                if not msg:
-                    continue
+            for meta in new_msgs:
+                msg = gmail.get_message(meta["id"])
+                if msg:
+                    msg["_source"] = source_label
+                    msg["_pass_num"] = pass_num
+                    all_messages.append(msg)
 
-                result = self._screen_one(msg, prompt, source_label, pass_num)
+        if use_batch and len(all_messages) > _BATCH_THRESHOLD:
+            # Batch API path — submits all emails at once for 50% cost reduction.
+            # Results arrive after polling; on_result is not called (no streaming in batch mode).
+            for result in self._screen_batch(all_messages, prompt):
                 if result:
                     results.append(result)
-                    screened_ids.add(msg_meta["id"])
+                    screened_ids.add(result["message_id"])
                     if result.get("reply_draft"):
                         had_drafts = True
+        else:
+            # Real-time API path — screen each email immediately.
+            # on_result fires after each email so callers can stream output progressively.
+            for msg in all_messages:
+                result = self._screen_one(msg, prompt, msg["_source"])
+                if result:
+                    results.append(result)
+                    screened_ids.add(msg["id"])
+                    if result.get("reply_draft"):
+                        had_drafts = True
+                    if on_result:
+                        on_result(result)
 
         return results, had_drafts
 
-    def _call_api(
-        self,
-        user_content: str,
-        system_prompt: str,
-        model: str,
-        extended_thinking: bool = False,
-    ) -> dict:
-        """Call the Anthropic API and return the tool_use input dict."""
-        kwargs: dict = {
-            "model": model,
-            "system": [
-                {
-                    "type": "text",
-                    "text": system_prompt,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            "tools": [_SCREENING_TOOL],
-            "tool_choice": {"type": "tool", "name": "record_screening_result"},
-            "messages": [{"role": "user", "content": user_content}],
-        }
-        if extended_thinking:
-            kwargs["thinking"] = {"type": "enabled", "budget_tokens": _THINKING_BUDGET}
-            kwargs["max_tokens"] = _THINKING_BUDGET + 1024
-        else:
-            kwargs["max_tokens"] = 1024
+    # ── Shared helpers ────────────────────────────────────────────────────────
 
-        response = self.client.messages.create(**kwargs)
-        tool_block = next(b for b in response.content if b.type == "tool_use")
-        return tool_block.input
-
-    def _screen_one(self, msg: dict, system_prompt: str, source: str, pass_num: int) -> dict | None:
-        """
-        Screen a single email using two-tier model selection.
-
-        Haiku handles the fast-path: clear fails are returned immediately at low cost.
-        Haiku pass/maybe results escalate to Sonnet with extended thinking for reliable
-        judgment on ambiguous or high-value cases.
-        """
-        user_content = (
+    def _format_email_content(self, msg: dict) -> str:
+        return (
             f"Subject: {msg.get('subject', '')}\n"
             f"From: {msg.get('from', '')}\n"
             f"Date: {msg.get('date', '')}\n\n"
             f"{msg.get('body', msg.get('snippet', ''))}"
         )
 
-        try:
-            # Stage 1: Haiku fast path — cheap rejection of clear fails
-            haiku = self._call_api(user_content, system_prompt, _HAIKU_MODEL)
-            if haiku.get("verdict") == "fail":
-                parsed = haiku
-            else:
-                # Stage 2: Sonnet with extended thinking for genuine judgment calls
-                parsed = self._call_api(
-                    user_content, system_prompt, self.model, extended_thinking=True
-                )
-        except Exception as e:
-            return {
-                "source": source,
-                "message_id": msg["id"],
-                "thread_id": msg.get("threadId", ""),
-                "subject": msg.get("subject", ""),
-                "from": msg.get("from", ""),
-                "email_date": msg.get("date", ""),
-                "company": "?",
-                "role": msg.get("subject", "?"),
-                "location": "",
-                "verdict": "maybe",
-                "reason": f"Screening error: {e}",
-                "dealbreaker": None,
-                "comp_assessment": None,
-                "missing_fields": [],
-                "reply_draft": None,
-            }
-
+    def _build_result_dict(self, msg: dict, parsed: dict) -> dict:
         return {
-            "source": source,
+            "source": msg.get("_source", ""),
             "message_id": msg["id"],
             "thread_id": msg.get("threadId", ""),
             "subject": msg.get("subject", ""),
@@ -254,6 +218,163 @@ class Screener:
             "missing_fields": parsed.get("missing_fields", []),
             "reply_draft": parsed.get("reply_draft"),
         }
+
+    def _build_api_params(
+        self,
+        user_content: str,
+        system_prompt: str,
+        model: str,
+        extended_thinking: bool = False,
+    ) -> dict:
+        """Build kwargs dict shared between real-time and batch API calls."""
+        params: dict = {
+            "model": model,
+            "system": [
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            "tools": [_SCREENING_TOOL],
+            "tool_choice": {"type": "tool", "name": "record_screening_result"},
+            "messages": [{"role": "user", "content": user_content}],
+        }
+        if extended_thinking:
+            params["thinking"] = {"type": "enabled", "budget_tokens": _THINKING_BUDGET}
+            params["max_tokens"] = _THINKING_BUDGET + 1024
+        else:
+            params["max_tokens"] = 1024
+        return params
+
+    # ── Real-time API ─────────────────────────────────────────────────────────
+
+    def _call_api(
+        self,
+        user_content: str,
+        system_prompt: str,
+        model: str,
+        extended_thinking: bool = False,
+    ) -> dict:
+        """Call the Anthropic API and return the tool_use input dict."""
+        params = self._build_api_params(user_content, system_prompt, model, extended_thinking)
+        response = self.client.messages.create(**params)
+        tool_block = next(b for b in response.content if b.type == "tool_use")
+        return tool_block.input
+
+    def _screen_one(self, msg: dict, system_prompt: str, source: str) -> dict | None:
+        """
+        Screen a single email using two-tier model selection.
+
+        Haiku handles the fast-path: clear fails are returned immediately at low cost.
+        Haiku pass/maybe results escalate to Sonnet with extended thinking for reliable
+        judgment on ambiguous or high-value cases.
+        """
+        user_content = self._format_email_content(msg)
+
+        try:
+            # Stage 1: Haiku fast path — cheap rejection of clear fails
+            haiku = self._call_api(user_content, system_prompt, _HAIKU_MODEL)
+            if haiku.get("verdict") == "fail":
+                parsed = haiku
+            else:
+                # Stage 2: Sonnet with extended thinking for genuine judgment calls
+                parsed = self._call_api(
+                    user_content, system_prompt, self.model, extended_thinking=True
+                )
+        except Exception as e:
+            return {
+                **self._build_result_dict(msg, {}),
+                "source": source,
+                "verdict": "maybe",
+                "reason": f"Screening error: {e}",
+            }
+
+        result = self._build_result_dict(msg, parsed)
+        result["source"] = source
+        return result
+
+    # ── Batch API ─────────────────────────────────────────────────────────────
+
+    def _screen_batch(self, msgs: list[dict], system_prompt: str) -> list[dict]:
+        """
+        Screen emails using the Anthropic Batch API.
+
+        Two sequential batches: Haiku for all emails (cheap fast-path), then Sonnet
+        with extended thinking only for pass/maybe verdicts. 50% cost vs real-time.
+        Blocks until both batches complete (suitable for daemon/background use).
+        """
+        # Stage 1: Haiku batch — cheap rejection of clear fails
+        haiku_requests = [
+            {
+                "custom_id": f"h{i}",
+                "params": self._build_api_params(
+                    self._format_email_content(msg), system_prompt, _HAIKU_MODEL
+                ),
+            }
+            for i, msg in enumerate(msgs)
+        ]
+        haiku_results = self._wait_for_batch(
+            self.client.messages.batches.create(requests=haiku_requests).id
+        )
+
+        # Stage 2: Sonnet batch — extended thinking for pass/maybe only
+        escalate_indices = [
+            i
+            for i, msg in enumerate(msgs)
+            if (haiku_results.get(f"h{i}") or {}).get("verdict") != "fail"
+        ]
+        sonnet_results: dict[int, dict] = {}
+        if escalate_indices:
+            sonnet_requests = [
+                {
+                    "custom_id": f"s{i}",
+                    "params": self._build_api_params(
+                        self._format_email_content(msgs[i]),
+                        system_prompt,
+                        self.model,
+                        extended_thinking=True,
+                    ),
+                }
+                for i in escalate_indices
+            ]
+            raw = self._wait_for_batch(
+                self.client.messages.batches.create(requests=sonnet_requests).id
+            )
+            sonnet_results = {int(k[1:]): v for k, v in raw.items() if v is not None}
+
+        # Assemble final results
+        results = []
+        for i, msg in enumerate(msgs):
+            haiku = haiku_results.get(f"h{i}") or {}
+            if haiku.get("verdict") == "fail":
+                parsed = haiku
+            else:
+                parsed = sonnet_results.get(i, haiku)
+            results.append(self._build_result_dict(msg, parsed))
+        return results
+
+    def _wait_for_batch(self, batch_id: str, poll_interval: int = 5) -> dict[str, dict | None]:
+        """Poll until a batch completes. Returns {custom_id: tool_input or None}."""
+        while True:
+            batch = self.client.messages.batches.retrieve(batch_id)
+            if batch.processing_status == "ended":
+                break
+            time.sleep(poll_interval)
+
+        results: dict[str, dict | None] = {}
+        for item in self.client.messages.batches.results(batch_id):
+            if item.result.type == "succeeded":
+                try:
+                    tool_block = next(
+                        b for b in item.result.message.content if b.type == "tool_use"
+                    )
+                    results[item.custom_id] = tool_block.input
+                except StopIteration:
+                    results[item.custom_id] = None
+            else:
+                results[item.custom_id] = None
+        return results
 
     def _build_prompt(self, criteria: dict) -> str:
         comp = criteria.get("compensation", {})

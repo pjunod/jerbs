@@ -198,7 +198,7 @@ class TestScreenOne:
             "create",
             side_effect=[mock_api_response(haiku_result), mock_api_response(sonnet_result)],
         ):
-            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
+            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach")
 
         assert result["verdict"] == "pass"
         assert result["company"] == "TechCorp"
@@ -222,7 +222,7 @@ class TestScreenOne:
         }
         # Fail verdict: only Haiku is called — single response
         with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
-            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
+            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach")
 
         assert result["verdict"] == "fail"
         assert result["dealbreaker"] == "Junior or mid-level role"
@@ -257,7 +257,7 @@ class TestScreenOne:
             "create",
             side_effect=[mock_api_response(haiku_result), mock_api_response(sonnet_result)],
         ):
-            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
+            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach")
 
         assert result["verdict"] == "maybe"
         assert "Base salary range" in result["missing_fields"]
@@ -277,7 +277,7 @@ class TestScreenOne:
         }
         # Fail verdict: single Haiku call
         with patch.object(s.client.messages, "create", return_value=mock_api_response(api_result)):
-            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "LinkedIn Alert", 1)
+            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "LinkedIn Alert")
 
         assert result["source"] == "LinkedIn Alert"
 
@@ -291,7 +291,7 @@ class TestScreenOneErrors:
     def test_api_exception_falls_back_to_maybe(self):
         s = make_screener()
         with patch.object(s.client.messages, "create", side_effect=Exception("API timeout")):
-            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
+            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach")
 
         assert result["verdict"] == "maybe"
         assert result["message_id"] == "msg001"
@@ -304,7 +304,7 @@ class TestScreenOneErrors:
         response = MagicMock()
         response.content = [text_block]
         with patch.object(s.client.messages, "create", return_value=response):
-            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach", 2)
+            result = s._screen_one(SAMPLE_EMAIL, "system prompt", "Direct Outreach")
 
         assert result["verdict"] == "maybe"
         assert result["message_id"] == "msg001"
@@ -348,7 +348,7 @@ class TestModelTiering:
         with patch.object(
             s.client.messages, "create", return_value=mock_api_response(self._fail_result())
         ) as mock_create:
-            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach")
         assert mock_create.call_count == 1
 
     def test_pass_verdict_calls_api_twice(self):
@@ -362,7 +362,7 @@ class TestModelTiering:
                 mock_api_response(self._pass_result()),
             ],
         ) as mock_create:
-            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach")
         assert mock_create.call_count == 2
 
     def test_haiku_model_used_for_first_call(self):
@@ -378,7 +378,7 @@ class TestModelTiering:
                 mock_api_response(self._pass_result()),
             ],
         ) as mock_create:
-            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach")
         first_call_model = (
             mock_create.call_args_list[0].kwargs.get("model")
             or mock_create.call_args_list[0].args[0]
@@ -396,7 +396,7 @@ class TestModelTiering:
                 mock_api_response(self._pass_result()),
             ],
         ) as mock_create:
-            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach")
         second_call_kwargs = mock_create.call_args_list[1].kwargs
         assert second_call_kwargs["model"] == s.model
 
@@ -411,7 +411,7 @@ class TestModelTiering:
                 mock_api_response(self._pass_result()),
             ],
         ) as mock_create:
-            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach")
         second_call_kwargs = mock_create.call_args_list[1].kwargs
         assert "thinking" in second_call_kwargs
         assert second_call_kwargs["thinking"]["type"] == "enabled"
@@ -429,7 +429,7 @@ class TestModelTiering:
                 mock_api_response(self._pass_result()),
             ],
         ) as mock_create:
-            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+            s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach")
         first_call_kwargs = mock_create.call_args_list[0].kwargs
         assert "thinking" not in first_call_kwargs
         assert first_call_kwargs["model"] == _HAIKU_MODEL
@@ -448,7 +448,7 @@ class TestModelTiering:
             "create",
             side_effect=[mock_api_response(haiku_shallow), mock_api_response(sonnet_deep)],
         ):
-            result = s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach", 2)
+            result = s._screen_one(SAMPLE_EMAIL, "prompt", "Direct Outreach")
         assert result["company"] == "SonnetAccurate"
         assert result["comp_assessment"] == "Top quartile."
 

@@ -25,11 +25,11 @@ Ordered by impact. Mark items with `[x]` when complete.
 
 - [x] **Fix `screened_message_ids` format in daemon mode** — Daemon now writes `{"id": ..., "screened_at": ...}` objects. Legacy strings migrated on first save. 60-day pruning active. _(pjunod/jerbs#34)_
 
-- [ ] **Batch API for daemon runs** — Use Anthropic Message Batches API for runs with >3 emails (50% cost reduction). Keep real-time API for interactive Claude Code sessions. Already architecturally clean — `_call_api()` is a pure function.
+- [x] **Batch API for daemon runs** — Daemon mode uses Anthropic Batch API for >3 emails (50% cost reduction). Interactive `--once` runs use real-time API. `_screen_batch()` added; `run()` accepts `use_batch` + `on_result` params. _(pjunod/jerbs#TBD)_
 
-- [ ] **Streaming output for interactive runs** — Show results as each email is screened in Claude Code interactive sessions rather than waiting for the full batch. Improves perceived responsiveness significantly.
+- [x] **Streaming output for interactive runs** — `--once` mode streams results via `on_result` callback as each email is screened. Daemon/batch mode logs summary at end. _(pjunod/jerbs#TBD)_
 
-- [ ] **Symlink skill files** — `~/.claude/commands/jerbs.md`, `claude-ai/SKILL.md`, and root `SKILL.md` can drift. Make the commands file a symlink to the canonical repo file and add a CI check.
+- [x] **Symlink skill files** — `~/.claude/commands/jerbs.md` is now a symlink to root `SKILL.md`. `claude-ai/assets/scheduler.html` is a symlink to `assets/scheduler.html`. CI check added in `lint.yml`. Stale export path (`scripts/` → `shared/scripts/`) fixed in both SKILL.md files. _(pjunod/jerbs#TBD)_
 
 ---
 

@@ -116,6 +116,7 @@ COLUMNS = [
     ("Location", 18),
     ("Email date", 13),
     ("From", 26),
+    ("Posting URL", 40),
     ("Verdict", 13),
     ("Status", 26),
     ("Reason", 40),
@@ -126,8 +127,8 @@ COLUMNS = [
     ("Draft reply", 55),
 ]
 
-STATUS_COL = 9
-NOTES_COL = 14
+STATUS_COL = 10
+NOTES_COL = 15
 HEADER_BG = "1F2937"
 HEADER_FG = "FFFFFF"
 ALT_BG = "F9FAFB"
@@ -162,6 +163,7 @@ def write_data_row(ws, row_idx, item, run_date, is_alt=False):
         item.get("location", ""),
         item.get("email_date", ""),
         item.get("from", ""),
+        item.get("posting_url") or "",
         VERDICT_LABELS.get(verdict, verdict.title()),
         status,
         item.get("reason", ""),
@@ -178,7 +180,7 @@ def write_data_row(ws, row_idx, item, run_date, is_alt=False):
         cell.border = make_border()
         cell.font = Font(name="Arial", size=10)
 
-        if ci == 8:  # Verdict
+        if ci == 9:  # Verdict
             cell.fill = PatternFill("solid", start_color=vc["bg"])
             cell.font = Font(bold=True, color=vc["fg"], name="Arial", size=10)
             cell.alignment = Alignment(horizontal="center", vertical="top")
