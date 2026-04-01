@@ -116,17 +116,21 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # Retry loop: re-run if grader hits 429 rate limits.
-          max_attempts=3
+          # Retry loop: re-run if grader hits 429/524 transient errors.
+          # Backoff: 30s, 30s, 60s between attempts (2 min total wait max).
+          # Concurrency drops on retries to ease rate limit pressure.
+          max_attempts=4
+          backoffs=(0 30 30 60)
           for attempt in $(seq 1 $max_attempts); do
-            echo "=== Attempt $attempt of $max_attempts ==="
+            concurrency=$((attempt == 1 ? 4 : 2))
+            echo "=== Attempt $attempt of $max_attempts (concurrency=$concurrency) ==="
             promptfoo redteam eval \
               --config /tmp/redteam-merged.yaml \
               --no-cache \
-              --max-concurrency 4 \
+              --max-concurrency $concurrency \
               --output /tmp/redteam-results.json || true
 
-            # Check if any failures were caused by rate limits
+            # Check if any failures were caused by rate limits / timeouts
             if python3 -c "
           import json, sys
           with open('/tmp/redteam-results.json') as f:
@@ -136,7 +140,7 @@ jobs:
                          if any(s in (r.get('gradingResult') or {}).get('reason', '')
                                 for s in ('rate_limit_error', 'status 429', 'status 524', 'timeout occurred'))]
           if rate_limited:
-              print(f'{len(rate_limited)} test(s) failed due to rate limits')
+              print(f'{len(rate_limited)} test(s) failed due to rate limits / timeouts')
               sys.exit(1)
           sys.exit(0)
           " 2>/dev/null; then
@@ -147,9 +151,9 @@ jobs:
               echo "Final attempt completed — accepting results as-is."
               break
             fi
-            backoff=$((30 * attempt))
-            echo "Backing off ${backoff}s before retry..."
-            sleep $backoff
+            wait=${backoffs[$attempt]}
+            echo "Backing off ${wait}s before retry..."
+            sleep $wait
           done
 
       - name: Print auto-generated test failures
@@ -230,17 +234,21 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # Retry loop: re-run if grader hits 429 rate limits.
-          max_attempts=3
+          # Retry loop: re-run if grader hits 429/524 transient errors.
+          # Backoff: 30s, 30s, 60s between attempts (2 min total wait max).
+          # Concurrency drops on retries to ease rate limit pressure.
+          max_attempts=4
+          backoffs=(0 30 30 60)
           for attempt in $(seq 1 $max_attempts); do
-            echo "=== Attempt $attempt of $max_attempts ==="
+            concurrency=$((attempt == 1 ? 4 : 2))
+            echo "=== Attempt $attempt of $max_attempts (concurrency=$concurrency) ==="
             promptfoo eval \
               --config tests/redteam/promptfooconfig-manual.yaml \
               --no-cache \
-              --max-concurrency 4 \
+              --max-concurrency $concurrency \
               --output /tmp/eval-results.json || true
 
-            # Check if any failures were caused by rate limits
+            # Check if any failures were caused by rate limits / timeouts
             if python3 -c "
           import json, sys
           with open('/tmp/eval-results.json') as f:
@@ -250,7 +258,7 @@ jobs:
                          if any(s in (r.get('gradingResult') or {}).get('reason', '')
                                 for s in ('rate_limit_error', 'status 429', 'status 524', 'timeout occurred'))]
           if rate_limited:
-              print(f'{len(rate_limited)} test(s) failed due to rate limits')
+              print(f'{len(rate_limited)} test(s) failed due to rate limits / timeouts')
               sys.exit(1)
           sys.exit(0)
           " 2>/dev/null; then
@@ -261,9 +269,9 @@ jobs:
               echo "Final attempt completed — accepting results as-is."
               break
             fi
-            backoff=$((30 * attempt))
-            echo "Backing off ${backoff}s before retry..."
-            sleep $backoff
+            wait=${backoffs[$attempt]}
+            echo "Backing off ${wait}s before retry..."
+            sleep $wait
           done
 
       - name: Print hand-crafted test failures
