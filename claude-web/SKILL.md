@@ -439,71 +439,48 @@ requesting all of them at once.
 
 ## Step 5 — Present results
 
-### Unified design language
+**CRITICAL: DO NOT list individual job results in the chat.** No per-item text, no
+markdown cards, no verdict details, no company names with descriptions, no comp
+assessments, no missing-info lists in the chat output. ALL of that goes in the HTML
+page only. If you find yourself writing a company name followed by a role description
+in the chat, STOP — you are doing it wrong.
 
-All output contexts share a consistent visual language. The design principles:
+The ONLY thing you output in the chat after screening is:
 
-| Cue | Markdown (Web chat) | HTML page | Excel |
-|-----|---------------------|-----------|-------|
-| Verdict: Pass | **PASS** bold header, detailed card | Green left-border card, green pill badge | Green verdict cell |
-| Verdict: Maybe | **MAYBE** bold header, detailed card | Yellow left-border card, yellow pill badge | Yellow verdict cell |
-| Verdict: Fail | Condensed table row | Collapsible table, red badge | Red verdict cell, collapsed group |
-| Action needed | `>` blockquote, bold | Purple banner with border | — |
-| Stats summary | `N interested · N maybe · N filtered` | Stat boxes with counts | Summary sheet counts |
-| Links | `[View posting](url) · [View email](url)` | Clickable blue links | Hyperlink cells |
-| Comp note | *italic inline* | Blue-tinted inline box | Cell text |
-| Missing info | **Missing:** bold yellow label | Yellow-highlighted label | Missing info column |
-| Draft reply | Indented blockquote with send link | Dark draft block with send link | Draft reply column |
+1. A one-line summary with counts
+2. The full HTML report in a code block
+3. An offer to export to spreadsheet
 
-### Chat output format — compact dashboard
-
-The chat window shows a **compact summary dashboard** — not the full report. The HTML
-results page is where the user reads the full detail. Keep the chat output scannable.
-
-Format the chat output exactly like this:
-
-**Jerbs Results** · Dry-run · 2026-04-02
-
-> **Action Needed:** Tom Sherwood — Falcon LLM. Reply waiting.
-> [View in Gmail](url) · [Reply on LinkedIn](url)
-
-🟢 **4 interested:** Google Staff SRE NYC, D.E. Shaw Quant Systems, CoreWeave Staff Systems, + 1 more
-🟡 **12 maybe:** Adobe Architect SRE, ByteDance PE, Capital One Distinguished, + 9 more
-🔴 **19 filtered** (staffing agencies, wrong role, sub-floor comp, etc.)
-
-Want me to generate a **webpage** with the full report, or export to a **spreadsheet**?
-
-Rules:
-- **Action banners first** — blockquoted, bold, with links
-- **One line per verdict** — emoji prefix, bold count, top 2-3 company names, "+ N more"
-- **Filtered gets a parenthetical** — summarize the common reasons, not individual items
-- **No per-item detail in chat** — that's what the HTML page is for
-- **Always offer export** — webpage (HTML) or spreadsheet at the end
+Here is the exact chat output template — follow it literally:
 
 ---
 
-## Step 6 — Export
+Here's your results page — **N interested**, **N maybe**, **N filtered**.
 
-### HTML webpage (on request)
+Save the file below as `jerbs-results-YYYY-MM-DD.html` and open it in your browser.
+It has expandable cards, a filter bar, and two themes (Terminal / Cards).
 
-When the user asks for a webpage, output a complete self-contained HTML file in a code
-block. The HTML must have inline CSS (no external dependencies) and follow the design in
-`shared/scripts/export_html.py`. It includes two built-in themes with a switcher:
+```html
+<!DOCTYPE html>
+... [full self-contained HTML page generated from shared/scripts/export_html.py] ...
+</html>
+```
+
+Want me to export these to a **spreadsheet**?
+
+---
+
+The HTML page uses the design from `shared/scripts/export_html.py` with two themes:
 - **Terminal** (default) — IBM Plex Mono, CRT scanlines, expandable cards, filter bar
 - **Cards** — clean card-based layout with light/dark toggle
 
-Tell the user to save the file as `.html` and open it in their browser.
+Both include action banners at top, integrated results, collapsible filtered items,
+and clickable links throughout. The HTML must be completely self-contained (all CSS
+and JS inline, no external dependencies).
 
-### Spreadsheet export (on request)
+---
 
-See `shared/scripts/export_results.py` for the full export logic.
-
-The spreadsheet has two sheets:
-- **Summary** — run date, counts by verdict, full color-coded status guide
-- **Results** — one row per item, sorted pass → maybe → fail
-
-**Google Sheets import:** sheets.google.com → File → Import → Upload the .xlsx.
-If Google Drive MCP is connected, offer to upload directly instead.
+## Step 6 — Spreadsheet export (on request)
 
 ---
 

@@ -372,81 +372,43 @@ In send mode, always show the full text of what was sent so the user can see it.
 
 ## Step 5 — Present results
 
-### Unified design language
+**CRITICAL: DO NOT list individual job results in the chat/terminal.** No per-item text,
+no markdown cards, no verdict details, no company names with descriptions. ALL of that
+goes in the HTML page only.
 
-All output contexts share a consistent visual language. The canonical format is the HTML
-results page (see `shared/scripts/export_html.py`). Markdown output in Claude Code and
-Claude Web adapts the same structure and cues to plain text. Excel carries the same color
-signals. The design principles:
+The ONLY thing you output in the chat after screening is:
 
-| Cue | Markdown (Code / Web) | HTML page | Excel |
-|-----|----------------------|-----------|-------|
-| Verdict: Pass | **PASS** bold header, detailed card | Green left-border card, green pill badge | Green verdict cell |
-| Verdict: Maybe | **MAYBE** bold header, detailed card | Yellow left-border card, yellow pill badge | Yellow verdict cell |
-| Verdict: Fail | Condensed table row | Collapsible table, red badge | Red verdict cell, collapsed group |
-| Action needed | `>` blockquote, bold | Purple banner with border | — |
-| Stats summary | `N interested · N maybe · N filtered` | Stat boxes with counts | Summary sheet counts |
-| Links | `[View posting](url) · [View email](url)` | Clickable blue links | Hyperlink cells |
-| Comp note | *italic inline* | Blue-tinted inline box | Cell text |
-| Missing info | **Missing:** bold yellow label | Yellow-highlighted label | Missing info column |
-| Draft reply | Indented code block with send link | Dark draft block with send link | Draft reply column |
+1. "Generating results page..."
+2. Silently write results JSON, run the export script, open the HTML file
+3. A one-line confirmation with counts
+4. An offer to export to spreadsheet
 
-### Chat output format — compact dashboard
+Here is the exact flow — follow it literally:
 
-The chat window shows a **compact summary dashboard** — not the full report. The HTML
-results page (generated automatically) is where the user reads the full detail. Keep the
-chat output scannable and brief.
-
-Format the chat output exactly like this:
-
-**Jerbs Results** · Dry-run · 2026-04-02
-
-> **Action Needed:** Tom Sherwood — Falcon LLM. Reply waiting.
-> [View in Gmail](url) · [Reply on LinkedIn](url)
-
-🟢 **4 interested:** Google Staff SRE NYC, D.E. Shaw Quant Systems, CoreWeave Staff Systems, + 1 more
-🟡 **12 maybe:** Adobe Architect SRE, ByteDance PE, Capital One Distinguished, + 9 more
-🔴 **19 filtered** (staffing agencies, wrong role, sub-floor comp, etc.)
-
+```
 Generating results page...
-
-Rules:
-- **Action banners first** — blockquoted, bold, with links
-- **One line per verdict** — emoji prefix, bold count, top 2-3 company names, "+ N more"
-- **Filtered gets a parenthetical** — summarize the common reasons, not individual items
-- **No per-item detail in chat** — that's what the HTML page is for
-- **End with "Generating results page..."** then silently generate and open the HTML
-
-### Default HTML export
-
-After presenting the compact dashboard, **always generate an HTML results page** and open
-it in the browser. This is the default — do not ask. The user can view the summary in the
-terminal and the full detail in the browser simultaneously.
-
-Generate the HTML silently — do not stream the HTML source into the terminal. Write the
-results JSON, run the export script, and open the file:
+```
 ```bash
 python shared/scripts/export_html.py results.json ~/.claude/jerbs/results-YYYY-MM-DD.html
 open ~/.claude/jerbs/results-YYYY-MM-DD.html
 ```
+```
+Opened results page (N interested · N maybe · N filtered).
+Want me to export these to a spreadsheet?
+```
 
-The HTML page has two built-in themes with a switcher:
+That's it. The HTML page has everything — the terminal just confirms it worked.
+
+The HTML page uses `shared/scripts/export_html.py` with two built-in themes:
 - **Terminal** (default) — IBM Plex Mono, CRT scanlines, expandable cards, filter bar
 - **Cards** — clean card-based layout with light/dark toggle
 
-Both themes include action banners at top, integrated results with source labels,
+Both include action banners at top, integrated results with source labels,
 collapsible filtered items, and clickable links throughout.
 
 ---
 
-## Step 6 — Export
-
-### HTML export (default — always generated)
-
-The HTML page is generated automatically after every run in Claude Code. Do not ask the
-user — just generate it. See the "Default HTML export" section in Step 5 for the flow.
-
-In web sessions, output the HTML in a code block for the user to save and open.
+## Step 6 — Spreadsheet export (on request)
 
 ### Spreadsheet export
 
