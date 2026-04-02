@@ -192,7 +192,13 @@ details .fail-table { padding: 0 0.5rem 0.5rem; }
 footer {
   margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border);
   color: var(--text-muted); font-size: 0.8rem; text-align: center;
-}"""
+}
+.dl-btn {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 0.8rem; padding: 0.4rem 0.8rem;
+  border-radius: 0.4rem; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.dl-btn:hover { color: var(--accent); border-color: var(--accent); }"""
 
 # ── Terminal theme CSS ───────────────────────────────────────────────────────
 
@@ -323,6 +329,10 @@ footer{border-top:1px solid var(--border);padding:20px 40px;font-family:var(--mo
   font-size:11px;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap;
   justify-content:space-between;}
 .card.hidden,.filtered-item.hidden,.callout.hidden{display:none;}
+.dl-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text-dim);
+  font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:4px;
+  cursor:pointer;letter-spacing:0.04em;transition:color 0.15s,border-color 0.15s;}
+.dl-btn:hover{color:var(--green);border-color:var(--green-dim);}
 @media(max-width:700px){.header,.filter-bar,.main,footer{padding-left:20px;padding-right:20px;}}
 @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 .card,.filtered-item,.callout,.action-banner{animation:fadein 0.4s ease both;}"""
@@ -352,6 +362,15 @@ function toggleLight(){
   document.body.classList.toggle('light');
   var btn=document.getElementById('theme-btn');
   if(btn)btn.textContent=document.body.classList.contains('light')?'Dark':'Light';
+}
+function downloadPage(){
+  var html=document.documentElement.outerHTML;
+  var blob=new Blob(['<!DOCTYPE html>\\n'+html],{type:'text/html'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  var d=document.querySelector('title').textContent.match(/\\d{4}-\\d{2}-\\d{2}/);
+  a.download='jerbs-results-'+(d?d[0]:'report')+'.html';
+  a.click();URL.revokeObjectURL(a.href);
 }
 document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('.card,.filtered-item,.callout,.action-banner').forEach(
@@ -648,6 +667,8 @@ def export_to_html(results_data, output_path, theme=None):
         f'<div class="pill pill-green"><span class="pill-num">{counts["pass"]}</span> Interested</div>'
         f'<div class="pill pill-amber"><span class="pill-num">{counts["maybe"]}</span> Maybe</div>'
         f'<div class="pill pill-red"><span class="pill-num">{counts["fail"]}</span> Filtered</div>'
+        ' <button class="dl-btn" onclick="downloadPage()">'
+        "\u2913 Save</button>"
         "</div></div>\n"
     )
 
@@ -660,7 +681,8 @@ def export_to_html(results_data, output_path, theme=None):
         f'<option value="terminal" {"selected" if theme == "terminal" else ""}>Terminal</option>'
         f'<option value="cards" {"selected" if theme == "cards" else ""}>Cards</option>'
         "</select> "
-        '<button class="theme-toggle" id="theme-btn" onclick="toggleLight()">Light</button>'
+        '<button class="theme-toggle" id="theme-btn" onclick="toggleLight()">Light</button> '
+        '<button class="dl-btn" onclick="downloadPage()">\u2913 Save</button>'
         "</div></div>\n"
         f'<p class="subtitle">{_e(run_date)} · {_e(str(lookback))}-day lookback'
         f" · {_e(profile_name)}</p>\n"
