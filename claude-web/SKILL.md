@@ -397,82 +397,103 @@ requesting all of them at once.
 
 ## Step 5 — Present results
 
-Two labelled sections, each with grouped verdicts:
+### Unified design language
+
+All output contexts share a consistent visual language. The design principles:
+
+| Cue | Markdown (Web chat) | HTML page | Excel |
+|-----|---------------------|-----------|-------|
+| Verdict: Pass | **PASS** bold header, detailed card | Green left-border card, green pill badge | Green verdict cell |
+| Verdict: Maybe | **MAYBE** bold header, detailed card | Yellow left-border card, yellow pill badge | Yellow verdict cell |
+| Verdict: Fail | Condensed table row | Collapsible table, red badge | Red verdict cell, collapsed group |
+| Action needed | `>` blockquote, bold | Purple banner with border | — |
+| Stats summary | `N interested · N maybe · N filtered` | Stat boxes with counts | Summary sheet counts |
+| Links | `[View posting](url) · [View email](url)` | Clickable blue links | Hyperlink cells |
+| Comp note | *italic inline* | Blue-tinted inline box | Cell text |
+| Missing info | **Missing:** bold yellow label | Yellow-highlighted label | Missing info column |
+| Draft reply | Indented blockquote with send link | Dark draft block with send link | Draft reply column |
+
+### Markdown format
+
+Results from all passes are **integrated into a single list** — no separate sections per
+pass. Each item gets a source badge (Job Alert / Direct / LinkedIn) so the user can see
+where it came from without splitting the output.
+
+Structure every run's results exactly like this:
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-JOB ALERT LISTINGS (Pass 1)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🟢 INTERESTED
-...
-
-🟡 MAYBE
-...
-
-🔴 FILTERED OUT
-...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DIRECT OUTREACH (Pass 2)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-LINKEDIN DMs (Pass 3)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🟢 INTERESTED
-...
-
-🟡 MAYBE
-...
-
-🔴 FILTERED OUT
-...
-```
-
-If Pass 3 was skipped (LinkedIn MCP not connected), omit the section entirely.
-
-For each result include:
-- Company + role + location
-- **Links:** link to the original email (Gmail URL) or LinkedIn message, and link to the
-  job posting URL if one is present in the email/message body. Users should be able to
-  click straight through to both the source message and the job listing without digging.
-- Verdict reason (one sentence; name specific dealbreaker for fails)
-- Comp assessment (honest sliding-scale take)
-- Missing fields (if any)
-- Reply — draft with one-click send link in dry-run mode, or sent confirmation in send mode
-
-At the end, offer: "Want me to export these to a spreadsheet?"
+**Jerbs Results** · [Dry-run / Send mode] · [date]
+[N] interested · [N] maybe · [N] filtered[ · [N] action needed]
 
 ---
 
-## Step 6 — Optional spreadsheet export
+> **Action Needed — [title]**
+> **[Company — Role]**
+> [Summary of what needs attention.]
+> [View in Gmail](url) · [Reply on LinkedIn](url)
+
+---
+
+### Results
+
+**PASS**
+
+**[Company] — [Role]** · [Location] · `[Source]`
+[One-sentence verdict reason.]
+*Comp: [assessment]*
+**Missing:** [list of missing required fields]
+[View posting](url) · [View email](url)
+
+📋 Draft reply — [click to review & send](draft_url)
+> [Full draft text indented as blockquote]
+
+**MAYBE**
+
+**[Company] — [Role]** · [Location] · `[Source]`
+[One-sentence verdict reason.]
+**Missing:** [list]
+[View posting](url) · [View email](url)
+
+**FILTERED** ([N] listings)
+
+| Company | Role | Source | Reason |
+|---------|------|--------|--------|
+| [Name]  | [Role] | [Source] | [One-line reason — name specific dealbreaker] |
+```
+
+Key rules:
+- **Action needed first** — action banners come before all results (most important)
+- **Stats line at top** — always show counts before any results
+- **Single integrated list** — no separate Pass 1 / Pass 2 / Pass 3 sections. Each item
+  has a source badge (`Job Alert` / `Direct` / `LinkedIn`) instead.
+- **Pass and maybe get full cards** — company, role, location, source, reason, comp, missing, links, draft
+- **Fails get a condensed table** — company, role, source, and one-line reason only
+- **Links on every item** — posting URL and Gmail/LinkedIn URL, always clickable
+- **Draft replies shown inline** — blockquoted text with a clickable send link above it
+- At the end, offer: "Want me to export these to a **spreadsheet** or **Google Sheets**?"
+
+---
+
+## Step 6 — Export
+
+### HTML export (default in web sessions)
+
+Output the full HTML page in a code block for the user to save and open. The HTML must be
+self-contained (inline CSS, no external dependencies) and follow the card-based design
+language defined in `shared/scripts/export_html.py`. The page includes a Light/Dark theme
+toggle button.
+
+### Spreadsheet export (on request)
 
 See `shared/scripts/export_results.py` for the full export logic.
 
-Run the export:
-```bash
-python shared/scripts/export_results.py results.json job_screener_YYYY-MM-DD.xlsx
-```
-
 The spreadsheet has two sheets:
 - **Summary** — run date, counts by verdict, full color-coded status guide
-- **Results** — one row per item, sorted pass → maybe → fail, with:
-  Date · Source · Company · Role · Location · From · Verdict · **Status** · Reason ·
-  Dealbreaker · Comp assessment · Missing info · **Notes** · Draft reply
+- **Results** — one row per item, sorted pass → maybe → fail
 
-**Status column** tracks the full hiring pipeline with a dropdown:
-- Pre-contact: New → Reply drafted → Awaiting info → Info received
-- Active: Interested → Intro call → Interviewing → Final round
-- Outcomes: Offer received → Negotiating → Offer accepted / Offer declined
-- Dead ends: No response, Withdrew, Rejected, Filtered out (collapsed by default)
-
-**Dead-end categories** (Offer declined, No response, Withdrew, Rejected, Filtered out)
-are grouped and collapsed at the bottom of the Results sheet — click `+` to expand.
-
-**Notes column** is blank and highlighted for free-text notes as the process moves forward.
+The Excel verdict colors align with the HTML design language (green/yellow/red).
+**Status column** tracks the full hiring pipeline with a dropdown.
+**Dead-end categories** are collapsed at the bottom.
 
 **Google Sheets import:** sheets.google.com → File → Import → Upload the .xlsx.
 If Google Drive MCP is connected, offer to upload directly instead.
