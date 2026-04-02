@@ -742,15 +742,11 @@ def export_to_html(results_data, output_path, theme=None):
     # Results
     parts.append('<div class="section">')
 
-    toggle_btn = (
-        '<button class="section-toggle" onclick="toggleSection(this)">'
-        "expand all</button>"
-    )
+    toggle_btn = '<button class="section-toggle" onclick="toggleSection(this)">expand all</button>'
 
     if passes:
         parts.append(
-            f'<div class="section-label interested">'
-            f"\U0001f7e2 Interested{toggle_btn}</div>"
+            f'<div class="section-label interested">\U0001f7e2 Interested{toggle_btn}</div>'
         )
         parts.append('<div class="section-group">')
         for item in passes:
@@ -758,20 +754,14 @@ def export_to_html(results_data, output_path, theme=None):
         parts.append("</div>")
 
     if maybes:
-        parts.append(
-            f'<div class="section-label maybe">'
-            f"\U0001f7e1 Maybe{toggle_btn}</div>"
-        )
+        parts.append(f'<div class="section-label maybe">\U0001f7e1 Maybe{toggle_btn}</div>')
         parts.append('<div class="section-group">')
         for item in maybes:
             parts.append(build_terminal_card(item, "maybe"))
         parts.append("</div>")
 
     if fails:
-        parts.append(
-            '<div class="section-label filtered">'
-            "\U0001f534 Filtered</div>"
-        )
+        parts.append('<div class="section-label filtered">\U0001f534 Filtered</div>')
         parts.append('<div class="filtered-list">')
         for item in fails:
             parts.append(build_terminal_fail(item))
