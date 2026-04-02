@@ -391,99 +391,51 @@ signals. The design principles:
 | Missing info | **Missing:** bold yellow label | Yellow-highlighted label | Missing info column |
 | Draft reply | Indented code block with send link | Dark draft block with send link | Draft reply column |
 
-### Formatting rules (MANDATORY)
+### Chat output format — compact dashboard
 
-Results from all passes are integrated into a single list — no separate sections per pass.
-Each item gets a source badge so the user can see where it came from. You MUST format
-results exactly as described below. Every item must be visually distinct and scannable.
+The chat window shows a **compact summary dashboard** — not the full report. The HTML
+results page (generated automatically) is where the user reads the full detail. Keep the
+chat output scannable and brief.
 
-**Start with a summary line, then a horizontal rule:**
+Format the chat output exactly like this:
 
 **Jerbs Results** · Dry-run · 2026-04-02
-4 interested · 12 maybe · 19 filtered
 
----
-
-**If any items need immediate attention, show them FIRST as blockquotes:**
-
-> **Action Needed — Tom Sherwood, Falcon LLM**
-> He replied today: "Would you like me to re-book your live coding?"
+> **Action Needed:** Tom Sherwood — Falcon LLM. Reply waiting.
 > [View in Gmail](url) · [Reply on LinkedIn](url)
 
----
+🟢 **4 interested:** Google Staff SRE NYC, D.E. Shaw Quant Systems, CoreWeave Staff Systems, + 1 more
+🟡 **12 maybe:** Adobe Architect SRE, ByteDance PE, Capital One Distinguished, + 9 more
+🔴 **19 filtered** (staffing agencies, wrong role, sub-floor comp, etc.)
 
-**Then show results under a "Results" heading, grouped by verdict:**
+Generating results page...
 
-For each **PASS** item, format as a bold heading with details on separate lines:
-
-**PASS**
-
-**Snowflake — Senior Production Engineer** · Menlo Park, CA · `Job Alert`
-Top-tier cloud data company, Senior PE is a direct role match.
-*Comp: Not stated — Snowflake comp is typically competitive*
-**Missing:** comp range, equity, remote/hybrid, nature of work, interview process
-[View posting](url) · [View email](url)
-
-If there's a draft reply, show it as:
-
-📋 Draft reply — [click to review & send](draft_url)
-> Hi, I'm interested in learning more about this role. Could you share
-> the compensation range and remote/hybrid policy?
->
-> Paul
-
-For each **MAYBE** item, same format:
-
-**MAYBE**
-
-**D.E. Shaw — Trading Systems Ops Engineer** · New York, NY · `Direct`
-Top-tier quant fund. Title lacks Senior+ but D.E. Shaw comp is typically very high.
-**Missing:** seniority confirmation, comp range, remote/hybrid
-[View posting](url) · [View email](url)
-
-For **FILTERED** items, use a compact markdown table:
-
-**FILTERED** (19 listings)
-
-| Company | Role | Source | Reason |
-|---------|------|--------|--------|
-| JetBlue | Senior Engineer IT Reliability | Job Alert | Not upper-tier tech |
-| Apex Systems | Service Delivery Manager | Job Alert | **Blacklisted company** |
-| Centraprise | C++ with PERL Developer | Direct | Staffing agency, generic greeting |
-
-**Critical formatting rules — do not skip any of these:**
-- Every PASS/MAYBE item MUST be a **bold heading** (`**Company — Role**`) on its own line
-- Location and source MUST appear on the same line as the heading, after `·` separators
-- Reason, comp, and missing info MUST be on separate lines below the heading
-- Links MUST be on their own line, clickable markdown format
-- There MUST be a blank line between each item
-- FILTERED items MUST be in a markdown table, not free text
-- Action-needed items MUST appear before results
-- Every item MUST have links — posting URL and/or Gmail URL
+Rules:
+- **Action banners first** — blockquoted, bold, with links
+- **One line per verdict** — emoji prefix, bold count, top 2-3 company names, "+ N more"
+- **Filtered gets a parenthetical** — summarize the common reasons, not individual items
+- **No per-item detail in chat** — that's what the HTML page is for
+- **End with "Generating results page..."** then silently generate and open the HTML
 
 ### Default HTML export
 
-After presenting markdown results, **always generate an HTML results page** and open it
-in the browser. This is the default — do not ask. The user can view results in the
-terminal and in the browser simultaneously.
+After presenting the compact dashboard, **always generate an HTML results page** and open
+it in the browser. This is the default — do not ask. The user can view the summary in the
+terminal and the full detail in the browser simultaneously.
 
-Generate the HTML silently — do not stream the HTML source into the terminal. Instead,
-print a single status line:
-```
-Generating results page...
-```
-Then write the results JSON, run the export script, and open the file:
+Generate the HTML silently — do not stream the HTML source into the terminal. Write the
+results JSON, run the export script, and open the file:
 ```bash
 python shared/scripts/export_html.py results.json ~/.claude/jerbs/results-YYYY-MM-DD.html
 open ~/.claude/jerbs/results-YYYY-MM-DD.html
 ```
 
-The HTML page includes:
-- Dark theme by default with a **Light/Dark toggle** button in the top-right corner
-- Action banners at the top (before all results)
-- Single integrated results list with source badges on each card
-- Collapsible filtered-out table
-- Stat boxes, clickable links, draft reply blocks throughout
+The HTML page has two built-in themes with a switcher:
+- **Terminal** (default) — IBM Plex Mono, CRT scanlines, expandable cards, filter bar
+- **Cards** — clean card-based layout with light/dark toggle
+
+Both themes include action banners at top, integrated results with source labels,
+collapsible filtered items, and clickable links throughout.
 
 ---
 
