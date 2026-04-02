@@ -21,6 +21,13 @@
     "blacklist": []
   },
   "target_industries_blocklist": [],
+  "location": {
+    "current_location": "",
+    "target_locations": [],
+    "open_to_relocation": false,
+    "relocation_conditions": "",
+    "location_notes": ""
+  },
   "role_requirements": {
     "employment_type": [
       "full-time"

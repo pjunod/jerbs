@@ -177,6 +177,7 @@ At the start of every screening run, print a concise summary so the user can ver
 ```
 📋 Screening with: [Profile Name]
    Roles: [target roles]
+   Location: [current_location] · Targeting: [target_locations or "anywhere"]
    Base floor: $[X]  |  TC target: $[X]+
    Dealbreakers: [list]
    Required info: [list]
@@ -334,6 +335,17 @@ In short: fail only when there is genuinely no path to the floor within what's s
 Then give an honest sliding-scale comp assessment using the user's nuance notes —
 informational only, never changes the verdict.
 
+### Location rule
+If the user has location preferences set:
+- **Role location matches target_locations or is remote** → passes
+- **Role requires relocation to a non-target location and user is not open to relocation** → hard fail
+- **Role requires relocation but user has relocation conditions** → maybe, note the conditions
+- **Location not mentioned** → flag as missing info, request in reply
+- **Hybrid/on-site in a non-target location** → fail unless location_notes indicate flexibility
+
+Use location_notes for nuanced assessment alongside the verdict — e.g. if the user
+would accept a specific city for higher comp, note that in the assessment.
+
 ### Company whitelist / blacklist
 - Whitelist match → upgrade to at least "maybe", note it explicitly
 - Blacklist match → instant fail regardless of other criteria
@@ -450,7 +462,8 @@ If Google Drive MCP is connected, offer to upload directly instead.
 
 Users can update any section at any time without re-doing the full wizard:
 
-- "Update my salary expectations" → re-run only section 1d
+- "Update my location preferences" → re-run only section 1c
+- "Update my salary expectations" → re-run only section 1e
 - "Add [company] to my blacklist" → append to blacklist, save
 - "Add [company] to my dream companies" → append to whitelist, save
 - "Change my reply tone to brief" → update reply_settings.tone, save
