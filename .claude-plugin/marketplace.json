@@ -1,0 +1,27 @@
+{
+  "name": "jerbs",
+  "owner": {
+    "name": "Paul Junod",
+    "email": "paul@junod.dev"
+  },
+  "metadata": {
+    "description": "Job email screener for Claude Code — screens Gmail and LinkedIn DMs against your criteria, drafts replies, and tracks correspondence.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "jerbs",
+      "source": "./",
+      "description": "Screens job-related emails and LinkedIn DMs against your personal criteria, drafts follow-up replies, and tracks recruiter correspondence.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Paul Junod"
+      },
+      "homepage": "https://github.com/pjunod/jerbs",
+      "repository": "https://github.com/pjunod/jerbs",
+      "license": "MIT",
+      "keywords": ["jobs", "email", "screening", "gmail", "recruiter", "linkedin", "job-search"],
+      "category": "productivity"
+    }
+  ]
+}

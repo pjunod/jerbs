@@ -12,6 +12,7 @@ description: >
   the LinkedIn MCP is connected. Runs up to three passes automatically (job alert digests +
   direct outreach + LinkedIn DMs) and combines results into one report. Optionally exports
   results to a formatted .xlsx / Google Sheets file with a built-in pipeline status tracker.
+argument-hint: "[lookback days] [dry-run|send]"
 compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_read_thread, gmail_create_draft). Requires gmail_send_message when send mode is enabled. LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_send_message or take any destructive action on emails unless the user has explicitly enabled send mode. gmail_create_draft is used in dry-run mode to create reply drafts the user can send with one click."
 ---
 
