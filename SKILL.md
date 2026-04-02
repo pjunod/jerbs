@@ -380,6 +380,47 @@ Then log the sent message to the correspondence log. Label it:
 
 In send mode, always show the full text of what was sent so the user can see it.
 
+### Result object schema
+
+Each screened item must be saved as a result object with ALL of these fields (use empty
+string or empty array if not applicable). These fields drive the HTML card rendering.
+
+```json
+{
+  "source": "Job Alert Listings | Direct Outreach | LinkedIn DMs",
+  "message_id": "Gmail message ID",
+  "thread_id": "Gmail thread ID",
+  "subject": "email subject line",
+  "from": "sender name and address",
+  "email_date": "date of the email",
+  "company": "company name",
+  "role": "job title",
+  "location": "city, remote, hybrid, etc.",
+  "verdict": "pass | maybe | fail",
+  "reason": "1-sentence verdict explanation",
+  "dealbreaker": "which dealbreaker triggered (fail only)",
+  "comp_assessment": "sliding-scale comp note (pass/maybe only)",
+  "missing_fields": ["salary", "equity", "location", "..."],
+  "reply_draft": "full draft reply text (pass/maybe only)",
+  "draft_url": "https://mail.google.com/mail/u/0/#drafts?compose=<id>",
+  "posting_url": "URL to the job posting (if found in email)",
+  "email_url": "https://mail.google.com/mail/u/0/#inbox/<message_id>",
+  "sent": false
+}
+```
+
+Write all results to `results.json` with this wrapper before calling `export_html.py`:
+```json
+{
+  "run_date": "YYYY-MM-DD",
+  "profile_name": "from criteria",
+  "mode": "dry-run | send",
+  "lookback_days": N,
+  "actions": [],
+  "results": [ ...result objects... ]
+}
+```
+
 ---
 
 ## Step 5 — Present results

@@ -473,6 +473,49 @@ requesting all of them at once.
   from the whitelist/blacklist, or negotiation details. Ask for *their* details without
   revealing yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
 
+### Result object schema
+
+As you screen each item, build a result object with ALL of these fields. Every field
+must be populated (use empty string or empty array if not applicable). These fields
+drive the HTML card rendering — missing fields mean missing UI elements.
+
+```json
+{
+  "source": "Job Alert Listings | Direct Outreach | LinkedIn DMs",
+  "message_id": "Gmail message ID",
+  "thread_id": "Gmail thread ID",
+  "subject": "email subject line",
+  "from": "sender name and address",
+  "email_date": "date of the email",
+  "company": "company name",
+  "role": "job title",
+  "location": "city, remote, hybrid, etc.",
+  "verdict": "pass | maybe | fail",
+  "reason": "1-sentence verdict explanation",
+  "dealbreaker": "which dealbreaker triggered (fail only)",
+  "comp_assessment": "sliding-scale comp note (pass/maybe only)",
+  "missing_fields": ["salary", "equity", "location", "..."],
+  "reply_draft": "full draft reply text (pass/maybe only)",
+  "draft_url": "https://mail.google.com/mail/u/0/#drafts?compose=<id>",
+  "posting_url": "URL to the job posting (if found in email)",
+  "email_url": "https://mail.google.com/mail/u/0/#inbox/<message_id>",
+  "sent": false
+}
+```
+
+**Key rules:**
+- `email_url` is ALWAYS set — construct from message_id: `https://mail.google.com/mail/u/0/#inbox/<message_id>`
+- `reply_draft` + `draft_url` are set for every pass/maybe verdict after calling `gmail_create_draft`
+- `posting_url` is set when the email contains a link to a job posting
+- `comp_assessment` uses the user's sliding_scale_notes to give an honest assessment
+- `missing_fields` lists fields from the user's required_info that weren't in the email
+
+The HTML template renders these fields into cards with:
+- Expandable details showing verdict reason, comp assessment, missing info tags
+- Draft reply block with "review & send" link to the Gmail draft
+- Link buttons: email thread link, job posting link, draft link
+- For filtered items: compact row with company, role, and reason
+
 ---
 
 ## Step 5 — Present results
@@ -486,29 +529,31 @@ in the chat, STOP — you are doing it wrong.
 The ONLY thing you output in the chat after screening is:
 
 1. A one-line summary with counts
-2. The full HTML report as a **rendered artifact** (NOT a code block)
+2. The full HTML report as an **artifact** that opens in the side panel
 3. An offer to export to spreadsheet
 
-**IMPORTANT — artifact output, not code block:**
-You MUST output the HTML as an **artifact** so it renders as an interactive page the
-user can see and use immediately. NEVER dump raw HTML into a code block — that forces
-the user to manually copy, save, and open it, which is an unacceptable experience.
+**CRITICAL — create a proper artifact, NOT inline HTML or a code block:**
 
-Use an artifact with `type="text/html"` and a descriptive title. The HTML page
-already includes a "Save" download button in its header, so users can save the file
-directly from the rendered page if they want a local copy.
+Create the HTML report as an artifact using the standard artifact mechanism. This
+makes it open in the **side panel** where the user can interact with it at full width,
+use the built-in download button, and browse results comfortably.
 
-Here is the exact chat output template — follow it literally:
+DO NOT:
+- Dump raw HTML into a markdown code block (forces manual copy/save/open)
+- Render HTML inline in the chat response (too cramped, not interactive enough)
+
+DO:
+- Create an artifact with type `text/html` and identifier `jerbs-results`
+- Title it: `Jerbs screening report YYYY-MM-DD`
+- The artifact contains the complete self-contained HTML page
+
+Here is the exact chat output — follow it literally:
 
 ---
 
 Here's your results page — **N interested**, **N maybe**, **N filtered**.
 
-[artifact: type="text/html", title="jerbs — Screening Report · YYYY-MM-DD"]
-<!DOCTYPE html>
-... [full self-contained HTML page generated from shared/scripts/export_html.py] ...
-</html>
-[/artifact]
+*(create the artifact here — it will appear as a clickable card that opens in the side panel)*
 
 Want me to export these to a **spreadsheet**?
 
@@ -522,6 +567,20 @@ Both include action banners at top, integrated results, collapsible filtered ite
 clickable links throughout, and a **Save button** in the header for downloading.
 The HTML must be completely self-contained (all CSS and JS inline, no external
 dependencies).
+
+**Every pass/maybe card MUST include all of these elements** (when data is available):
+1. Company name, role title, location
+2. Source badge (Job Alert, Direct, LinkedIn)
+3. Verdict reason (1-sentence explanation)
+4. Comp assessment (sliding-scale note from user's criteria)
+5. Missing info tags (each missing required field as a tag/pill)
+6. Draft reply block — full reply text with a "review & send" link to the Gmail draft
+7. Link buttons: **View email** (Gmail thread), **View posting** (job URL), **Open draft** (Gmail draft)
+
+**Filtered items** show: company, role, location, source, and reason in a compact row.
+
+Do NOT omit the draft reply or link buttons — these are the primary actions the user
+takes from the results page. A card with only "View listing" is incomplete.
 
 ---
 
