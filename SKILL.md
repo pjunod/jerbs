@@ -263,8 +263,15 @@ If the LinkedIn MCP is connected (`linkedin_search_messages`, `linkedin_read_mes
 5. Apply the same screening criteria as Pass 2 (direct outreach). The "generic mass email" dealbreaker applies — generic InMail templates with no personalization are a hard fail
 
 For replies in LinkedIn:
-- **Dry-run mode:** Show the reply as copy-paste text, labelled "📋 Draft LinkedIn reply (copy and send manually):"
-  (LinkedIn does not support draft creation, so these remain copy-paste only)
+- **Dry-run mode:** LinkedIn sends email notifications for DMs, and replying to those
+  notification emails delivers the response through LinkedIn. When a LinkedIn DM gets a
+  pass/maybe verdict, search Gmail for the corresponding notification email (e.g.
+  `from:linkedin.com` matching the sender's name and message content). If found, create a
+  Gmail draft reply to the notification email using `gmail_create_draft` — this gives the
+  user the same one-click send link experience as direct email replies. Label it:
+  `📋 Draft LinkedIn reply — [click to review & send](draft_url)`
+  If no matching notification email is found in Gmail (notifications disabled, etc.), fall
+  back to copy-paste text: `📋 Draft LinkedIn reply (copy and send manually):`
 - **Send mode:** Use `linkedin_send_message` to reply in the conversation thread. Log to correspondence log with source "linkedin".
 
 If the LinkedIn MCP is not connected, skip Pass 3 silently — do not prompt the user to connect it.
