@@ -64,12 +64,13 @@ CSS_CARDS = """\
   --yellow: #d29922; --yellow-bg: #2a2013;
   --red: #f85149; --red-bg: #2d1214;
   --blue: #58a6ff; --purple: #bc8cff; --purple-bg: #1c1a2e;
+  --accent: #58a6ff;
 }
 body.light {
   --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de;
-  --text: #1f2328; --text-muted: #656d76;
+  --text: #1f2328; --text-muted: #57606a; --accent: #0969da;
   --green: #1a7f37; --green-bg: #dafbe1;
-  --yellow: #9a6700; --yellow-bg: #fff8c5;
+  --yellow: #7d5600; --yellow-bg: #fff8c5;
   --red: #cf222e; --red-bg: #ffebe9;
   --blue: #0969da; --purple: #8250df; --purple-bg: #fbefff;
 }
@@ -112,6 +113,12 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
   color: var(--text-muted); border-bottom: 1px solid var(--border);
   padding-bottom: 0.5rem; margin-bottom: 1rem;
 }
+.section-toggle {
+  font-size: 0.75rem; color: var(--text-muted); background: none;
+  border: 1px solid var(--border); padding: 0.2rem 0.6rem; border-radius: 0.3rem;
+  cursor: pointer; margin-left: auto; text-transform: lowercase;
+}
+.section-toggle:hover { color: var(--accent); border-color: var(--accent); }
 .action-banner {
   background: var(--purple-bg); border: 1px solid var(--purple);
   border-radius: 0.5rem; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
@@ -160,7 +167,7 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
   border: 1px solid var(--border); border-radius: 0.35rem; font-size: 0.85rem;
 }
 .draft-block .draft-label { color: var(--blue); font-weight: 500; margin-bottom: 0.35rem; }
-.draft-block .draft-text { color: var(--text-muted); white-space: pre-wrap; }
+.draft-block .draft-text { color: var(--text); white-space: pre-wrap; opacity: 0.85; }
 .sent-label { color: var(--green); font-weight: 500; margin-top: 0.5rem; }
 .verdict-label { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; }
 .verdict-label.pass { color: var(--green); }
@@ -212,9 +219,20 @@ CSS_TERMINAL = """\
   --red:#ff4d4d; --red-dim:#7a2020; --red-bg:rgba(255,77,77,0.06);
   --blue:#3d9eff; --blue-bg:rgba(61,158,255,0.08);
   --purple:#bc8cff; --purple-bg:rgba(188,140,255,0.08);
-  --text:#d4dae4; --text-dim:#6b7a8d; --text-muted:#3d4a58;
+  --text:#d4dae4; --text-dim:#8b95a5; --text-muted:#5a6577;
   --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
 }
+body.light{
+  --bg:#f5f6f8; --bg2:#ffffff; --bg3:#ebedf0;
+  --border:#d0d4dc; --border2:#bcc2cc;
+  --green:#0e8a4f; --green-dim:#0e8a4f; --green-bg:rgba(14,138,79,0.08);
+  --amber:#a06800; --amber-dim:#a06800; --amber-bg:rgba(160,104,0,0.08);
+  --red:#cc3333; --red-dim:#cc3333; --red-bg:rgba(204,51,51,0.06);
+  --blue:#1a6dd4; --blue-bg:rgba(26,109,212,0.08);
+  --purple:#7c3aed; --purple-bg:rgba(124,58,237,0.08);
+  --text:#1a1d23; --text-dim:#4a5568; --text-muted:#6b7280;
+}
+body.light::before{display:none;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);
   font-size:14px;line-height:1.6;min-height:100vh;}
@@ -256,6 +274,10 @@ body::before{content:'';position:fixed;inset:0;
 .main{padding:32px 40px 60px;max-width:1100px;}
 .section-label{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.1em;
   text-transform:uppercase;margin:28px 0 12px;display:flex;align-items:center;gap:8px;}
+.section-toggle{font-family:var(--mono);font-size:10px;color:var(--text-dim);
+  background:none;border:1px solid var(--border2);padding:2px 8px;border-radius:3px;
+  cursor:pointer;letter-spacing:0.04em;margin-left:auto;text-transform:lowercase;}
+.section-toggle:hover{color:var(--text);border-color:var(--text-dim);}
 .section-label.interested{color:var(--green);}
 .section-label.maybe{color:var(--amber);}
 .section-label.filtered{color:var(--red-dim);}
@@ -322,7 +344,7 @@ body::before{content:'';position:fixed;inset:0;
   padding:10px 14px;border-radius:0 4px 4px 0;font-size:12px;}
 .draft-block .draft-label{font-family:var(--mono);font-size:10px;color:var(--blue);
   letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;}
-.draft-block .draft-text{color:var(--text-dim);white-space:pre-wrap;font-family:var(--mono);font-size:12px;}
+.draft-block .draft-text{color:var(--text);opacity:0.85;white-space:pre-wrap;font-family:var(--mono);font-size:12px;}
 .sent-label{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:0.08em;
   text-transform:uppercase;margin-top:10px;margin-bottom:4px;}
 footer{border-top:1px solid var(--border);padding:20px 40px;font-family:var(--mono);
@@ -362,6 +384,16 @@ function toggleLight(){
   document.body.classList.toggle('light');
   var btn=document.getElementById('theme-btn');
   if(btn)btn.textContent=document.body.classList.contains('light')?'Dark':'Light';
+}
+function toggleSection(btn){
+  var group=btn.closest('.section-label').nextElementSibling;
+  if(!group)return;
+  var cards=group.querySelectorAll('.card');
+  var allOpen=Array.from(cards).every(function(c){return c.classList.contains('open');});
+  cards.forEach(function(c){
+    if(allOpen)c.classList.remove('open');else c.classList.add('open');
+  });
+  btn.textContent=allOpen?'expand all':'collapse all';
 }
 function downloadPage(){
   var html=document.documentElement.outerHTML;
@@ -722,15 +754,23 @@ def export_to_html(results_data, output_path, theme=None):
     # Results
     parts.append('<div class="section">')
 
+    toggle_btn = '<button class="section-toggle" onclick="toggleSection(this)">expand all</button>'
+
     if passes:
-        parts.append('<div class="section-label interested">\U0001f7e2 Interested</div>')
+        parts.append(
+            f'<div class="section-label interested">\U0001f7e2 Interested{toggle_btn}</div>'
+        )
+        parts.append('<div class="section-group">')
         for item in passes:
             parts.append(build_terminal_card(item, "pass"))
+        parts.append("</div>")
 
     if maybes:
-        parts.append('<div class="section-label maybe">\U0001f7e1 Maybe</div>')
+        parts.append(f'<div class="section-label maybe">\U0001f7e1 Maybe{toggle_btn}</div>')
+        parts.append('<div class="section-group">')
         for item in maybes:
             parts.append(build_terminal_card(item, "maybe"))
+        parts.append("</div>")
 
     if fails:
         parts.append('<div class="section-label filtered">\U0001f534 Filtered</div>')
