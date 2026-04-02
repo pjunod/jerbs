@@ -12,7 +12,7 @@ description: >
   the LinkedIn MCP is connected. Runs up to three passes automatically (job alert digests +
   direct outreach + LinkedIn DMs) and combines results into one report. Optionally exports
   results to a formatted .xlsx / Google Sheets file with a built-in pipeline status tracker.
-compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_read_thread). Requires gmail_send_message when send mode is enabled. LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_create_draft or take any write action on emails unless the user has explicitly enabled send mode."
+compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_read_thread, gmail_create_draft). Requires gmail_send_message when send mode is enabled. LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_send_message or take any destructive action on emails unless the user has explicitly enabled send mode. gmail_create_draft is used in dry-run mode to create reply drafts the user can send with one click."
 ---
 
 # Job Email Screener
@@ -23,7 +23,7 @@ criteria, surfaces draft replies, and optionally exports results to a spreadshee
 tracker.
 
 Supports two modes:
-- **Dry-run (default)** — replies are generated as copy-paste text; nothing is sent
+- **Dry-run (default)** — replies are created as Gmail drafts with one-click send links; nothing is sent automatically
 - **Send mode** — replies are sent via Gmail automatically and logged to the correspondence log
 
 ---
@@ -169,7 +169,7 @@ At the start of every screening run, print a concise summary so the user can ver
 
 ⚡ SEND MODE: ON  — replies will be sent automatically and logged
         — OR —
-📝 DRY-RUN MODE  — replies will be shown as copy-paste text, nothing sent
+📝 DRY-RUN MODE  — replies saved as Gmail drafts with one-click send links, nothing sent automatically
 ```
 
 The send mode status line must always appear. It must be visually distinct. Never omit it.
@@ -264,6 +264,7 @@ If the LinkedIn MCP is connected (`linkedin_search_messages`, `linkedin_read_mes
 
 For replies in LinkedIn:
 - **Dry-run mode:** Show the reply as copy-paste text, labelled "📋 Draft LinkedIn reply (copy and send manually):"
+  (LinkedIn does not support draft creation, so these remain copy-paste only)
 - **Send mode:** Use `linkedin_send_message` to reply in the conversation thread. Log to correspondence log with source "linkedin".
 
 If the LinkedIn MCP is not connected, skip Pass 3 silently — do not prompt the user to connect it.
@@ -327,8 +328,16 @@ requesting all of them at once.
   from the whitelist/blacklist, or negotiation details. Ask for *their* details without
   revealing yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
 
-**In dry-run mode:** Show the reply as copy-paste text. Label it clearly:
-`📋 Draft reply (copy and send manually):`
+**In dry-run mode:** Create a Gmail draft reply in the correct thread using
+`gmail_create_draft`, then show the reply text and a clickable link to the draft.
+The draft link format is: `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
+where `draft_message_id` comes from the `gmail_create_draft` response. Label it:
+
+`📋 Draft reply — [click to review & send](draft_url)`
+
+followed by the full reply text so the user can read it inline. The user can click the
+link to open the draft in Gmail and send it with one click, or ignore it to leave it unsent.
+Log the draft to the correspondence log with `mode: "draft"`.
 
 **In send mode:** Send the reply via `gmail_send_message`, replying to the correct thread.
 Then log the sent message to the correspondence log. Label it:
@@ -401,7 +410,7 @@ For each result include:
 - Verdict reason (one sentence; name specific dealbreaker for fails)
 - Comp assessment (honest sliding-scale take)
 - Missing fields (if any)
-- Reply — copy-paste text in dry-run mode, or sent confirmation in send mode (with full text shown)
+- Reply — draft with one-click send link in dry-run mode, or sent confirmation in send mode (with full text shown)
 
 At the end, offer: "Want me to export these to a spreadsheet?"
 
@@ -528,9 +537,11 @@ The cap does not apply to interactive (non-scheduler) sessions where the user is
 ## Important constraints
 
 - **Send mode is off by default** — never send, delete, label, archive, or modify Gmail
-  messages unless the user has explicitly enabled send mode and confirmed
+  messages unless the user has explicitly enabled send mode and confirmed. Creating drafts
+  is allowed in dry-run mode — drafts are not sent automatically.
 - **Send mode requires explicit double-confirmation** when first enabled — warn clearly
-- In dry-run mode, replies are always presented as copy-paste text
+- In dry-run mode, replies are created as Gmail drafts with one-click send links and
+  shown inline as readable text
 - Spreadsheet export is always optional — never create one unless requested
 - The criteria file is the source of truth — always load it at run start, always save
   after updates or after adding newly screened message IDs
