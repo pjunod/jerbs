@@ -23,13 +23,55 @@ and optionally exports results to a spreadsheet pipeline tracker.
 
 ---
 
+## State persistence
+
+State persistence uses a two-tier approach — detect which is available and use the best
+option silently. Never ask the user which tier they're on.
+
+### Tier 1 — Google Drive MCP (zero friction)
+If the Google Drive MCP is connected (`google_drive_read_file`, `google_drive_write_file`
+or equivalent tools are available):
+- Store all state in a single `jerbs-state.json` file in the user's Drive
+- On first run, create the file and note its Drive file ID in the criteria
+- On subsequent runs, read state from Drive, write updates back automatically
+- The user never manages files — persistence is invisible
+- Drive folder: `Jerbs/` at the root of the user's Drive (create if missing)
+
+### Tier 2 — Bundled state file (fallback)
+If no Drive MCP is connected:
+- All state is bundled into a single `jerbs-state.json` file containing criteria,
+  correspondence log, and screened IDs together in one object:
+  ```json
+  {
+    "_version": "2.0",
+    "criteria": { ... },
+    "correspondence": [ ... ],
+    "screened_message_ids": [ ... ]
+  }
+  ```
+- At the end of any run where state changed, output the single file in a code block
+- Only output when something actually changed — don't emit noise on clean runs
+- After outputting, include this prompt exactly:
+
+  > 📁 **Save and re-upload this file** to keep your screening state in sync.
+  > This is the only file you need to manage — it contains everything.
+
+- On load, accept both the bundled format (single `jerbs-state.json`) and the legacy
+  format (separate `criteria.json` + `correspondence.json` as project files). If legacy
+  files are detected, migrate them into the bundled format on the next save.
+
+---
+
 ## How criteria are stored
 
 Criteria are stored in a JSON profile that Claude reads at the start of each run and
-writes when updated. In Claude.ai Projects, the profile lives as a project file named
-`criteria.json`. On first run, Claude creates it interactively via the setup wizard and
-outputs it for upload. On subsequent runs, Claude loads it from the project context and
-prints a summary before screening.
+writes when updated.
+
+- **Drive tier:** inside `jerbs-state.json` on Drive, read/written automatically
+- **Fallback tier:** inside `jerbs-state.json` bundled project file
+
+On first run, Claude creates criteria interactively via the setup wizard.
+On subsequent runs, Claude loads them and prints a summary before screening.
 
 The bundled `criteria_template.json` shows the full schema with all fields and defaults.
 
