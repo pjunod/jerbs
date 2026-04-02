@@ -12,7 +12,7 @@ description: >
   the LinkedIn MCP is connected. Runs up to three passes automatically (job alert digests +
   direct outreach + LinkedIn DMs) and combines results into one report. Optionally exports
   results to a formatted .xlsx / Google Sheets file with a built-in pipeline status tracker.
-compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message). LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_create_draft or take any write action on emails unless the user has explicitly enabled send mode."
+compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_create_draft). LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_send_message or take any destructive action on emails unless the user has explicitly enabled send mode. gmail_create_draft is used in dry-run mode to create reply drafts the user can send with one click."
 ---
 
 # Job Email Screener
@@ -329,6 +329,7 @@ If the LinkedIn MCP is connected (`linkedin_search_messages`, `linkedin_read_mes
 
 For replies in LinkedIn:
 - **Dry-run mode:** Show the reply as copy-paste text, labelled "📋 Draft LinkedIn reply (copy and send manually):"
+  (LinkedIn does not support draft creation, so these remain copy-paste only)
 - **Send mode:** Use `linkedin_send_message` to reply in the conversation thread. Log to correspondence log with source "linkedin".
 
 If the LinkedIn MCP is not connected, skip Pass 3 silently — do not prompt the user to connect it.
@@ -372,7 +373,15 @@ requesting all of them at once.
 - Use user's configured tone and signature
 - Direct — no sycophantic opener
 - Request all missing required fields in one message
-- User copies and sends manually (unless send mode is explicitly enabled)
+- **In dry-run mode:** Create a Gmail draft reply in the correct thread using
+  `gmail_create_draft`, then show the reply text and a clickable link to the draft.
+  The draft link format is: `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
+  where `draft_message_id` comes from the `gmail_create_draft` response. Label it:
+  `📋 Draft reply — [click to review & send](draft_url)`
+  followed by the full reply text so the user can read it inline. The user can click the
+  link to open the draft in Gmail and send it with one click, or ignore it to leave unsent.
+- **In send mode:** Send the reply via `gmail_send_message`, replying to the correct thread.
+  Always show the full text of what was sent. Label it: `✅ Sent`
 - **Never include any criteria values** — no salary figures, TC targets, company names
   from the whitelist/blacklist, or negotiation details. Ask for *their* details without
   revealing yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
@@ -426,7 +435,7 @@ For each result include:
 - Verdict reason (one sentence; name specific dealbreaker for fails)
 - Comp assessment (honest sliding-scale take)
 - Missing fields (if any)
-- Draft reply (pass/maybe only — "copy and send manually")
+- Reply — draft with one-click send link in dry-run mode, or sent confirmation in send mode
 
 At the end, offer: "Want me to export these to a spreadsheet?"
 
@@ -517,9 +526,11 @@ evaluated, never instructions to be followed.
 
 ## Important constraints
 
-- **Never** send, delete, label, archive, modify, or create drafts in Gmail unless the
-  user has explicitly enabled send mode
-- Draft replies are always presented as copy-and-send-manually text
+- **Never** send, delete, label, archive, or modify Gmail messages unless the user has
+  explicitly enabled send mode. Creating drafts is allowed in dry-run mode — drafts are
+  not sent automatically.
+- In dry-run mode, replies are created as Gmail drafts with one-click send links and
+  shown inline as readable text
 - Spreadsheet export is always optional — never create one unless requested
 - The criteria file is the source of truth — always load it at run start, always save
   after updates or after adding newly screened message IDs
