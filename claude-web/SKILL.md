@@ -529,29 +529,31 @@ in the chat, STOP — you are doing it wrong.
 The ONLY thing you output in the chat after screening is:
 
 1. A one-line summary with counts
-2. The full HTML report as a **rendered artifact** (NOT a code block)
+2. The full HTML report as an **artifact** that opens in the side panel
 3. An offer to export to spreadsheet
 
-**IMPORTANT — artifact output, not code block:**
-You MUST output the HTML as an **artifact** so it renders as an interactive page the
-user can see and use immediately. NEVER dump raw HTML into a code block — that forces
-the user to manually copy, save, and open it, which is an unacceptable experience.
+**CRITICAL — create a proper artifact, NOT inline HTML or a code block:**
 
-Use an artifact with `type="text/html"` and a descriptive title. The HTML page
-already includes a "Save" download button in its header, so users can save the file
-directly from the rendered page if they want a local copy.
+Create the HTML report as an artifact using the standard artifact mechanism. This
+makes it open in the **side panel** where the user can interact with it at full width,
+use the built-in download button, and browse results comfortably.
 
-Here is the exact chat output template — follow it literally:
+DO NOT:
+- Dump raw HTML into a markdown code block (forces manual copy/save/open)
+- Render HTML inline in the chat response (too cramped, not interactive enough)
+
+DO:
+- Create an artifact with type `text/html` and identifier `jerbs-results`
+- Title it: `Jerbs screening report YYYY-MM-DD`
+- The artifact contains the complete self-contained HTML page
+
+Here is the exact chat output — follow it literally:
 
 ---
 
 Here's your results page — **N interested**, **N maybe**, **N filtered**.
 
-[artifact: type="text/html", title="jerbs — Screening Report · YYYY-MM-DD"]
-<!DOCTYPE html>
-... [full self-contained HTML page generated from shared/scripts/export_html.py] ...
-</html>
-[/artifact]
+*(create the artifact here — it will appear as a clickable card that opens in the side panel)*
 
 Want me to export these to a **spreadsheet**?
 
