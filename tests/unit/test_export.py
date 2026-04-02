@@ -292,6 +292,35 @@ class TestStatusDropdown:
         assert "Filtered out" in STATUS_PIPELINE
         assert "Interviewing" in STATUS_PIPELINE
 
+    def test_url_columns_render_as_clickable_hyperlinks(self):
+        r = make_result(
+            email_url="https://mail.google.com/mail/u/0/#inbox/abc123",
+            posting_url="https://jobs.lever.co/acme/12345",
+        )
+        wb = run_export([r])
+        ws = wb["Results"]
+        headers = {cell.value: cell.column for cell in ws[1]}
+        email_col = headers["Email link"]
+        posting_col = headers["Posting URL"]
+
+        email_cell = ws.cell(row=2, column=email_col)
+        assert email_cell.value == "View email"
+        assert email_cell.hyperlink.target == "https://mail.google.com/mail/u/0/#inbox/abc123"
+
+        posting_cell = ws.cell(row=2, column=posting_col)
+        assert posting_cell.value == "View posting"
+        assert posting_cell.hyperlink.target == "https://jobs.lever.co/acme/12345"
+
+    def test_url_columns_empty_when_no_urls(self):
+        r = make_result()  # no email_url or posting_url
+        wb = run_export([r])
+        ws = wb["Results"]
+        headers = {cell.value: cell.column for cell in ws[1]}
+        email_cell = ws.cell(row=2, column=headers["Email link"])
+        posting_cell = ws.cell(row=2, column=headers["Posting URL"])
+        assert email_cell.hyperlink is None
+        assert posting_cell.hyperlink is None
+
     def test_pre_existing_status_preserved_in_export(self):
         r = make_result(status="Interviewing")
         assert r["status"] == "Interviewing"

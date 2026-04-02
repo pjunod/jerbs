@@ -116,6 +116,7 @@ COLUMNS = [
     ("Location", 18),
     ("Email date", 13),
     ("From", 26),
+    ("Email link", 40),
     ("Posting URL", 40),
     ("Verdict", 13),
     ("Status", 26),
@@ -127,8 +128,8 @@ COLUMNS = [
     ("Draft reply", 55),
 ]
 
-STATUS_COL = 10
-NOTES_COL = 15
+STATUS_COL = 11
+NOTES_COL = 16
 HEADER_BG = "1F2937"
 HEADER_FG = "FFFFFF"
 ALT_BG = "F9FAFB"
@@ -155,6 +156,9 @@ def write_data_row(ws, row_idx, item, run_date, is_alt=False):
     vc = VERDICT_COLORS.get(verdict, VERDICT_COLORS["fail"])
     sc = STATUS_COLORS.get(status, ("F3F4F6", "6B7280"))
 
+    email_url = item.get("email_url") or ""
+    posting_url = item.get("posting_url") or ""
+
     vals = [
         run_date,
         item.get("source", ""),
@@ -163,7 +167,8 @@ def write_data_row(ws, row_idx, item, run_date, is_alt=False):
         item.get("location", ""),
         item.get("email_date", ""),
         item.get("from", ""),
-        item.get("posting_url") or "",
+        email_url,
+        posting_url,
         VERDICT_LABELS.get(verdict, verdict.title()),
         status,
         item.get("reason", ""),
@@ -174,13 +179,24 @@ def write_data_row(ws, row_idx, item, run_date, is_alt=False):
         item.get("reply_draft") or "",
     ]
 
+    # Columns that should render as clickable hyperlinks
+    link_cols = {8: ("View email", email_url), 9: ("View posting", posting_url)}
+
     for ci, value in enumerate(vals, 1):
         cell = ws.cell(row=row_idx, column=ci, value=value)
         cell.alignment = Alignment(vertical="top", wrap_text=True)
         cell.border = make_border()
         cell.font = Font(name="Arial", size=10)
 
-        if ci == 9:  # Verdict
+        # Make URL columns clickable
+        if ci in link_cols:
+            label, url = link_cols[ci]
+            if url:
+                cell.value = label
+                cell.hyperlink = url
+                cell.font = Font(name="Arial", size=10, color="1155CC", underline="single")
+
+        if ci == 10:  # Verdict
             cell.fill = PatternFill("solid", start_color=vc["bg"])
             cell.font = Font(bold=True, color=vc["fg"], name="Arial", size=10)
             cell.alignment = Alignment(horizontal="center", vertical="top")
