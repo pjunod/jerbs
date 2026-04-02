@@ -532,32 +532,34 @@ The ONLY thing you output in the chat after screening is:
 2. The full HTML report as an **artifact** that opens in the side panel
 3. An offer to export to spreadsheet
 
-**CRITICAL — create a proper artifact, NOT inline HTML or a code block:**
+**CRITICAL — use antArtifact tags, NOT a code block or inline HTML:**
 
-Create the HTML report as an artifact using the standard artifact mechanism. This
-makes it open in the **side panel** where the user can interact with it at full width,
-use the built-in download button, and browse results comfortably.
+You MUST use `<antArtifact>` tags to create the HTML report. This is what makes it
+open in the **side panel** where the user can interact with it at full width and
+download it. If you put the HTML in a code block or render it inline, the user gets
+a terrible experience — they see raw code or a cramped inline preview instead of
+the full interactive page.
 
-DO NOT:
-- Dump raw HTML into a markdown code block (forces manual copy/save/open)
-- Render HTML inline in the chat response (too cramped, not interactive enough)
-
-DO:
-- Create an artifact with type `text/html` and identifier `jerbs-results`
-- Title it: `Jerbs screening report YYYY-MM-DD`
-- The artifact contains the complete self-contained HTML page
-
-Here is the exact chat output — follow it literally:
+Here is the exact output structure — follow it literally:
 
 ---
 
 Here's your results page — **N interested**, **N maybe**, **N filtered**.
 
-*(create the artifact here — it will appear as a clickable card that opens in the side panel)*
+<antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
+<!DOCTYPE html>
+... [full self-contained HTML page] ...
+</html>
+</antArtifact>
 
 Want me to export these to a **spreadsheet**?
 
 ---
+
+The `<antArtifact>` tag MUST have:
+- `identifier="jerbs-results"` (reuse the same identifier if re-screening)
+- `type="text/html"`
+- `title="Jerbs screening report YYYY-MM-DD"` (with the actual run date)
 
 The HTML page uses the design from `shared/scripts/export_html.py` with two themes:
 - **Terminal** (default) — IBM Plex Mono, CRT scanlines, expandable cards, filter bar
