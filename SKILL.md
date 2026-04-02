@@ -45,34 +45,50 @@ the start of every session and adapt accordingly. Never ask the user which mode 
 ### Web / Project (no filesystem access)
 **Signal:** no bash or file tools; running in a Claude.ai chat or project.
 
-- Criteria and correspondence log are **project files** — Claude reads them from the
-  project context automatically at the start of every conversation
-- Claude cannot write back to project files directly — instead, at the end of any run
-  where changes were made, output the updated file(s) so the user can re-upload them
-- Only output files that actually changed — don't emit noise on runs with no updates
+State persistence in web sessions uses a two-tier approach — detect which is available
+and use the best option silently:
 
-**Web session file output rules:**
-- Wrap each updated file in a clearly labelled code block with the filename as the header
-- Output criteria JSON if: screened_message_ids changed, last_run_date changed, send_mode
-  changed, or any criteria were updated
-- Output correspondence log JSON if: any new entries were added, or any entries changed
-  (awaiting_reply flipped, replied_at set)
+**Tier 1 — Google Drive MCP (zero friction)**
+If the Google Drive MCP is connected (`google_drive_read_file`, `google_drive_write_file`
+or equivalent tools are available):
+- Store all state in a single `jerbs-state.json` file in the user's Drive
+- On first run, create the file and note its Drive file ID in the criteria
+- On subsequent runs, read state from Drive, write updates back automatically
+- The user never manages files — persistence is invisible, identical to Claude Code
+- Drive folder: `Jerbs/` at the root of the user's Drive (create if missing)
+
+**Tier 2 — Bundled state file (fallback)**
+If no Drive MCP is connected:
+- All state is bundled into a single `jerbs-state.json` file containing criteria,
+  correspondence log, and screened IDs together in one object:
+  ```json
+  {
+    "_version": "2.0",
+    "criteria": { ... },
+    "correspondence": [ ... ],
+    "screened_message_ids": [ ... ]
+  }
+  ```
+- At the end of any run where state changed, output the single file in a code block
+- Only output when something actually changed — don't emit noise on clean runs
 - After outputting, include this prompt exactly:
 
-  > 📁 **Re-upload to keep in sync:** Save the file(s) above and re-upload them to the
-  > project, replacing the existing versions. This is the only step needed — no other
-  > file management required.
+  > 📁 **Save and re-upload this file** to keep your screening state in sync.
+  > This is the only file you need to manage — it contains everything.
 
-- If nothing changed (clean run, no new emails, no updates), skip file output entirely
+- On load, accept both the bundled format (single `jerbs-state.json`) and the legacy
+  format (separate `criteria.json` + `correspondence.json` as project files). If legacy
+  files are detected, migrate them into the bundled format on the next save.
 
 ---
 
 ## How criteria are stored
 
-Criteria are stored in a JSON profile. The filename is `criteria.json`.
+Criteria are stored in a JSON profile.
 
-- **Claude Code:** lives at `~/.claude/jerbs/criteria.json`, read/written directly
-- **Web/Project:** lives as a project file, read from context, re-uploaded by user after changes
+- **Claude Code:** `~/.claude/jerbs/criteria.json`, read/written directly
+- **Web (Drive):** inside `jerbs-state.json` on Drive, read/written automatically
+- **Web (fallback):** inside `jerbs-state.json` bundled project file
 
 On first run (no criteria found), Claude creates it interactively via the setup wizard.
 On subsequent runs, Claude loads it and prints a summary before screening.
@@ -83,11 +99,11 @@ The bundled `criteria_template.json` shows the full schema with all fields and d
 
 ## How correspondence is tracked
 
-All sent replies (and dry-run drafts) are logged to a JSON file named
-`correspondence.json`.
+All sent replies (and dry-run drafts) are logged to a correspondence log.
 
-- **Claude Code:** lives at `~/.claude/jerbs/correspondence.json`, read/written directly
-- **Web/Project:** lives as a project file, read from context, re-uploaded by user after changes
+- **Claude Code:** `~/.claude/jerbs/correspondence.json`, read/written directly
+- **Web (Drive):** inside `jerbs-state.json` on Drive, read/written automatically
+- **Web (fallback):** inside `jerbs-state.json` bundled project file
 
 Each entry records:
 
