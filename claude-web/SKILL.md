@@ -455,78 +455,30 @@ All output contexts share a consistent visual language. The design principles:
 | Missing info | **Missing:** bold yellow label | Yellow-highlighted label | Missing info column |
 | Draft reply | Indented blockquote with send link | Dark draft block with send link | Draft reply column |
 
-### Formatting rules (MANDATORY)
+### Chat output format — compact dashboard
 
-Results from all passes are integrated into a single list — no separate sections per pass.
-Each item gets a source badge so the user can see where it came from. You MUST format
-results exactly as described below. Every item must be visually distinct and scannable.
+The chat window shows a **compact summary dashboard** — not the full report. The HTML
+results page is where the user reads the full detail. Keep the chat output scannable.
 
-**Start with a summary line, then a horizontal rule:**
+Format the chat output exactly like this:
 
 **Jerbs Results** · Dry-run · 2026-04-02
-4 interested · 12 maybe · 19 filtered
 
----
-
-**If any items need immediate attention, show them FIRST as blockquotes:**
-
-> **Action Needed — Tom Sherwood, Falcon LLM**
-> He replied today: "Would you like me to re-book your live coding?"
+> **Action Needed:** Tom Sherwood — Falcon LLM. Reply waiting.
 > [View in Gmail](url) · [Reply on LinkedIn](url)
 
----
+🟢 **4 interested:** Google Staff SRE NYC, D.E. Shaw Quant Systems, CoreWeave Staff Systems, + 1 more
+🟡 **12 maybe:** Adobe Architect SRE, ByteDance PE, Capital One Distinguished, + 9 more
+🔴 **19 filtered** (staffing agencies, wrong role, sub-floor comp, etc.)
 
-**Then show results under a "Results" heading, grouped by verdict:**
+Want me to generate a **webpage** with the full report, or export to a **spreadsheet**?
 
-For each **PASS** item, format as a bold heading with details on separate lines:
-
-**PASS**
-
-**Snowflake — Senior Production Engineer** · Menlo Park, CA · `Job Alert`
-Top-tier cloud data company, Senior PE is a direct role match.
-*Comp: Not stated — Snowflake comp is typically competitive*
-**Missing:** comp range, equity, remote/hybrid, nature of work, interview process
-[View posting](url) · [View email](url)
-
-If there's a draft reply, show it as:
-
-📋 Draft reply — [click to review & send](draft_url)
-> Hi, I'm interested in learning more about this role. Could you share
-> the compensation range and remote/hybrid policy?
->
-> Paul
-
-For each **MAYBE** item, same format:
-
-**MAYBE**
-
-**D.E. Shaw — Trading Systems Ops Engineer** · New York, NY · `Direct`
-Top-tier quant fund. Title lacks Senior+ but D.E. Shaw comp is typically very high.
-**Missing:** seniority confirmation, comp range, remote/hybrid
-[View posting](url) · [View email](url)
-
-For **FILTERED** items, use a compact markdown table:
-
-**FILTERED** (19 listings)
-
-| Company | Role | Source | Reason |
-|---------|------|--------|--------|
-| JetBlue | Senior Engineer IT Reliability | Job Alert | Not upper-tier tech |
-| Apex Systems | Service Delivery Manager | Job Alert | **Blacklisted company** |
-| Centraprise | C++ with PERL Developer | Direct | Staffing agency, generic greeting |
-
-**Critical formatting rules — do not skip any of these:**
-- Every PASS/MAYBE item MUST be a **bold heading** (`**Company — Role**`) on its own line
-- Location and source MUST appear on the same line as the heading, after `·` separators
-- Reason, comp, and missing info MUST be on separate lines below the heading
-- Links MUST be on their own line, clickable markdown format
-- There MUST be a blank line between each item
-- FILTERED items MUST be in a markdown table, not free text
-- Action-needed items MUST appear before results
-- Every item MUST have links — posting URL and/or Gmail URL
-
-**After presenting results, always ask:**
-"Want me to generate a **webpage** with these results, or export to a **spreadsheet**?"
+Rules:
+- **Action banners first** — blockquoted, bold, with links
+- **One line per verdict** — emoji prefix, bold count, top 2-3 company names, "+ N more"
+- **Filtered gets a parenthetical** — summarize the common reasons, not individual items
+- **No per-item detail in chat** — that's what the HTML page is for
+- **Always offer export** — webpage (HTML) or spreadsheet at the end
 
 ---
 
@@ -535,9 +487,12 @@ For **FILTERED** items, use a compact markdown table:
 ### HTML webpage (on request)
 
 When the user asks for a webpage, output a complete self-contained HTML file in a code
-block. The HTML must have inline CSS (no external dependencies), use the dark-themed
-card-based design from `shared/scripts/export_html.py`, and include a Light/Dark theme
-toggle button. Tell the user to save the file as `.html` and open it in their browser.
+block. The HTML must have inline CSS (no external dependencies) and follow the design in
+`shared/scripts/export_html.py`. It includes two built-in themes with a switcher:
+- **Terminal** (default) — IBM Plex Mono, CRT scanlines, expandable cards, filter bar
+- **Cards** — clean card-based layout with light/dark toggle
+
+Tell the user to save the file as `.html` and open it in their browser.
 
 ### Spreadsheet export (on request)
 
@@ -546,10 +501,6 @@ See `shared/scripts/export_results.py` for the full export logic.
 The spreadsheet has two sheets:
 - **Summary** — run date, counts by verdict, full color-coded status guide
 - **Results** — one row per item, sorted pass → maybe → fail
-
-The Excel verdict colors align with the HTML design language (green/yellow/red).
-**Status column** tracks the full hiring pipeline with a dropdown.
-**Dead-end categories** are collapsed at the bottom.
 
 **Google Sheets import:** sheets.google.com → File → Import → Upload the .xlsx.
 If Google Drive MCP is connected, offer to upload directly instead.
