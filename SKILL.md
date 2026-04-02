@@ -372,58 +372,38 @@ In send mode, always show the full text of what was sent so the user can see it.
 
 ## Step 5 — Present results
 
-### Unified design language
+**CRITICAL: DO NOT list individual job results in the chat/terminal.** No per-item text,
+no markdown cards, no verdict details, no company names with descriptions. ALL of that
+goes in the HTML page only.
 
-All output contexts share a consistent visual language. The canonical format is the HTML
-results page (see `shared/scripts/export_html.py`). Markdown output in Claude Code and
-Claude Web adapts the same structure and cues to plain text. Excel carries the same color
-signals. The design principles:
+The ONLY thing you output in the chat after screening is:
 
-| Cue | Markdown (Code / Web) | HTML page | Excel |
-|-----|----------------------|-----------|-------|
-| Verdict: Pass | **PASS** bold header, detailed card | Green left-border card, green pill badge | Green verdict cell |
-| Verdict: Maybe | **MAYBE** bold header, detailed card | Yellow left-border card, yellow pill badge | Yellow verdict cell |
-| Verdict: Fail | Condensed table row | Collapsible table, red badge | Red verdict cell, collapsed group |
-| Action needed | `>` blockquote, bold | Purple banner with border | — |
-| Stats summary | `N interested · N maybe · N filtered` | Stat boxes with counts | Summary sheet counts |
-| Links | `[View posting](url) · [View email](url)` | Clickable blue links | Hyperlink cells |
-| Comp note | *italic inline* | Blue-tinted inline box | Cell text |
-| Missing info | **Missing:** bold yellow label | Yellow-highlighted label | Missing info column |
-| Draft reply | Indented code block with send link | Dark draft block with send link | Draft reply column |
+1. "Generating results page..."
+2. Silently write results JSON, run the export script, open the HTML file
+3. A one-line confirmation with counts
+4. An offer to export to spreadsheet
 
-### Output flow
-
-The HTML results page is the primary output — not the chat. Do not reproduce the full
-results as markdown in the chat window. Instead:
-
-1. Generate the HTML results page silently — do not stream HTML source into the terminal
-2. Open it in the browser
-3. Print a short confirmation and ask about spreadsheet export
-
-The chat output after screening should look exactly like this:
+Here is the exact flow — follow it literally:
 
 ```
 Generating results page...
 ```
-Then write the results JSON, run the export script, and open the file:
 ```bash
 python shared/scripts/export_html.py results.json ~/.claude/jerbs/results-YYYY-MM-DD.html
 open ~/.claude/jerbs/results-YYYY-MM-DD.html
 ```
-Then print:
 ```
 Opened results page (N interested · N maybe · N filtered).
 Want me to export these to a spreadsheet?
 ```
 
-That's it. No per-item detail, no dashboard summary, no markdown cards. The HTML page
-has everything. The chat just confirms it worked and offers the spreadsheet option.
+That's it. The HTML page has everything — the terminal just confirms it worked.
 
-The HTML page has two built-in themes with a switcher:
+The HTML page uses `shared/scripts/export_html.py` with two built-in themes:
 - **Terminal** (default) — IBM Plex Mono, CRT scanlines, expandable cards, filter bar
 - **Cards** — clean card-based layout with light/dark toggle
 
-Both themes include action banners at top, integrated results with source labels,
+Both include action banners at top, integrated results with source labels,
 collapsible filtered items, and clickable links throughout.
 
 ---
