@@ -455,55 +455,40 @@ All output contexts share a consistent visual language. The design principles:
 | Missing info | **Missing:** bold yellow label | Yellow-highlighted label | Missing info column |
 | Draft reply | Indented blockquote with send link | Dark draft block with send link | Draft reply column |
 
-### Chat output format — compact dashboard
+### Output flow
 
-The chat window shows a **compact summary dashboard** — not the full report. The HTML
-results page is where the user reads the full detail. Keep the chat output scannable.
+The HTML results page is the primary output — not the chat. Do not reproduce the full
+results as markdown in the chat window. Instead:
 
-Format the chat output exactly like this:
+1. **Always generate the HTML report** after screening — output it as a complete
+   self-contained HTML file in a code block
+2. Tell the user to save it as `.html` and open it in their browser
+3. Ask if they want a spreadsheet export
 
-**Jerbs Results** · Dry-run · 2026-04-02
+The chat output after screening should look exactly like this:
 
-> **Action Needed:** Tom Sherwood — Falcon LLM. Reply waiting.
-> [View in Gmail](url) · [Reply on LinkedIn](url)
+Here's your results page (N interested · N maybe · N filtered). Save the HTML below
+as a `.html` file and open it in your browser.
 
-🟢 **4 interested:** Google Staff SRE NYC, D.E. Shaw Quant Systems, CoreWeave Staff Systems, + 1 more
-🟡 **12 maybe:** Adobe Architect SRE, ByteDance PE, Capital One Distinguished, + 9 more
-🔴 **19 filtered** (staffing agencies, wrong role, sub-floor comp, etc.)
+```html
+[full HTML page here]
+```
 
-Want me to generate a **webpage** with the full report, or export to a **spreadsheet**?
+Want me to export these to a **spreadsheet**?
 
-Rules:
-- **Action banners first** — blockquoted, bold, with links
-- **One line per verdict** — emoji prefix, bold count, top 2-3 company names, "+ N more"
-- **Filtered gets a parenthetical** — summarize the common reasons, not individual items
-- **No per-item detail in chat** — that's what the HTML page is for
-- **Always offer export** — webpage (HTML) or spreadsheet at the end
+That's it. No per-item detail, no markdown cards, no dashboard summary in the chat.
+The HTML page has everything. The chat just delivers it and offers the spreadsheet.
 
----
-
-## Step 6 — Export
-
-### HTML webpage (on request)
-
-When the user asks for a webpage, output a complete self-contained HTML file in a code
-block. The HTML must have inline CSS (no external dependencies) and follow the design in
-`shared/scripts/export_html.py`. It includes two built-in themes with a switcher:
+The HTML page has two built-in themes with a switcher:
 - **Terminal** (default) — IBM Plex Mono, CRT scanlines, expandable cards, filter bar
 - **Cards** — clean card-based layout with light/dark toggle
 
-Tell the user to save the file as `.html` and open it in their browser.
+Both themes include action banners at top, integrated results with source labels,
+collapsible filtered items, and clickable links throughout.
 
-### Spreadsheet export (on request)
+---
 
-See `shared/scripts/export_results.py` for the full export logic.
-
-The spreadsheet has two sheets:
-- **Summary** — run date, counts by verdict, full color-coded status guide
-- **Results** — one row per item, sorted pass → maybe → fail
-
-**Google Sheets import:** sheets.google.com → File → Import → Upload the .xlsx.
-If Google Drive MCP is connected, offer to upload directly instead.
+## Step 6 — Spreadsheet export (on request)
 
 ---
 
