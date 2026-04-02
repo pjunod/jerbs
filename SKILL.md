@@ -377,6 +377,10 @@ signals. The design principles:
 
 ### Markdown format (Claude Code and Claude Web)
 
+Results from all passes are **integrated into a single list** — no separate sections per
+pass. Each item gets a source badge (Job Alert / Direct / LinkedIn) so the user can see
+where it came from without splitting the output.
+
 Structure every run's results exactly like this:
 
 ```
@@ -392,11 +396,11 @@ Structure every run's results exactly like this:
 
 ---
 
-### Job Alert Listings
+### Results
 
 **PASS**
 
-**[Company] — [Role]** · [Location]
+**[Company] — [Role]** · [Location] · `[Source]`
 [One-sentence verdict reason.]
 *Comp: [assessment]*
 **Missing:** [list of missing required fields]
@@ -407,78 +411,63 @@ Structure every run's results exactly like this:
 
 **MAYBE**
 
-**[Company] — [Role]** · [Location]
+**[Company] — [Role]** · [Location] · `[Source]`
 [One-sentence verdict reason.]
 **Missing:** [list]
 [View posting](url) · [View email](url)
 
 **FILTERED** ([N] listings)
 
-| Company | Role | Reason |
-|---------|------|--------|
-| [Name]  | [Role] | [One-line reason — name specific dealbreaker] |
-
----
-
-### Direct Outreach
-
-[Same PASS / MAYBE / FILTERED structure]
-
----
-
-### LinkedIn DMs
-
-[Same PASS / MAYBE / FILTERED structure]
+| Company | Role | Source | Reason |
+|---------|------|--------|--------|
+| [Name]  | [Role] | [Source] | [One-line reason — name specific dealbreaker] |
 ```
 
 Key rules for markdown output:
-- **Stats line first** — always show counts at the top before any results
-- **Action banners before results** — active threads and action-needed items come first
-- **Pass and maybe get full cards** — company, role, location, reason, comp, missing, links, draft
-- **Fails get a condensed table** — company, role, and one-line reason only
+- **Action needed first** — action banners come before all results (most important)
+- **Stats line at top** — always show counts before any results
+- **Single integrated list** — no separate Pass 1 / Pass 2 / Pass 3 sections. Each item
+  has a source badge (`Job Alert` / `Direct` / `LinkedIn`) instead.
+- **Pass and maybe get full cards** — company, role, location, source, reason, comp, missing, links, draft
+- **Fails get a condensed table** — company, role, source, and one-line reason only
 - **Links on every item** — posting URL and Gmail/LinkedIn URL, always clickable
 - **Draft replies shown inline** — blockquoted text with a clickable send link above it
-- If a pass has no active threads, skip that section entirely
-- If Pass 3 was skipped (LinkedIn MCP not connected), omit that section entirely
-- At the end, offer: "Want me to export these to a webpage or spreadsheet?"
+- **Default to webpage export** — at the end, offer: "Want me to export these to a
+  spreadsheet or Google Sheets?" (the webpage is generated automatically)
 
-### HTML format (export)
+### Default HTML export
 
-The HTML export generates a self-contained dark-themed page matching the design tokens in
-`shared/scripts/export_html.py`. Generate it with:
+After presenting markdown results, **always generate an HTML results page** and open it
+in the browser. This is the default — do not ask. The user can view results in the
+terminal and in the browser simultaneously.
 
-```bash
-python shared/scripts/export_html.py results.json results-YYYY-MM-DD.html
+Generate the HTML silently — do not stream the HTML source into the terminal. Instead,
+print a single status line:
 ```
-
-Or in Claude Code, write results JSON and run the script, then `open` the file.
-The HTML page is the richest format — cards with hover states, collapsible fail sections,
-stat boxes, action banners, and clickable links throughout.
-
----
-
-## Step 6 — Optional export
-
-At the end of results, offer: "Want me to export these to a **webpage** or **spreadsheet**?"
-
-### HTML export (webpage)
-
-See `shared/scripts/export_html.py` for the full export logic.
-
+Generating results page...
+```
+Then write the results JSON, run the export script, and open the file:
 ```bash
 python shared/scripts/export_html.py results.json ~/.claude/jerbs/results-YYYY-MM-DD.html
 open ~/.claude/jerbs/results-YYYY-MM-DD.html
 ```
 
-Generates a self-contained dark-themed HTML page with:
-- Stat boxes (pass / maybe / filtered / action counts)
-- Purple action banners for items needing attention
-- Green/yellow left-border cards for pass/maybe results
+The HTML page includes:
+- Dark theme by default with a **Light/Dark toggle** button in the top-right corner
+- Action banners at the top (before all results)
+- Single integrated results list with source badges on each card
 - Collapsible filtered-out table
-- Clickable links to job postings and Gmail threads throughout
-- Draft reply blocks with send links
+- Stat boxes, clickable links, draft reply blocks throughout
 
-In Claude Code, write the results JSON, run the script, then open the file in the browser.
+---
+
+## Step 6 — Export
+
+### HTML export (default — always generated)
+
+The HTML page is generated automatically after every run in Claude Code. Do not ask the
+user — just generate it. See the "Default HTML export" section in Step 5 for the flow.
+
 In web sessions, output the HTML in a code block for the user to save and open.
 
 ### Spreadsheet export

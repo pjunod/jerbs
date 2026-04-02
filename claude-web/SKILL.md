@@ -415,6 +415,10 @@ All output contexts share a consistent visual language. The design principles:
 
 ### Markdown format
 
+Results from all passes are **integrated into a single list** — no separate sections per
+pass. Each item gets a source badge (Job Alert / Direct / LinkedIn) so the user can see
+where it came from without splitting the output.
+
 Structure every run's results exactly like this:
 
 ```
@@ -430,11 +434,11 @@ Structure every run's results exactly like this:
 
 ---
 
-### Job Alert Listings
+### Results
 
 **PASS**
 
-**[Company] — [Role]** · [Location]
+**[Company] — [Role]** · [Location] · `[Source]`
 [One-sentence verdict reason.]
 *Comp: [assessment]*
 **Missing:** [list of missing required fields]
@@ -445,71 +449,51 @@ Structure every run's results exactly like this:
 
 **MAYBE**
 
-**[Company] — [Role]** · [Location]
+**[Company] — [Role]** · [Location] · `[Source]`
 [One-sentence verdict reason.]
 **Missing:** [list]
 [View posting](url) · [View email](url)
 
 **FILTERED** ([N] listings)
 
-| Company | Role | Reason |
-|---------|------|--------|
-| [Name]  | [Role] | [One-line reason — name specific dealbreaker] |
-
----
-
-### Direct Outreach
-
-[Same PASS / MAYBE / FILTERED structure]
-
----
-
-### LinkedIn DMs
-
-[Same PASS / MAYBE / FILTERED structure]
+| Company | Role | Source | Reason |
+|---------|------|--------|--------|
+| [Name]  | [Role] | [Source] | [One-line reason — name specific dealbreaker] |
 ```
 
 Key rules:
-- **Stats line first** — always show counts at the top before any results
-- **Action banners before results** — active threads and action-needed items come first
-- **Pass and maybe get full cards** — company, role, location, reason, comp, missing, links, draft
-- **Fails get a condensed table** — company, role, and one-line reason only
+- **Action needed first** — action banners come before all results (most important)
+- **Stats line at top** — always show counts before any results
+- **Single integrated list** — no separate Pass 1 / Pass 2 / Pass 3 sections. Each item
+  has a source badge (`Job Alert` / `Direct` / `LinkedIn`) instead.
+- **Pass and maybe get full cards** — company, role, location, source, reason, comp, missing, links, draft
+- **Fails get a condensed table** — company, role, source, and one-line reason only
 - **Links on every item** — posting URL and Gmail/LinkedIn URL, always clickable
 - **Draft replies shown inline** — blockquoted text with a clickable send link above it
-- If Pass 3 was skipped (LinkedIn MCP not connected), omit that section entirely
-- At the end, offer: "Want me to export these to a **webpage** or **spreadsheet**?"
+- At the end, offer: "Want me to export these to a **spreadsheet** or **Google Sheets**?"
 
 ---
 
-## Step 6 — Optional export
+## Step 6 — Export
 
-At the end of results, offer: "Want me to export these to a **webpage** or **spreadsheet**?"
+### HTML export (default in web sessions)
 
-### HTML export (webpage)
+Output the full HTML page in a code block for the user to save and open. The HTML must be
+self-contained (inline CSS, no external dependencies) and follow the card-based design
+language defined in `shared/scripts/export_html.py`. The page includes a Light/Dark theme
+toggle button.
 
-In web sessions where Claude cannot run scripts, output the full HTML page in a code block
-for the user to save and open. The HTML must be self-contained (inline CSS, no external
-dependencies) and follow the dark-themed card-based design language defined in
-`shared/scripts/export_html.py`.
-
-### Spreadsheet export
+### Spreadsheet export (on request)
 
 See `shared/scripts/export_results.py` for the full export logic.
 
 The spreadsheet has two sheets:
 - **Summary** — run date, counts by verdict, full color-coded status guide
-- **Results** — one row per item, sorted pass → maybe → fail, with:
-  Date · Source · Company · Role · Location · From · Verdict · **Status** · Reason ·
-  Dealbreaker · Comp assessment · Missing info · **Notes** · Draft reply
+- **Results** — one row per item, sorted pass → maybe → fail
 
-The Excel verdict colors align with the HTML design language:
-- Pass: dark green background, green text (echoing the green card border)
-- Maybe: dark yellow background, yellow text (echoing the yellow card border)
-- Fail: dark red background, red text
-
+The Excel verdict colors align with the HTML design language (green/yellow/red).
 **Status column** tracks the full hiring pipeline with a dropdown.
-**Dead-end categories** are collapsed at the bottom of the Results sheet.
-**Notes column** is blank and highlighted for free-text notes.
+**Dead-end categories** are collapsed at the bottom.
 
 **Google Sheets import:** sheets.google.com → File → Import → Upload the .xlsx.
 If Google Drive MCP is connected, offer to upload directly instead.
