@@ -35,6 +35,10 @@ jerbs/
 ├── .yamllint.yaml                   ← YAML linter config
 ├── criteria_template.json           ← (legacy root copy — see shared/)
 │
+├── .claude-plugin/                  ← marketplace packaging
+│   ├── plugin.json                  ← plugin metadata, version, MCP requirements
+│   └── marketplace.json             ← marketplace listing for /plugin install
+│
 ├── claude-web/                       ← Claude.ai browser version (see "Two SKILL.md files" below)
 │   ├── SKILL.md                     ← streamlined skill spec for Claude.ai web/project sessions
 │   ├── jerbs.skill                  ← packaged .skill file for one-click install
@@ -112,9 +116,16 @@ See [INSTALL.md](INSTALL.md) for setup steps.
 
 Best for: power users who want zero-friction local file management.
 
+**Install from marketplace:**
+```
+/plugin marketplace add pjunod/jerbs
+```
+
+Or install manually — see [INSTALL.md](INSTALL.md).
+
 - Runs inside the Claude Code CLI with Gmail connected via Claude.ai connectors
 - Reads and writes `~/.claude/jerbs/criteria.json` and `~/.claude/jerbs/correspondence.json` directly — no re-uploading
-- `/jerbs` available as a global slash command once installed (see [INSTALL.md](INSTALL.md))
+- `/jerbs` available as a slash command once installed
 
 ### Local daemon
 

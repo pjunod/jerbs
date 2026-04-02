@@ -1,0 +1,20 @@
+{
+  "name": "jerbs",
+  "version": "1.0.0",
+  "description": "Screens job-related emails and LinkedIn DMs against your personal criteria, drafts follow-up replies, and tracks recruiter correspondence.",
+  "author": {
+    "name": "Paul Junod",
+    "email": "paul@junod.dev"
+  },
+  "homepage": "https://github.com/pjunod/jerbs",
+  "repository": "https://github.com/pjunod/jerbs",
+  "license": "MIT",
+  "keywords": ["jobs", "email", "screening", "gmail", "recruiter", "linkedin", "job-search"],
+  "category": "productivity",
+  "skills": ["./"],
+  "mcpServers": {
+    "_note": "jerbs requires Gmail MCP to be connected. Gmail MCP is a first-party Anthropic integration — configure it in Claude Code settings (Settings > MCP Servers) before enabling this plugin. LinkedIn MCP is optional for DM screening.",
+    "_required": ["gmail"],
+    "_optional": ["linkedin"]
+  }
+}

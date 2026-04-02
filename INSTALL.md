@@ -1,5 +1,19 @@
 # Installing jerbs
 
+## Claude Code (recommended)
+
+**Requirements:** Claude Code CLI or desktop app · Gmail connected
+
+```bash
+/plugin marketplace add pjunod/jerbs
+```
+
+Then say **"set up jerbs"** or **"/jerbs"** to get started. The setup wizard handles the rest.
+
+**Prerequisites:** Connect Gmail in Claude Code settings (Settings → MCP Servers → Gmail) before your first run.
+
+---
+
 ## Claude.ai (browser)
 
 **Requirements:** Claude.ai account · Gmail connected
