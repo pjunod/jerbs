@@ -145,7 +145,32 @@ Any entire industries to block?
 have at least one dream company and at least one company they'd never work for. If they
 say "none", that's fine — but ask.
 
-### 1c — Role requirements
+### 1c — Location
+```
+Where are you currently based? (city / metro area)
+What locations are you targeting for work?
+  Examples: "just where I live", "SF Bay Area, NYC, or Seattle", "anywhere in the US",
+  "EU timezones only", "fully remote so location doesn't matter"
+
+Are you open to relocating?
+  If yes, under what conditions?
+  Examples: "yes, for the right role in NYC or London", "only if they cover relo costs",
+  "no — remote only", "maybe for a top-tier company"
+
+Any other location nuances?
+  Examples:
+  - "I'm in Austin but would go hybrid in SF for the right company"
+  - "EU citizen, open to anywhere in the EU but no US visa"
+  - "Remote preferred, but I'd consider on-site in cities with good public transit"
+  - "Cost of living matters — I'd take a pay cut for a lower COL city if remote"
+```
+
+**Probe for conditions.** Location preferences are rarely simple. Most people have
+conditional preferences tied to remote/hybrid status, comp adjustments, or specific
+metros. If the user says "open to anything," ask: "Are there any cities or regions
+where you'd need higher comp, or places you'd refuse even with a great offer?"
+
+### 1d — Role requirements
 ```
 Employment type: full-time only / open to contract / open to part-time?
 Remote preference: remote only / hybrid OK / depends on location / open to on-site?
@@ -162,7 +187,7 @@ Do you need visa/work authorization sponsorship?
 
 Ask: "Does your remote preference depend on other factors like location, company, or comp?"
 
-### 1d — Compensation
+### 1e — Compensation
 ```
 What's your minimum acceptable base salary? (hard floor — reject anything explicitly listed below this)
   Currency? (USD, GBP, EUR, etc.)
@@ -192,7 +217,7 @@ accept different comp for different situations — like remote vs. in-office, or
 company vs. an unknown startup?" Most candidates have at least one trade-off worth
 capturing here.
 
-### 1e — Tech/stack (skip if not applicable)
+### 1f — Tech/stack (skip if not applicable)
 ```
 Any tech/stack that's a hard requirement? (e.g. Linux-only environments, specific languages)
 Any tech/stack that's an immediate dealbreaker? (e.g. Windows servers, legacy COBOL)
@@ -201,7 +226,7 @@ Any preferred stack or tech that would make a role more attractive?
 
 Skip this section entirely for non-technical roles.
 
-### 1f — Hard dealbreakers
+### 1g — Hard dealbreakers
 
 Start with common suggestions and let them add/remove:
 
@@ -213,7 +238,7 @@ Suggested defaults (user picks which apply):
 - Completely unknown company with no pedigree, funding signal, or recognizable name
 - Company on personal blacklist
 - Industry on personal blocklist
-- Requires relocation to unwanted location
+- Requires relocation to non-target location (per location preferences)
 - Unpaid trial or take-home assignment
 - Requires security clearance (if not applicable)
 - Role is in entirely wrong field
@@ -222,13 +247,14 @@ Let user add any custom dealbreakers. Ask: "Any other instant deal-killers I sho
 about?" Common custom ones include: third-party recruiters, specific interview practices,
 mandatory return-to-office policies, non-compete requirements.
 
-### 1g — Required info (what to always ask about if missing)
+### 1h — Required info (what to always ask about if missing)
 
 Start with common suggestions:
 
 Suggested defaults:
 - Salary / compensation range (base + total comp)
 - Equity details (type, vesting schedule)
+- Location (city, remote, hybrid — needed for location screening)
 - Remote / hybrid / in-office policy
 - Number of in-office days if hybrid
 - Interview process overview
@@ -243,7 +269,7 @@ Additional options to suggest:
 - Bonus structure
 - Start date flexibility
 
-### 1h — Interview process preferences (optional)
+### 1i — Interview process preferences (optional)
 ```
 Maximum number of interview rounds you'll tolerate? (or leave blank for no limit)
 Unpaid take-home assignments: dealbreaker yes/no?
@@ -254,7 +280,7 @@ If the user has opinions about take-home assignments, probe for specifics — ma
 accept them conditionally (e.g. "fine if under 2 hours", "only if they pay for it",
 "only with guaranteed feedback").
 
-### 1i — Reply settings
+### 1j — Reply settings
 ```
 What tone should draft replies use? (professional / direct / warm / brief)
 What name/signature should replies use?
@@ -264,7 +290,7 @@ What name/signature should replies use?
 Ask if the tone or signature should evolve as rapport builds (e.g. "Paul Junod" initially,
 "Paul" after a few exchanges).
 
-### 1j — Search settings
+### 1k — Search settings
 ```
 Any extra keywords to include in searches beyond the defaults?
 Any specific senders or domains to always exclude?
@@ -272,7 +298,7 @@ Any specific senders or domains to always exclude?
 
 Do NOT ask about lookback window or max results — set automatically from run history.
 
-### 1k — LinkedIn DM screening (optional)
+### 1l — LinkedIn DM screening (optional)
 
 If the LinkedIn MCP is connected, ask if the user wants to enable LinkedIn DM screening.
 If yes, cookies are configured via the setup wizard in the daemon or via MCP connection
@@ -295,6 +321,7 @@ At the start of every screening run, print a concise summary so the user can ver
 ```
 📋 Screening with: [Profile Name]
    Roles: [target roles]
+   Location: [current_location] · Targeting: [target_locations or "anywhere"]
    Base floor: $[X]  |  TC target: $[X]+
    Dealbreakers: [list]
    Required info: [list]
@@ -409,6 +436,17 @@ In short: fail only when there is genuinely no path to the floor within what's s
 Then give an honest sliding-scale comp assessment using the user's nuance notes —
 informational only, never changes the verdict.
 
+### Location rule
+If the user has location preferences set:
+- **Role location matches target_locations or is remote** → passes
+- **Role requires relocation to a non-target location and user is not open to relocation** → hard fail
+- **Role requires relocation but user has relocation conditions** → maybe, note the conditions
+- **Location not mentioned** → flag as missing info, request in reply
+- **Hybrid/on-site in a non-target location** → fail unless location_notes indicate flexibility
+
+Use location_notes for nuanced assessment alongside the verdict — e.g. if the user
+would accept a specific city for higher comp, note that in the assessment.
+
 ### Company whitelist / blacklist
 - Whitelist match → upgrade to at least "maybe", note it explicitly
 - Blacklist match → instant fail regardless of other criteria
@@ -495,7 +533,8 @@ dependencies).
 
 Users can update any section at any time without re-doing the full wizard:
 
-- "Update my salary expectations" → re-run only section 1d
+- "Update my location preferences" → re-run only section 1c
+- "Update my salary expectations" → re-run only section 1e
 - "Add [company] to my blacklist" → append to blacklist, save
 - "Add [company] to my dream companies" → append to whitelist, save
 - "Change my reply tone to brief" → update reply_settings.tone, save

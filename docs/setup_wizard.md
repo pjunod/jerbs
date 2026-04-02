@@ -58,7 +58,39 @@ say "none", that's fine — but ask.
 
 ---
 
-## 1c — Role requirements
+## 1c — Location
+
+```
+Where are you currently based? (city / metro area)
+What locations are you targeting for work?
+  Examples: "just where I live", "SF Bay Area, NYC, or Seattle", "anywhere in the US",
+  "EU timezones only", "fully remote so location doesn't matter"
+
+Are you open to relocating?
+  If yes, under what conditions?
+  Examples: "yes, for the right role in NYC or London", "only if they cover relo costs",
+  "no — remote only", "maybe for a top-tier company"
+
+Any other location nuances?
+  Examples:
+  - "I'm in Austin but would go hybrid in SF for the right company"
+  - "EU citizen, open to anywhere in the EU but no US visa"
+  - "Remote preferred, but I'd consider on-site in cities with good public transit"
+  - "Cost of living matters — I'd take a pay cut for a lower COL city if remote"
+```
+
+**Probe for conditions.** Location preferences are rarely simple. Most people have
+conditional preferences tied to remote/hybrid status, comp adjustments, or specific
+metros. If the user says "open to anything," ask: "Are there any cities or regions
+where you'd need higher comp, or places you'd refuse even with a great offer?"
+
+This feeds into the screening logic: roles requiring relocation to non-target locations
+get flagged, and the location_notes power nuanced assessments alongside the
+sliding_scale_notes from the comp section.
+
+---
+
+## 1d — Role requirements
 
 ```
 Employment type: full-time only / open to contract / open to part-time?
@@ -78,7 +110,7 @@ Ask: "Does your remote preference depend on other factors like location, company
 
 ---
 
-## 1d — Compensation
+## 1e — Compensation
 
 ```
 What's your minimum acceptable base salary? (hard floor — reject anything explicitly listed below this)
@@ -111,7 +143,7 @@ capturing here.
 
 ---
 
-## 1e — Tech/stack (skip if not applicable)
+## 1f — Tech/stack (skip if not applicable)
 
 ```
 Any tech/stack that's a hard requirement? (e.g. Linux-only environments, specific languages)
@@ -123,7 +155,7 @@ Skip this section entirely for non-technical roles.
 
 ---
 
-## 1f — Hard dealbreakers
+## 1g — Hard dealbreakers
 
 Start with common suggestions and let them add/remove:
 
@@ -135,7 +167,7 @@ Suggested defaults (user picks which apply):
 - Completely unknown company with no pedigree, funding signal, or recognizable name
 - Company on personal blacklist
 - Industry on personal blocklist
-- Requires relocation to unwanted location
+- Requires relocation to non-target location (per location preferences)
 - Unpaid trial or take-home assignment
 - Requires security clearance (if not applicable)
 - Role is in entirely wrong field
@@ -146,13 +178,14 @@ mandatory return-to-office policies, non-compete requirements.
 
 ---
 
-## 1g — Required info (what to always ask about if missing)
+## 1h — Required info (what to always ask about if missing)
 
 Start with common suggestions:
 
 Suggested defaults:
 - Salary / compensation range (base + total comp)
 - Equity details (type, vesting schedule)
+- Location (city, remote, hybrid — needed for location screening)
 - Remote / hybrid / in-office policy
 - Number of in-office days if hybrid
 - Interview process overview
@@ -169,7 +202,7 @@ Additional options to suggest:
 
 ---
 
-## 1h — Interview process preferences (optional)
+## 1i — Interview process preferences (optional)
 
 ```
 Maximum number of interview rounds you'll tolerate? (or leave blank for no limit)
@@ -183,7 +216,7 @@ accept them conditionally (e.g. "fine if under 2 hours", "only if they pay for i
 
 ---
 
-## 1i — Reply settings
+## 1j — Reply settings
 
 ```
 What tone should draft replies use? (professional / direct / warm / brief)
@@ -196,7 +229,7 @@ Ask if the tone or signature should evolve as rapport builds (e.g. "Paul Junod" 
 
 ---
 
-## 1j — Search settings
+## 1k — Search settings
 
 ```
 Any extra keywords to include in searches beyond the defaults?
@@ -207,7 +240,7 @@ Do NOT ask about lookback window or max results — set automatically from run h
 
 ---
 
-## 1k — LinkedIn DM screening (optional)
+## 1l — LinkedIn DM screening (optional)
 
 If the LinkedIn MCP is connected, ask if the user wants to enable LinkedIn DM screening.
 If yes, cookies are configured via the setup wizard in the daemon or via MCP connection
