@@ -391,65 +391,75 @@ signals. The design principles:
 | Missing info | **Missing:** bold yellow label | Yellow-highlighted label | Missing info column |
 | Draft reply | Indented code block with send link | Dark draft block with send link | Draft reply column |
 
-### Markdown format (Claude Code and Claude Web)
+### Formatting rules (MANDATORY)
 
-Results from all passes are **integrated into a single list** — no separate sections per
-pass. Each item gets a source badge (Job Alert / Direct / LinkedIn) so the user can see
-where it came from without splitting the output.
+Results from all passes are integrated into a single list — no separate sections per pass.
+Each item gets a source badge so the user can see where it came from. You MUST format
+results exactly as described below. Every item must be visually distinct and scannable.
 
-Structure every run's results exactly like this:
+**Start with a summary line, then a horizontal rule:**
 
-```
-**Jerbs Results** · [Dry-run / Send mode] · [date]
-[N] interested · [N] maybe · [N] filtered[ · [N] action needed]
+**Jerbs Results** · Dry-run · 2026-04-02
+4 interested · 12 maybe · 19 filtered
 
 ---
 
-> **Action Needed — [title]**
-> **[Company — Role]**
-> [Summary of what needs attention.]
+**If any items need immediate attention, show them FIRST as blockquotes:**
+
+> **Action Needed — Tom Sherwood, Falcon LLM**
+> He replied today: "Would you like me to re-book your live coding?"
 > [View in Gmail](url) · [Reply on LinkedIn](url)
 
 ---
 
-### Results
+**Then show results under a "Results" heading, grouped by verdict:**
+
+For each **PASS** item, format as a bold heading with details on separate lines:
 
 **PASS**
 
-**[Company] — [Role]** · [Location] · `[Source]`
-[One-sentence verdict reason.]
-*Comp: [assessment]*
-**Missing:** [list of missing required fields]
+**Snowflake — Senior Production Engineer** · Menlo Park, CA · `Job Alert`
+Top-tier cloud data company, Senior PE is a direct role match.
+*Comp: Not stated — Snowflake comp is typically competitive*
+**Missing:** comp range, equity, remote/hybrid, nature of work, interview process
 [View posting](url) · [View email](url)
 
+If there's a draft reply, show it as:
+
 📋 Draft reply — [click to review & send](draft_url)
-> [Full draft text indented as blockquote]
+> Hi, I'm interested in learning more about this role. Could you share
+> the compensation range and remote/hybrid policy?
+>
+> Paul
+
+For each **MAYBE** item, same format:
 
 **MAYBE**
 
-**[Company] — [Role]** · [Location] · `[Source]`
-[One-sentence verdict reason.]
-**Missing:** [list]
+**D.E. Shaw — Trading Systems Ops Engineer** · New York, NY · `Direct`
+Top-tier quant fund. Title lacks Senior+ but D.E. Shaw comp is typically very high.
+**Missing:** seniority confirmation, comp range, remote/hybrid
 [View posting](url) · [View email](url)
 
-**FILTERED** ([N] listings)
+For **FILTERED** items, use a compact markdown table:
+
+**FILTERED** (19 listings)
 
 | Company | Role | Source | Reason |
 |---------|------|--------|--------|
-| [Name]  | [Role] | [Source] | [One-line reason — name specific dealbreaker] |
-```
+| JetBlue | Senior Engineer IT Reliability | Job Alert | Not upper-tier tech |
+| Apex Systems | Service Delivery Manager | Job Alert | **Blacklisted company** |
+| Centraprise | C++ with PERL Developer | Direct | Staffing agency, generic greeting |
 
-Key rules for markdown output:
-- **Action needed first** — action banners come before all results (most important)
-- **Stats line at top** — always show counts before any results
-- **Single integrated list** — no separate Pass 1 / Pass 2 / Pass 3 sections. Each item
-  has a source badge (`Job Alert` / `Direct` / `LinkedIn`) instead.
-- **Pass and maybe get full cards** — company, role, location, source, reason, comp, missing, links, draft
-- **Fails get a condensed table** — company, role, source, and one-line reason only
-- **Links on every item** — posting URL and Gmail/LinkedIn URL, always clickable
-- **Draft replies shown inline** — blockquoted text with a clickable send link above it
-- **Default to webpage export** — at the end, offer: "Want me to export these to a
-  spreadsheet or Google Sheets?" (the webpage is generated automatically)
+**Critical formatting rules — do not skip any of these:**
+- Every PASS/MAYBE item MUST be a **bold heading** (`**Company — Role**`) on its own line
+- Location and source MUST appear on the same line as the heading, after `·` separators
+- Reason, comp, and missing info MUST be on separate lines below the heading
+- Links MUST be on their own line, clickable markdown format
+- There MUST be a blank line between each item
+- FILTERED items MUST be in a markdown table, not free text
+- Action-needed items MUST appear before results
+- Every item MUST have links — posting URL and/or Gmail URL
 
 ### Default HTML export
 
