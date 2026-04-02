@@ -448,8 +448,17 @@ in the chat, STOP — you are doing it wrong.
 The ONLY thing you output in the chat after screening is:
 
 1. A one-line summary with counts
-2. The full HTML report in a code block
+2. The full HTML report as a **rendered artifact** (NOT a code block)
 3. An offer to export to spreadsheet
+
+**IMPORTANT — artifact output, not code block:**
+You MUST output the HTML as an **artifact** so it renders as an interactive page the
+user can see and use immediately. NEVER dump raw HTML into a code block — that forces
+the user to manually copy, save, and open it, which is an unacceptable experience.
+
+Use an artifact with `type="text/html"` and a descriptive title. The HTML page
+already includes a "Save" download button in its header, so users can save the file
+directly from the rendered page if they want a local copy.
 
 Here is the exact chat output template — follow it literally:
 
@@ -457,14 +466,11 @@ Here is the exact chat output template — follow it literally:
 
 Here's your results page — **N interested**, **N maybe**, **N filtered**.
 
-Save the file below as `jerbs-results-YYYY-MM-DD.html` and open it in your browser.
-It has expandable cards, a filter bar, and two themes (Terminal / Cards).
-
-```html
+[artifact: type="text/html", title="jerbs — Screening Report · YYYY-MM-DD"]
 <!DOCTYPE html>
 ... [full self-contained HTML page generated from shared/scripts/export_html.py] ...
 </html>
-```
+[/artifact]
 
 Want me to export these to a **spreadsheet**?
 
@@ -475,8 +481,9 @@ The HTML page uses the design from `shared/scripts/export_html.py` with two them
 - **Cards** — clean card-based layout with light/dark toggle
 
 Both include action banners at top, integrated results, collapsible filtered items,
-and clickable links throughout. The HTML must be completely self-contained (all CSS
-and JS inline, no external dependencies).
+clickable links throughout, and a **Save button** in the header for downloading.
+The HTML must be completely self-contained (all CSS and JS inline, no external
+dependencies).
 
 ---
 

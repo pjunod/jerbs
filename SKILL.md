@@ -404,7 +404,8 @@ The HTML page uses `shared/scripts/export_html.py` with two built-in themes:
 - **Cards** — clean card-based layout with light/dark toggle
 
 Both include action banners at top, integrated results with source labels,
-collapsible filtered items, and clickable links throughout.
+collapsible filtered items, clickable links throughout, and a **Save button**
+in the header for downloading the HTML file.
 
 ---
 
