@@ -112,6 +112,12 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
   color: var(--text-muted); border-bottom: 1px solid var(--border);
   padding-bottom: 0.5rem; margin-bottom: 1rem;
 }
+.section-toggle {
+  font-size: 0.75rem; color: var(--text-muted); background: none;
+  border: 1px solid var(--border); padding: 0.2rem 0.6rem; border-radius: 0.3rem;
+  cursor: pointer; margin-left: auto; text-transform: lowercase;
+}
+.section-toggle:hover { color: var(--accent); border-color: var(--accent); }
 .action-banner {
   background: var(--purple-bg); border: 1px solid var(--purple);
   border-radius: 0.5rem; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
@@ -256,6 +262,10 @@ body::before{content:'';position:fixed;inset:0;
 .main{padding:32px 40px 60px;max-width:1100px;}
 .section-label{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.1em;
   text-transform:uppercase;margin:28px 0 12px;display:flex;align-items:center;gap:8px;}
+.section-toggle{font-family:var(--mono);font-size:10px;color:var(--text-dim);
+  background:none;border:1px solid var(--border2);padding:2px 8px;border-radius:3px;
+  cursor:pointer;letter-spacing:0.04em;margin-left:auto;text-transform:lowercase;}
+.section-toggle:hover{color:var(--text);border-color:var(--text-dim);}
 .section-label.interested{color:var(--green);}
 .section-label.maybe{color:var(--amber);}
 .section-label.filtered{color:var(--red-dim);}
@@ -362,6 +372,16 @@ function toggleLight(){
   document.body.classList.toggle('light');
   var btn=document.getElementById('theme-btn');
   if(btn)btn.textContent=document.body.classList.contains('light')?'Dark':'Light';
+}
+function toggleSection(btn){
+  var group=btn.closest('.section-label').nextElementSibling;
+  if(!group)return;
+  var cards=group.querySelectorAll('.card');
+  var allOpen=Array.from(cards).every(function(c){return c.classList.contains('open');});
+  cards.forEach(function(c){
+    if(allOpen)c.classList.remove('open');else c.classList.add('open');
+  });
+  btn.textContent=allOpen?'expand all':'collapse all';
 }
 function downloadPage(){
   var html=document.documentElement.outerHTML;
@@ -722,18 +742,36 @@ def export_to_html(results_data, output_path, theme=None):
     # Results
     parts.append('<div class="section">')
 
+    toggle_btn = (
+        '<button class="section-toggle" onclick="toggleSection(this)">'
+        "expand all</button>"
+    )
+
     if passes:
-        parts.append('<div class="section-label interested">\U0001f7e2 Interested</div>')
+        parts.append(
+            f'<div class="section-label interested">'
+            f"\U0001f7e2 Interested{toggle_btn}</div>"
+        )
+        parts.append('<div class="section-group">')
         for item in passes:
             parts.append(build_terminal_card(item, "pass"))
+        parts.append("</div>")
 
     if maybes:
-        parts.append('<div class="section-label maybe">\U0001f7e1 Maybe</div>')
+        parts.append(
+            f'<div class="section-label maybe">'
+            f"\U0001f7e1 Maybe{toggle_btn}</div>"
+        )
+        parts.append('<div class="section-group">')
         for item in maybes:
             parts.append(build_terminal_card(item, "maybe"))
+        parts.append("</div>")
 
     if fails:
-        parts.append('<div class="section-label filtered">\U0001f534 Filtered</div>')
+        parts.append(
+            '<div class="section-label filtered">'
+            "\U0001f534 Filtered</div>"
+        )
         parts.append('<div class="filtered-list">')
         for item in fails:
             parts.append(build_terminal_fail(item))
