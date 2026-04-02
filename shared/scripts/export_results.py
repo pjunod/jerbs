@@ -99,10 +99,16 @@ def is_dead_end(item):
 
 # ── Verdict display ───────────────────────────────────────────────────────────
 
+# Verdict colors aligned with the HTML design language (export_html.py):
+#   Pass  = green  (#3fb950 on #12261e)
+#   Maybe = yellow (#d29922 on #2a2013)
+#   Fail  = red    (#f85149 on #2d1214)
+# Excel cells use lighter tints so text remains readable on a light-themed sheet,
+# but the hue families match exactly.
 VERDICT_COLORS = {
-    "pass": {"bg": "D4EDDA", "fg": "155724"},
-    "maybe": {"bg": "FFF3CD", "fg": "856404"},
-    "fail": {"bg": "F8D7DA", "fg": "721C24"},
+    "pass": {"bg": "DCFCE7", "fg": "166534"},
+    "maybe": {"bg": "FEF9C3", "fg": "854D0E"},
+    "fail": {"bg": "FEE2E2", "fg": "991B1B"},
 }
 VERDICT_LABELS = {"pass": "Interested", "maybe": "Maybe", "fail": "Filtered out"}
 

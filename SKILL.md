@@ -356,78 +356,135 @@ In send mode, always show the full text of what was sent so the user can see it.
 
 ## Step 5 — Present results
 
-If there are active threads from Step 2.5, show them first:
+### Unified design language
+
+All output contexts share a consistent visual language. The canonical format is the HTML
+results page (see `shared/scripts/export_html.py`). Markdown output in Claude Code and
+Claude Web adapts the same structure and cues to plain text. Excel carries the same color
+signals. The design principles:
+
+| Cue | Markdown (Code / Web) | HTML page | Excel |
+|-----|----------------------|-----------|-------|
+| Verdict: Pass | **PASS** bold header, detailed card | Green left-border card, green pill badge | Green verdict cell |
+| Verdict: Maybe | **MAYBE** bold header, detailed card | Yellow left-border card, yellow pill badge | Yellow verdict cell |
+| Verdict: Fail | Condensed table row | Collapsible table, red badge | Red verdict cell, collapsed group |
+| Action needed | `>` blockquote, bold | Purple banner with border | — |
+| Stats summary | `N interested · N maybe · N filtered` | Stat boxes with counts | Summary sheet counts |
+| Links | `[View posting](url) · [View email](url)` | Clickable blue links | Hyperlink cells |
+| Comp note | *italic inline* | Blue-tinted inline box | Cell text |
+| Missing info | **Missing:** bold yellow label | Yellow-highlighted label | Missing info column |
+| Draft reply | Indented code block with send link | Dark draft block with send link | Draft reply column |
+
+### Markdown format (Claude Code and Claude Web)
+
+Structure every run's results exactly like this:
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ACTIVE THREADS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📬 Reply received
-  Acme Corp — Staff Engineer
-  They replied 2 hours ago. [1–2 sentence summary of their message.]
-
-⏳ Awaiting reply (3 days)
-  Initech — Principal Engineer
-  Reached out on Mar 25. No response yet.
-```
-
-Then the two screening passes:
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-JOB ALERT LISTINGS (Pass 1)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🟢 INTERESTED
-...
-
-🟡 MAYBE
-...
-
-🔴 FILTERED OUT
-...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DIRECT OUTREACH (Pass 2)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-LINKEDIN DMs (Pass 3)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🟢 INTERESTED
-...
-
-🟡 MAYBE
-...
-
-🔴 FILTERED OUT
-...
-```
-
-If Pass 3 was skipped (LinkedIn MCP not connected), omit the section entirely.
-
-For each result include:
-- Company + role + location
-- **Links:** link to the original email (Gmail URL) or LinkedIn message, and link to the
-  job posting URL if one is present in the email/message body. Users should be able to
-  click straight through to both the source message and the job listing without digging.
-- Verdict reason (one sentence; name specific dealbreaker for fails)
-- Comp assessment (honest sliding-scale take)
-- Missing fields (if any)
-- Reply — draft with one-click send link in dry-run mode, or sent confirmation in send mode (with full text shown)
-
-At the end, offer: "Want me to export these to a spreadsheet?"
+**Jerbs Results** · [Dry-run / Send mode] · [date]
+[N] interested · [N] maybe · [N] filtered[ · [N] action needed]
 
 ---
 
-## Step 6 — Optional spreadsheet export
+> **Action Needed — [title]**
+> **[Company — Role]**
+> [Summary of what needs attention.]
+> [View in Gmail](url) · [Reply on LinkedIn](url)
+
+---
+
+### Job Alert Listings
+
+**PASS**
+
+**[Company] — [Role]** · [Location]
+[One-sentence verdict reason.]
+*Comp: [assessment]*
+**Missing:** [list of missing required fields]
+[View posting](url) · [View email](url)
+
+📋 Draft reply — [click to review & send](draft_url)
+> [Full draft text indented as blockquote]
+
+**MAYBE**
+
+**[Company] — [Role]** · [Location]
+[One-sentence verdict reason.]
+**Missing:** [list]
+[View posting](url) · [View email](url)
+
+**FILTERED** ([N] listings)
+
+| Company | Role | Reason |
+|---------|------|--------|
+| [Name]  | [Role] | [One-line reason — name specific dealbreaker] |
+
+---
+
+### Direct Outreach
+
+[Same PASS / MAYBE / FILTERED structure]
+
+---
+
+### LinkedIn DMs
+
+[Same PASS / MAYBE / FILTERED structure]
+```
+
+Key rules for markdown output:
+- **Stats line first** — always show counts at the top before any results
+- **Action banners before results** — active threads and action-needed items come first
+- **Pass and maybe get full cards** — company, role, location, reason, comp, missing, links, draft
+- **Fails get a condensed table** — company, role, and one-line reason only
+- **Links on every item** — posting URL and Gmail/LinkedIn URL, always clickable
+- **Draft replies shown inline** — blockquoted text with a clickable send link above it
+- If a pass has no active threads, skip that section entirely
+- If Pass 3 was skipped (LinkedIn MCP not connected), omit that section entirely
+- At the end, offer: "Want me to export these to a webpage or spreadsheet?"
+
+### HTML format (export)
+
+The HTML export generates a self-contained dark-themed page matching the design tokens in
+`shared/scripts/export_html.py`. Generate it with:
+
+```bash
+python shared/scripts/export_html.py results.json results-YYYY-MM-DD.html
+```
+
+Or in Claude Code, write results JSON and run the script, then `open` the file.
+The HTML page is the richest format — cards with hover states, collapsible fail sections,
+stat boxes, action banners, and clickable links throughout.
+
+---
+
+## Step 6 — Optional export
+
+At the end of results, offer: "Want me to export these to a **webpage** or **spreadsheet**?"
+
+### HTML export (webpage)
+
+See `shared/scripts/export_html.py` for the full export logic.
+
+```bash
+python shared/scripts/export_html.py results.json ~/.claude/jerbs/results-YYYY-MM-DD.html
+open ~/.claude/jerbs/results-YYYY-MM-DD.html
+```
+
+Generates a self-contained dark-themed HTML page with:
+- Stat boxes (pass / maybe / filtered / action counts)
+- Purple action banners for items needing attention
+- Green/yellow left-border cards for pass/maybe results
+- Collapsible filtered-out table
+- Clickable links to job postings and Gmail threads throughout
+- Draft reply blocks with send links
+
+In Claude Code, write the results JSON, run the script, then open the file in the browser.
+In web sessions, output the HTML in a code block for the user to save and open.
+
+### Spreadsheet export
 
 See `shared/scripts/export_results.py` for the full export logic.
 
-Run the export:
 ```bash
 python shared/scripts/export_results.py results.json job_screener_YYYY-MM-DD.xlsx
 ```
@@ -437,6 +494,11 @@ The spreadsheet has two sheets:
 - **Results** — one row per item, sorted pass → maybe → fail, with:
   Date · Source · Company · Role · Location · From · Verdict · **Status** · Reason ·
   Dealbreaker · Comp assessment · Missing info · **Notes** · Draft reply
+
+The Excel verdict colors align with the HTML design language:
+- Pass: dark green background, green text (echoing the green card border)
+- Maybe: dark yellow background, yellow text (echoing the yellow card border)
+- Fail: dark red background, red text
 
 **Status column** tracks the full hiring pipeline with a dropdown:
 - Pre-contact: New → Reply drafted → Awaiting info → Info received
