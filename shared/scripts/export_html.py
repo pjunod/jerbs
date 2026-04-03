@@ -282,6 +282,11 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
 .card:hover { border-color: var(--blue); }
 .card.pass { border-left-color: var(--green); }
 .card.maybe { border-left-color: var(--yellow); }
+.card.viewed { opacity: 0.6; }
+.card.viewed:hover { opacity: 0.85; }
+.card.viewed .badge-pass,
+.card.viewed .badge-maybe,
+.card.viewed .badge-fail { opacity: 0.4; }
 .card-top { display: flex; justify-content: space-between; align-items: flex-start;
   gap: 1rem; flex-wrap: wrap; }
 .card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.1rem; }
@@ -428,6 +433,24 @@ footer {
   border-radius: 0.4rem; cursor: pointer; transition: color 0.15s, border-color 0.15s;
 }
 .dl-btn:hover { color: var(--accent); border-color: var(--accent); }
+.filter-bar {
+  display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
+  margin-bottom: 1.5rem;
+}
+.filter-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+.filter-btn {
+  font-size: 0.8rem; padding: 0.3rem 0.7rem; border-radius: 0.375rem;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.filter-btn.active-all { border-color: var(--text-muted); color: var(--text);
+  background: var(--surface); }
+.filter-btn.active-blue { border-color: var(--blue); color: var(--blue); }
+.filter-btn.active-green { border-color: var(--green); color: var(--green); }
+.filter-btn.active-amber { border-color: var(--yellow); color: var(--yellow); }
+.filter-btn.active-red { border-color: var(--red); color: var(--red); }
+.card.hidden, .filtered-item.hidden { display: none; }
 @media (max-width: 700px) {
   body { padding: 1rem; }
   h1 { font-size: 1.35rem; }
@@ -542,10 +565,12 @@ body::before{content:'';position:fixed;inset:0;
 .card.fail{border-left:3px solid var(--red-dim);opacity:0.7;}
 .card-header{padding:14px 18px 12px;display:flex;align-items:flex-start;gap:14px;
   cursor:pointer;user-select:none;}
-.verdict-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.verdict-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;
+  transition:opacity 0.4s,box-shadow 0.4s;}
 .pass .verdict-dot{background:var(--green);box-shadow:0 0 6px var(--green);}
 .maybe .verdict-dot{background:var(--amber);box-shadow:0 0 6px var(--amber);}
 .fail .verdict-dot{background:var(--red-dim);}
+.card.viewed .verdict-dot{opacity:0.2;box-shadow:none;}
 .card-main{flex:1;min-width:0;}
 .card-title-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
 .company{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text-dim);
@@ -714,11 +739,26 @@ footer{border-top:1px solid var(--border);padding:20px 40px;font-family:var(--mo
 # ── JavaScript ───────────────────────────────────────────────────────────────
 
 JS = """\
-function toggleCard(el){el.classList.toggle('open');}
+var _viewedKey='jerbs-viewed';
+function _getViewed(){
+  try{var s=localStorage.getItem(_viewedKey);return s?JSON.parse(s):[];}
+  catch(e){return [];}
+}
+function _saveViewed(ids){
+  try{localStorage.setItem(_viewedKey,JSON.stringify(ids));}catch(e){}
+}
+function _markViewed(el){
+  if(el.classList.contains('viewed'))return;
+  el.classList.add('viewed');
+  var id=el.dataset.id;
+  if(id){var v=_getViewed();if(v.indexOf(id)<0){v.push(id);_saveViewed(v);}}
+}
+function toggleCard(el){el.classList.toggle('open');_markViewed(el);}
 function setFilter(type,btn){
   document.querySelectorAll('.filter-btn').forEach(function(b){b.className='filter-btn';});
   if(type==='all')btn.classList.add('active-all');
   else if(type==='new')btn.classList.add('active-blue');
+  else if(type==='unread')btn.classList.add('active-all');
   else if(type==='interested')btn.classList.add('active-green');
   else if(type==='maybe')btn.classList.add('active-amber');
   else if(type==='filtered')btn.classList.add('active-red');
@@ -726,6 +766,10 @@ function setFilter(type,btn){
     if(type==='all')el.classList.remove('hidden');
     else if(type==='new'){
       if(el.dataset.isnew==='true')el.classList.remove('hidden');
+      else el.classList.add('hidden');
+    }
+    else if(type==='unread'){
+      if(!el.classList.contains('viewed'))el.classList.remove('hidden');
       else el.classList.add('hidden');
     }
     else if(el.dataset.verdict===type)el.classList.remove('hidden');
@@ -743,7 +787,8 @@ function toggleSection(btn){
   var cards=group.querySelectorAll('.card');
   var allOpen=Array.from(cards).every(function(c){return c.classList.contains('open');});
   cards.forEach(function(c){
-    if(allOpen)c.classList.remove('open');else c.classList.add('open');
+    if(allOpen)c.classList.remove('open');
+    else{c.classList.add('open');_markViewed(c);}
   });
   btn.textContent=allOpen?'expand all':'collapse all';
 }
@@ -753,11 +798,20 @@ function toggleAllCards(btn){
   var cards=det.querySelectorAll('.card');
   var allOpen=Array.from(cards).every(function(c){return c.classList.contains('open');});
   cards.forEach(function(c){
-    if(allOpen)c.classList.remove('open');else c.classList.add('open');
+    if(allOpen)c.classList.remove('open');
+    else{c.classList.add('open');_markViewed(c);}
   });
   btn.textContent=allOpen?'expand all':'collapse all';
   if(btn.event)btn.event.stopPropagation();
 }
+document.addEventListener('DOMContentLoaded',function(){
+  var viewed=_getViewed();
+  if(viewed.length){
+    document.querySelectorAll('.card[data-id]').forEach(function(el){
+      if(viewed.indexOf(el.dataset.id)>=0)el.classList.add('viewed');
+    });
+  }
+});
 function downloadPage(){
   var html=document.documentElement.outerHTML;
   var blob=new Blob(['<!DOCTYPE html>\\n'+html],{type:'text/html'});
@@ -862,9 +916,11 @@ def build_terminal_card(item, verdict, run_date=None):
     body_parts.append(_build_draft_html(item))
     body_parts.append(_build_link_buttons(item))
 
+    msg_id = _e(item.get("message_id", ""))
     new_attr = ' data-isnew="true"' if is_new else ""
+    id_attr = f' data-id="{msg_id}"' if msg_id else ""
     return (
-        f'<div class="card {css}" data-verdict="{css}"{new_attr}>'
+        f'<div class="card {css}" data-verdict="{css}"{new_attr}{id_attr}>'
         '<div class="card-header" onclick="toggleCard(this.parentElement)">'
         '<div class="verdict-dot"></div>'
         '<div class="card-main">'
@@ -942,10 +998,12 @@ def build_cards_card(item, verdict, run_date=None):
         else ""
     )
 
+    msg_id = _e(item.get("message_id", ""))
     new_attr = ' data-isnew="true"' if is_new else ""
+    id_attr = f' data-id="{msg_id}"' if msg_id else ""
     return (
-        f'<div class="card {css_class}" data-verdict="{css_class}"{new_attr}>'
-        '<div class="card-top">'
+        f'<div class="card {css_class}" data-verdict="{css_class}"{new_attr}{id_attr}>'
+        '<div class="card-top" onclick="_markViewed(this.parentElement)">'
         f"<div><h3>{company} — {role}</h3>"
         f'<span class="location">{location}</span></div>'
         f"<div>{age_html}"
@@ -1167,6 +1225,8 @@ def export_to_html(results_data, output_path, theme=None):
         '<button class="filter-btn active-all" onclick="setFilter(\'all\', this)">All</button>'
         '<button class="filter-btn" onclick="setFilter(\'new\', this)">'
         "\U0001f539 New</button>"
+        '<button class="filter-btn" onclick="setFilter(\'unread\', this)">'
+        "\u25cf Unread</button>"
         '<button class="filter-btn" onclick="setFilter(\'pass\', this)">'
         "\U0001f7e2 Interested</button>"
         '<button class="filter-btn" onclick="setFilter(\'maybe\', this)">'
@@ -1174,7 +1234,7 @@ def export_to_html(results_data, output_path, theme=None):
         '<button class="filter-btn" onclick="setFilter(\'filtered\', this)">'
         "\U0001f534 Filtered</button>"
         "</div>\n"
-        if theme == "terminal"
+        if theme in ("terminal", "cards")
         else ""
     )
 
