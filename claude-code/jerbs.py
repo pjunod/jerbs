@@ -389,7 +389,7 @@ def main():
             break
 
         criteria = load_criteria(criteria_path)
-        had_drafts = run_screen(
+        run_screen(
             criteria,
             gmail,
             screener,
@@ -397,12 +397,6 @@ def main():
             export=args.export,
             linkedin=linkedin,
         )
-
-        if had_drafts:
-            scheduler.trigger_rapid()
-            log("Draft replies generated — rapid mode active (5 min × 30 min)")
-
-        scheduler.tick()
 
     log("jerbs stopped.")
 

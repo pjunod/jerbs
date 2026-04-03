@@ -16,7 +16,7 @@ The Claude.ai version requires no local installation. Everything runs in your br
 5. Start a new conversation and say: "set up jerbs"
 
 ### First run
-The wizard will walk you through configuring your criteria. After setup, say "run jerbs" or "check my job emails" to start screening. Use the scheduler widget to automate.
+The wizard will walk you through configuring your criteria. After setup, say "run jerbs" or "check my job emails" to start screening. Say "start the scheduler" to automate.
 
 ---
 

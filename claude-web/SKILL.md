@@ -796,41 +796,28 @@ log entry format.
 
 ## Auto-scheduler (optional)
 
-The scheduler widget runs jerbs automatically on a variable cadence. The widget is bundled
-at `assets/scheduler.html`. Display it using the `show_widget` tool (read file, pass as
-`widget_code`) whenever the user asks to start, automate, or set up the scheduler.
+The scheduler runs jerbs automatically on a two-tier cadence — frequent checks during
+active sessions and hourly background runs when no session is open.
 
-### Interval state machine
+### Tier 1 — Active session (every 15 min)
 
-| State | Interval | Condition |
-|---|---|---|
-| Off-hours | 60 min | Outside user-defined business hours |
-| Business hours | 15 min | Within business hours |
-| Rapid response | 5 min | For 30 min after a reply was sent |
-
-Business hours: user-defined timezone, start/end hour. Defaults to 9 AM–5 PM Eastern.
-Rapid mode reverts after 30 minutes with no new replies.
-
-### Rapid mode token
-
-At the very end of any response that includes draft replies, **only when the scheduler
-widget is active in a web/Claude.ai session**, Claude MUST include on its own line:
+When the user asks to start, automate, or set up the scheduler, use the `/loop` command
+to run the screener every 15 minutes:
 
 ```
-JERBS:RAPID_START
+/loop 15m /jerbs
 ```
 
-The widget's MutationObserver detects this token and triggers rapid mode automatically.
-Do not explain or annotate the token — just emit it. This is the only rapid mode trigger.
+This runs inline in the conversation with no widget or UI to manage. Each run's results
+appear naturally in the chat. The user can stop it by saying "stop" or ending the session.
 
-**Never emit this token in Claude Code sessions** — there is no widget to consume it and
-it displays as visible garbage.
+### Tier 2 — Off-hours background (every 60 min)
 
-### Controls
-- Start / Pause — toggle on and off
-- Run now — immediate run without resetting timer
-- I sent a reply — manual rapid mode trigger
+A remote trigger (scheduled agent) runs the screener hourly when the user has no active
+session. This is set up once via `/schedule` and runs autonomously in Anthropic's cloud
+with Gmail MCP connected. No browser tab required.
 
-### Important note
-The widget runs only while the browser tab is open — it is not a background service.
-For always-on automation, use the Claude Code local daemon instead.
+### Important notes
+- Tier 1 (`/loop`) only runs while the session is open — it is not a background service.
+- Tier 2 (remote trigger) runs independently in the cloud on a cron schedule.
+- There is no rapid mode — the two-tier model replaces the old three-tier state machine.

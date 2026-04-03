@@ -20,7 +20,7 @@ opportunities worth pursuing.
 - **Send mode** — optionally have Claude send replies on your behalf automatically, with full logging
 - **Correspondence tracking** — logs every sent reply and checks for recruiter responses on each run, surfacing active threads at the top of your report
 - **Spreadsheet export** — optional `.xlsx` pipeline tracker with color-coded status dropdowns and collapsible dead-end groups
-- **Auto-scheduler** — runs jerbs automatically on a variable cadence (15 min during business hours, 60 min off-hours, 5 min rapid mode after replies are sent)
+- **Auto-scheduler** — runs jerbs automatically on a two-tier cadence (every 15 min during active sessions, hourly off-hours via remote trigger)
 
 ---
 
@@ -43,13 +43,13 @@ jerbs/
 │   ├── SKILL.md                     ← streamlined skill spec for Claude.ai web/project sessions
 │   ├── jerbs.skill                  ← packaged .skill file for one-click install
 │   └── assets/
-│       └── scheduler.html           ← auto-scheduler widget (rendered inline by Claude)
+│       └── (empty)                  ← reserved for future assets
 │
 ├── claude-code/                     ← local Python daemon (always-on, no browser)
 │   ├── jerbs.py                     ← main entry point / daemon runner
 │   ├── screener.py                  ← email screening logic (Anthropic API)
 │   ├── gmail_client.py              ← Gmail API OAuth2 wrapper
-│   ├── scheduler.py                 ← interval state machine (biz/off-hours/rapid)
+│   ├── scheduler.py                 ← interval state machine (biz/off-hours)
 │   ├── setup_wizard.py              ← interactive first-time setup
 │   └── requirements.txt             ← Python dependencies
 │
@@ -107,7 +107,7 @@ Best for: casual use, no local setup required.
 
 - Runs entirely in your browser via Claude's MCP connector system
 - Gmail is connected via Settings → Connectors — no API keys needed
-- Auto-scheduler widget runs while the tab is open
+- Auto-scheduler runs via `/loop` during active sessions, remote trigger for off-hours
 - Criteria and correspondence log are stored as project files; Claude outputs updated JSON at the end of any run where something changed, and prompts you to re-upload
 
 See [INSTALL.md](INSTALL.md) for setup steps.
@@ -272,22 +272,20 @@ pip install openpyxl
 
 ## Auto-scheduler
 
-The scheduler runs jerbs automatically without manual prompting. Ask Claude to
-`"start the scheduler"` and it renders an interactive widget in the conversation.
+The scheduler runs jerbs automatically without manual prompting using a two-tier model.
 
-**Cadence:**
+**Tier 1 — Active session (every 15 min):**
+Ask Claude to `"start the scheduler"` and it uses `/loop 15m` to run screening every
+15 minutes inline in the conversation. No widget — results appear naturally in the chat.
+Runs while the session is open.
 
-| Mode | Interval | Trigger |
-|---|---|---|
-| Business hours | 15 min | Within your configured hours |
-| Off-hours | 60 min | Outside business hours |
-| Rapid response | 5 min for 30 min | Auto-triggered when draft replies are generated |
+**Tier 2 — Off-hours background (every 60 min):**
+A remote trigger (scheduled agent) runs the screener hourly via cron when no session is
+active. Set up once via `/schedule` with Gmail MCP connected. Runs autonomously in
+Anthropic's cloud — no browser tab required.
 
-The browser scheduler (`claude-web/assets/scheduler.html`) runs while the Claude.ai tab is
-open. It is not a background service — it requires an active browser tab.
-
-The local daemon (`claude-code/`) runs continuously as a true background process and does
-not require a browser.
+The local daemon (`claude-code/`) also supports two-tier scheduling as a true background
+process.
 
 ---
 
