@@ -751,8 +751,8 @@ class TestThemeSwitching:
         html = run_html_export([make_result()], theme="cards")
         # Cards CSS should be present (stat boxes)
         assert "stat-num" in html
-        # Terminal-only elements should not be present
-        assert "filter-bar" not in html
+        # Filter bar should be present in both themes
+        assert "filter-bar" in html
 
     def test_invalid_theme_falls_back_to_default(self):
         html = run_html_export([], theme="invalid")
