@@ -31,6 +31,7 @@ jerbs/
 ├── README.md                        ← you are here
 ├── INSTALL.md                       ← quick-start installation guide
 ├── SKILL.md                         ← Claude Code skill definition
+├── Makefile                         ← dev commands (make help)
 ├── pyproject.toml                   ← Python linter/formatter config (ruff)
 ├── .yamllint.yaml                   ← YAML linter config
 ├── criteria_template.json           ← (legacy root copy — see shared/)
@@ -60,6 +61,8 @@ jerbs/
 │
 ├── tests/
 │   ├── unit/                        ← pytest unit tests (run on every push/PR)
+│   ├── fixtures/
+│   │   └── sample_results.json      ← realistic fixture data for HTML preview (make preview)
 │   └── redteam/                     ← prompt injection security test harness
 │       ├── server.py                ← FastAPI harness wrapping the screening pipeline
 │       ├── promptfooconfig.yaml     ← auto-generated attack suite (40 tests)
@@ -303,6 +306,36 @@ not require a browser.
 ---
 
 ## Contributing
+
+Run `make help` to see all available commands:
+
+```bash
+make lint             # lint + format check
+make test             # run unit tests
+make preview          # generate and open HTML results page (terminal theme)
+make preview-cards    # same, cards theme
+make build            # rebuild the claude-web .skill package
+make ci               # run full CI check locally (lint + test + build)
+```
+
+### Previewing the HTML results page
+
+The results page can be previewed without running the full screening pipeline:
+
+```bash
+make preview          # terminal theme (default)
+make preview-cards    # cards theme
+```
+
+This generates HTML from `tests/fixtures/sample_results.json` — a fixture with realistic
+data covering all UI elements (action banners, pass/maybe/fail cards with draft replies,
+comp assessments, missing info tags, link buttons, various sources and dealbreakers).
+
+Edit the fixture to test different scenarios, or pass a custom file:
+
+```bash
+python shared/scripts/export_html.py path/to/your-data.json output.html [--theme cards]
+```
 
 ### Linting
 
