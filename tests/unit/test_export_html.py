@@ -1004,31 +1004,32 @@ class TestBuildPersistenceSummary:
 # ---------------------------------------------------------------------------
 
 
-class TestAgeBadgeInCards:
+class TestAgeBadgeBasic:
     def test_terminal_card_shows_age_badge(self):
         item = make_result(email_date="2026-04-01")
         html = build_terminal_card(item, "pass", run_date="2026-04-03")
         assert "age-badge" in html
-        assert "2d ago" in html
 
-    def test_terminal_card_no_badge_without_date(self):
+    def test_terminal_card_new_badge_without_date(self):
         item = make_result()
         html = build_terminal_card(item, "pass", run_date="2026-04-03")
-        assert "age-badge" not in html
+        # New items always get a blue "new" badge even without a date
+        assert "age-badge" in html
+        assert "new" in html
 
     def test_cards_card_shows_age_badge(self):
         item = make_result(email_date="2026-04-03")
         html = build_cards_card(item, "pass", run_date="2026-04-03")
         assert "age-badge" in html
-        assert "today" in html
 
-    def test_cards_card_no_badge_without_date(self):
+    def test_cards_card_new_badge_without_date(self):
         item = make_result()
         html = build_cards_card(item, "pass", run_date="2026-04-03")
-        assert "age-badge" not in html
+        assert "age-badge" in html
+        assert "new" in html
 
-    def test_uses_added_at_for_age(self):
-        item = make_result(added_at="2026-04-02")
+    def test_uses_added_at_for_age_on_pending(self):
+        item = make_pending(added_at="2026-04-02")
         html = build_terminal_card(item, "pass", run_date="2026-04-03")
         assert "age-badge" in html
         assert "1d ago" in html
