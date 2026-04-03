@@ -244,7 +244,7 @@ class TestBuildCard:
 
     def test_missing_fields_shown(self):
         html = build_card(make_result(missing_fields=["Salary", "Equity"]), "maybe")
-        assert "Missing:" in html
+        assert "Missing" in html
         assert "Salary" in html
         assert "Equity" in html
 
@@ -299,7 +299,7 @@ class TestBuildCard:
 
     def test_source_badge_job_alert(self):
         html = build_card(make_result(source="Job Alert Listings"), "pass")
-        assert "Job Alert" in html
+        assert "Job Digest Postings" in html
 
     def test_escapes_company_name(self):
         html = build_card(make_result(company="A&B <Corp>"), "pass")
@@ -309,7 +309,7 @@ class TestBuildCard:
     def test_verdict_badge_present(self):
         html = build_card(make_result(), "pass")
         assert "badge-pass" in html
-        assert "Pass" in html
+        assert "Interested" in html
 
     def test_maybe_badge(self):
         html = build_card(make_result("maybe"), "maybe")
@@ -450,18 +450,36 @@ class TestExportToHtml:
         assert "BadCo" in html
         assert "Filtered" in html
 
-    def test_integrated_output_no_separate_sections(self):
+    def test_results_grouped_by_source(self):
         items = [
             make_result("pass", source="Job Alert Listings", company="AlertCo"),
             make_result("pass", source="Direct Outreach", company="DirectCo"),
         ]
         html = run_html_export(items)
-        # Both should be in same Results section, no per-source headers
         assert "AlertCo" in html
         assert "DirectCo" in html
-        # Should NOT have separate "Job Alert Listings" and "Direct Outreach" section headers
-        assert "Job Alert Listings &middot; Pass 1" not in html
-        assert "Direct Outreach &middot; Pass 2" not in html
+        assert "source-group" in html
+        # Direct Outreach should appear before Job Alert Listings
+        assert html.index("Direct Outreach (1)") < html.index("Job Digest Postings (1)")
+
+    def test_source_group_with_unknown_source(self):
+        items = [make_result("pass", source="Carrier Pigeon", company="PigeonCo")]
+        html = run_html_export(items)
+        assert "PigeonCo" in html
+        assert "Carrier Pigeon" in html
+
+    def test_source_group_skips_fail_only_sources(self):
+        items = [make_result("fail", source="Direct Outreach", company="FailCo")]
+        html = run_html_export(items)
+        # Fail items are in the flat filtered section, not in a source group
+        assert "FailCo" in html
+        assert '<details class="source-group"' not in html
+
+    def test_source_group_skips_unknown_verdict(self):
+        items = [make_result("unknown", source="Direct Outreach", company="WeirdCo")]
+        html = run_html_export(items)
+        # Non-pass/maybe/fail items don't generate source groups
+        assert '<details class="source-group"' not in html
 
     def test_source_badges_on_cards(self):
         items = [

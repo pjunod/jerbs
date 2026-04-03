@@ -21,7 +21,7 @@ from html import escape
 
 # ── Shared constants ─────────────────────────────────────────────────────────
 
-VERDICT_LABELS = {"pass": "Pass", "maybe": "Maybe", "fail": "Filtered"}
+VERDICT_LABELS = {"pass": "Interested", "maybe": "Maybe", "fail": "Filtered"}
 VERDICT_CSS_CLASS = {"pass": "pass", "maybe": "maybe", "fail": "fail"}
 VERDICT_BADGE_CLASS = {
     "pass": "badge-pass",
@@ -30,10 +30,12 @@ VERDICT_BADGE_CLASS = {
 }
 
 SOURCE_LABELS = {
-    "Job Alert Listings": "Job Alert",
-    "Direct Outreach": "Direct",
+    "Job Alert Listings": "Job Digest Postings",
+    "Direct Outreach": "Direct Outreach",
     "LinkedIn DMs": "LinkedIn",
 }
+
+SOURCE_ORDER = ["Direct Outreach", "Job Alert Listings", "LinkedIn DMs"]
 
 THEMES = ("cards", "terminal")
 DEFAULT_THEME = "terminal"
@@ -52,6 +54,21 @@ def _link(url, label):
     if not url:
         return ""
     return f'<a href="{_e(url)}">{_e(label)}</a>'
+
+
+def _group_by_source(items):
+    """Group results by source in SOURCE_ORDER, returning [(source, items)]."""
+    by_source = {}
+    for item in items:
+        src = item.get("source", "Other")
+        by_source.setdefault(src, []).append(item)
+    ordered = []
+    for src in SOURCE_ORDER:
+        if src in by_source:
+            ordered.append((src, by_source.pop(src)))
+    for src, group in by_source.items():
+        ordered.append((src, group))
+    return ordered
 
 
 # ── Cards theme CSS ──────────────────────────────────────────────────────────
@@ -151,10 +168,25 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
   font-size: 0.7rem; padding: 0.05rem 0.4rem; margin-left: 0.4rem;
 }
 .card-body { margin-top: 0.5rem; font-size: 0.88rem; color: var(--text); opacity: 0.9; }
-.card-body .reason { color: var(--text); margin-bottom: 0.35rem; }
-.card-links { margin-top: 0.5rem; display: flex; gap: 1rem; flex-wrap: wrap; }
-.card-links a { color: var(--blue); text-decoration: none; font-size: 0.85rem; }
-.card-links a:hover { text-decoration: underline; }
+.card-field {
+  margin-bottom: 0.4rem; padding: 0.5rem 0.65rem; border-radius: 0.3rem;
+  border-left: 3px solid var(--border);
+}
+.pass .card-field { background: var(--green-bg); border-left-color: var(--green); }
+.maybe .card-field { background: var(--yellow-bg); border-left-color: var(--yellow); }
+.card-field-label {
+  font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.15rem;
+}
+.card-body .reason { color: var(--text); }
+.card-links { margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.card-links a {
+  color: var(--blue); text-decoration: none; font-size: 0.85rem; font-weight: 500;
+  padding: 0.35rem 0.8rem; border: 1px solid var(--blue); border-radius: 0.375rem;
+  background: transparent; transition: background 0.15s, color 0.15s;
+  display: inline-flex; align-items: center; min-height: 36px;
+}
+.card-links a:hover { background: var(--blue); color: #fff; text-decoration: none; }
 .missing { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem; }
 .missing strong { color: var(--yellow); font-weight: 500; }
 .comp-note {
@@ -190,6 +222,12 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
 .fail-table tr:last-child td { border-bottom: none; }
 .fail-table .reason-col { color: var(--text-muted); }
 .fail-table .blacklist { color: var(--red); }
+.fail-table a {
+  color: var(--blue); text-decoration: none; font-weight: 500;
+  padding: 0.2rem 0.5rem; border: 1px solid var(--blue); border-radius: 0.25rem;
+  transition: background 0.15s, color 0.15s;
+}
+.fail-table a:hover { background: var(--blue); color: #fff; }
 details {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 0.5rem; overflow: hidden;
@@ -203,6 +241,29 @@ details summary::before { content: '\\25b6'; font-size: 0.65rem; transition: tra
 details[open] summary::before { transform: rotate(90deg); }
 details summary::-webkit-details-marker { display: none; }
 details .fail-table { padding: 0 0.5rem 0.5rem; }
+.source-group {
+  background: transparent; border: none; margin-bottom: 1.5rem;
+}
+.source-group > summary {
+  font-size: 1.05rem; font-weight: 600; color: var(--text);
+  padding: 0.5rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem;
+}
+.verdict-group {
+  background: transparent; border: none; margin-bottom: 0.75rem;
+  margin-left: 0.5rem;
+}
+.verdict-group > summary {
+  font-size: 0.85rem; font-weight: 600; padding: 0.4rem 0.5rem;
+  border-radius: 0.3rem; margin-bottom: 0.5rem;
+}
+.verdict-group.interested > summary { color: var(--green); }
+.verdict-group.maybe > summary { color: var(--yellow); }
+.verdict-toggle {
+  font-size: 0.7rem; color: var(--text-muted); background: none;
+  border: 1px solid var(--border); padding: 0.15rem 0.5rem; border-radius: 0.25rem;
+  cursor: pointer; margin-left: auto; text-transform: lowercase;
+}
+.verdict-toggle:hover { color: var(--accent); border-color: var(--accent); }
 footer {
   margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border);
   color: var(--text-muted); font-size: 0.8rem; text-align: center;
@@ -212,7 +273,37 @@ footer {
   color: var(--text-muted); font-size: 0.8rem; padding: 0.4rem 0.8rem;
   border-radius: 0.4rem; cursor: pointer; transition: color 0.15s, border-color 0.15s;
 }
-.dl-btn:hover { color: var(--accent); border-color: var(--accent); }"""
+.dl-btn:hover { color: var(--accent); border-color: var(--accent); }
+@media (max-width: 700px) {
+  body { padding: 1rem; }
+  h1 { font-size: 1.35rem; }
+  .top-bar { flex-direction: column; gap: 0.75rem; }
+  .stats { gap: 0.5rem; }
+  .stat { min-width: 0; flex: 1; padding: 0.6rem 0.75rem; }
+  .stat-num { font-size: 1.25rem; }
+  .card { padding: 0.85rem 1rem; }
+  .card h3 { font-size: 0.95rem; }
+  .card-top { flex-direction: column; gap: 0.5rem; }
+  .card-links { flex-direction: column; }
+  .card-links a { min-height: 44px; display: inline-flex; align-items: center;
+    font-size: 0.9rem; }
+  .draft-send-btn { min-height: 44px; padding: 0.5rem 1.2rem; font-size: 0.85rem; }
+  .theme-toggle, .dl-btn { min-height: 44px; padding: 0.4rem 0.8rem;
+    display: inline-flex; align-items: center; }
+  .fail-table { font-size: 0.8rem; display: block; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; }
+  .fail-table th, .fail-table td { padding: 0.4rem 0.5rem; white-space: nowrap; }
+  details summary { min-height: 44px; }
+  .action-banner { flex-direction: column; gap: 0.5rem; }
+  footer { flex-direction: column; gap: 0.5rem; text-align: center; }
+}
+@media (max-width: 400px) {
+  body { padding: 0.75rem; }
+  h1 { font-size: 1.2rem; }
+  .stats { flex-direction: column; }
+  .stat { padding: 0.5rem 0.6rem; }
+  .card { padding: 0.7rem 0.8rem; }
+}"""
 
 # ── Terminal theme CSS ───────────────────────────────────────────────────────
 
@@ -328,7 +419,6 @@ body::before{content:'';position:fixed;inset:0;
   text-decoration:none;transition:all 0.15s;letter-spacing:0.04em;}
 .link-btn:hover{border-color:var(--blue);background:var(--blue-bg);}
 .filtered-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:24px;}
-@media(max-width:700px){.filtered-list{grid-template-columns:1fr;}}
 .filtered-item{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--red-dim);
   border-radius:4px;padding:9px 14px;display:flex;align-items:flex-start;gap:10px;opacity:0.65;}
 .fi-dot{width:6px;height:6px;border-radius:50%;background:var(--red-dim);flex-shrink:0;margin-top:5px;}
@@ -346,7 +436,11 @@ body::before{content:'';position:fixed;inset:0;
 .action-banner h3{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--purple);
   letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;}
 .action-banner p{font-size:13px;line-height:1.6;}
-.action-banner a{color:var(--blue);text-decoration:none;}
+.action-banner a{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:3px;
+  border:1px solid var(--border2);background:var(--bg3);color:var(--blue);
+  text-decoration:none;transition:all 0.15s;letter-spacing:0.04em;
+  display:inline-flex;align-items:center;white-space:nowrap;}
+.action-banner a:hover{border-color:var(--blue);background:var(--blue-bg);}
 .draft-block{margin-top:10px;background:var(--bg3);border-left:2px solid var(--blue);
   padding:10px 14px;border-radius:0 4px 4px 0;font-size:12px;}
 .draft-block .draft-label{font-family:var(--mono);font-size:10px;color:var(--blue);
@@ -362,13 +456,90 @@ footer{border-top:1px solid var(--border);padding:20px 40px;font-family:var(--mo
   font-size:11px;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap;
   justify-content:space-between;}
 .card.hidden,.filtered-item.hidden,.callout.hidden{display:none;}
+.source-group{background:transparent;border:none;margin-bottom:24px;}
+.source-group>summary{font-family:var(--mono);font-size:13px;font-weight:600;
+  color:var(--text);padding:10px 0;border-bottom:1px solid var(--border);
+  margin-bottom:10px;letter-spacing:0.04em;list-style:none;display:flex;
+  align-items:center;gap:8px;cursor:pointer;}
+.source-group>summary::before{content:'\\25b6';font-size:9px;color:var(--text-dim);
+  transition:transform 0.2s;}
+.source-group[open]>summary::before{transform:rotate(90deg);}
+.source-group>summary::-webkit-details-marker{display:none;}
+.verdict-group{background:transparent;border:none;margin-bottom:12px;margin-left:8px;}
+.verdict-group>summary{font-family:var(--mono);font-size:11px;font-weight:600;
+  padding:6px 10px;border-radius:3px;letter-spacing:0.06em;
+  list-style:none;display:flex;align-items:center;gap:6px;cursor:pointer;
+  text-transform:uppercase;}
+.verdict-group>summary::before{content:'\\25b6';font-size:7px;transition:transform 0.2s;}
+.verdict-group[open]>summary::before{transform:rotate(90deg);}
+.verdict-group>summary::-webkit-details-marker{display:none;}
+.verdict-group.interested>summary{color:var(--green);}
+.verdict-group.maybe>summary{color:var(--amber);}
+.verdict-toggle{font-family:var(--mono);font-size:10px;color:var(--text-dim);
+  background:none;border:1px solid var(--border2);padding:2px 8px;border-radius:3px;
+  cursor:pointer;letter-spacing:0.04em;margin-left:auto;text-transform:lowercase;}
+.verdict-toggle:hover{color:var(--text);border-color:var(--text-dim);}
+.filtered-group{background:transparent;border:none;margin-bottom:24px;}
+.filtered-group>summary{font-family:var(--mono);font-size:11px;font-weight:600;
+  color:var(--red-dim);padding:8px 0;list-style:none;display:flex;
+  align-items:center;gap:8px;cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;}
+.filtered-group>summary::before{content:'\\25b6';font-size:7px;color:var(--red-dim);
+  transition:transform 0.2s;}
+.filtered-group[open]>summary::before{transform:rotate(90deg);}
+.filtered-group>summary::-webkit-details-marker{display:none;}
 .dl-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text-dim);
   font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:4px;
   cursor:pointer;letter-spacing:0.04em;transition:color 0.15s,border-color 0.15s;}
 .dl-btn:hover{color:var(--green);border-color:var(--green-dim);}
-@media(max-width:700px){.header,.filter-bar,.main,footer{padding-left:20px;padding-right:20px;}}
 @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
-.card,.filtered-item,.callout,.action-banner{animation:fadein 0.4s ease both;}"""
+.card,.filtered-item,.callout,.action-banner{animation:fadein 0.4s ease both;}
+@media(max-width:700px){
+  .header,.filter-bar,.main,footer{padding-left:16px;padding-right:16px;}
+  .header{flex-direction:column;padding:20px 16px 16px;gap:12px;}
+  .run-title{font-size:18px;}
+  .run-meta{font-size:10px;gap:10px;}
+  .stats-pills{width:100%;gap:6px;}
+  .pill{padding:8px 12px;font-size:10px;min-height:44px;align-items:center;}
+  .pill-num{font-size:14px;}
+  .filter-bar{gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    flex-wrap:nowrap;padding:10px 16px;}
+  .filter-btn{min-height:44px;padding:10px 14px;font-size:12px;white-space:nowrap;}
+  .main{padding:20px 16px 40px;}
+  .section-label{font-size:12px;flex-wrap:wrap;gap:6px;}
+  .section-toggle{min-height:36px;padding:6px 10px;font-size:11px;}
+  .card-header{padding:16px 14px 14px;min-height:56px;}
+  .card-toggle{font-size:20px;padding:4px;min-width:32px;text-align:center;}
+  .verdict-dot{width:10px;height:10px;margin-top:4px;}
+  .company{font-size:11px;}
+  .role{font-size:13px;}
+  .card-meta{font-size:10px;gap:8px;}
+  .card-body{padding:0 14px 14px 28px;}
+  .body-row{margin-top:10px;}
+  .body-verdict{padding:8px 12px;font-size:12.5px;}
+  .filtered-list{grid-template-columns:1fr;}
+  .filtered-item{padding:12px 14px;min-height:44px;}
+  .fi-name{font-size:13px;}
+  .fi-reason{font-size:11px;}
+  .links-row{gap:6px;}
+  .link-btn{min-height:44px;padding:10px 14px;font-size:12px;
+    display:inline-flex;align-items:center;}
+  .draft-send-btn{min-height:44px;padding:10px 18px;font-size:12px;}
+  .dl-btn{min-height:44px;padding:10px 14px;font-size:12px;}
+  .draft-block{padding:10px 12px;}
+  .draft-block .draft-text{font-size:11.5px;}
+  .action-banner,.callout{flex-direction:column;gap:8px;padding:14px 16px;}
+  footer{padding:16px;flex-direction:column;gap:8px;text-align:center;}
+}
+@media(max-width:400px){
+  .header{padding:16px 12px 12px;}
+  .filter-bar{padding:8px 12px;}
+  .main{padding:16px 12px 32px;}
+  .card-header{padding:14px 12px 12px;}
+  .card-body{padding:0 12px 12px 20px;}
+  .stats-pills{flex-direction:column;align-items:stretch;}
+  .pill{justify-content:center;}
+  footer{padding:12px;font-size:10px;}
+}"""
 
 # ── JavaScript ───────────────────────────────────────────────────────────────
 
@@ -399,6 +570,17 @@ function toggleSection(btn){
     if(allOpen)c.classList.remove('open');else c.classList.add('open');
   });
   btn.textContent=allOpen?'expand all':'collapse all';
+}
+function toggleAllCards(btn){
+  var det=btn.closest('.verdict-group');
+  if(!det)return;
+  var cards=det.querySelectorAll('.card');
+  var allOpen=Array.from(cards).every(function(c){return c.classList.contains('open');});
+  cards.forEach(function(c){
+    if(allOpen)c.classList.remove('open');else c.classList.add('open');
+  });
+  btn.textContent=allOpen?'expand all':'collapse all';
+  if(btn.event)btn.event.stopPropagation();
 }
 function downloadPage(){
   var html=document.documentElement.outerHTML;
@@ -556,9 +738,21 @@ def build_cards_card(item, verdict):
     if email_url:
         links.append(_link(email_url, "View email"))
 
-    comp_html = f'<div class="comp-note">{_e(comp)}</div>' if comp else ""
+    reason_html = (
+        f'<div class="card-field"><div class="card-field-label">Verdict</div>'
+        f'<div class="reason">{reason}</div></div>'
+        if reason
+        else ""
+    )
+    comp_html = (
+        f'<div class="card-field"><div class="card-field-label">Comp</div>'
+        f'<div class="comp-note">{_e(comp)}</div></div>'
+        if comp
+        else ""
+    )
     missing_html = (
-        f'<div class="missing"><strong>Missing:</strong> {_e(", ".join(missing))}</div>'
+        f'<div class="card-field"><div class="card-field-label">Missing</div>'
+        f'<div class="missing">{_e(", ".join(missing))}</div></div>'
         if missing
         else ""
     )
@@ -570,7 +764,7 @@ def build_cards_card(item, verdict):
         f'<span class="location">{location}</span></div>'
         f'<div><span class="badge {badge_class}">{badge_label}</span>'
         f"{source_badge}</div></div>"
-        f'<div class="card-body"><div class="reason">{reason}</div>'
+        f'<div class="card-body">{reason_html}'
         f"{comp_html}{missing_html}{_build_draft_html(item)}</div>"
         f'<div class="card-links">{" ".join(links)}</div></div>'
     )
@@ -707,6 +901,7 @@ def export_to_html(results_data, output_path, theme=None):
         f'<div class="pill pill-green"><span class="pill-num">{counts["pass"]}</span> Interested</div>'
         f'<div class="pill pill-amber"><span class="pill-num">{counts["maybe"]}</span> Maybe</div>'
         f'<div class="pill pill-red"><span class="pill-num">{counts["fail"]}</span> Filtered</div>'
+        ' <button class="dl-btn" id="theme-btn" onclick="toggleLight()">Light</button>'
         ' <button class="dl-btn" onclick="downloadPage()">'
         "\u2913 Save</button>"
         "</div></div>\n"
@@ -753,35 +948,76 @@ def export_to_html(results_data, output_path, theme=None):
             parts.append(_build_action_banner(action))
         parts.append("</div>\n")
 
-    # Results
-    parts.append('<div class="section">')
+    # Results — group non-fail items by source, then verdict
+    non_fail = [r for r in results if r.get("verdict") != "fail"]
+    source_groups = _group_by_source(non_fail)
 
-    toggle_btn = '<button class="section-toggle" onclick="toggleSection(this)">expand all</button>'
+    for source, items in source_groups:
+        source_label = SOURCE_LABELS.get(source, source)
+        src_passes = [i for i in items if i.get("verdict") == "pass"]
+        src_maybes = [i for i in items if i.get("verdict") == "maybe"]
+        if not src_passes and not src_maybes:
+            continue
 
-    if passes:
-        parts.append(
-            f'<div class="section-label interested">\U0001f7e2 Interested{toggle_btn}</div>'
+        parts.append('<details class="source-group" open>')
+        parts.append(f"<summary>{_e(source_label)} ({len(src_passes) + len(src_maybes)})</summary>")
+
+        toggle_btn = (
+            ' <button class="verdict-toggle"'
+            ' onclick="event.stopPropagation();toggleAllCards(this)">'
+            "expand all</button>"
         )
-        parts.append('<div class="section-group">')
-        for item in passes:
-            parts.append(build_terminal_card(item, "pass"))
-        parts.append("</div>")
 
-    if maybes:
-        parts.append(f'<div class="section-label maybe">\U0001f7e1 Maybe{toggle_btn}</div>')
-        parts.append('<div class="section-group">')
-        for item in maybes:
-            parts.append(build_terminal_card(item, "maybe"))
-        parts.append("</div>")
+        if theme == "terminal":
+            if src_passes:
+                parts.append('<details class="verdict-group interested" open>')
+                parts.append(
+                    f"<summary>\U0001f7e2 Interested ({len(src_passes)}){toggle_btn}</summary>"
+                )
+                parts.append('<div class="section-group">')
+                for item in src_passes:
+                    parts.append(build_terminal_card(item, "pass"))
+                parts.append("</div></details>")
 
+            if src_maybes:
+                parts.append('<details class="verdict-group maybe" open>')
+                parts.append(f"<summary>\U0001f7e1 Maybe ({len(src_maybes)}){toggle_btn}</summary>")
+                parts.append('<div class="section-group">')
+                for item in src_maybes:
+                    parts.append(build_terminal_card(item, "maybe"))
+                parts.append("</div></details>")
+
+        else:
+            if src_passes:
+                parts.append('<details class="verdict-group interested" open>')
+                parts.append(f"<summary>\U0001f7e2 Interested ({len(src_passes)})</summary>")
+                for item in src_passes:
+                    parts.append(build_cards_card(item, "pass"))
+                parts.append("</details>")
+
+            if src_maybes:
+                parts.append('<details class="verdict-group maybe" open>')
+                parts.append(f"<summary>\U0001f7e1 Maybe ({len(src_maybes)})</summary>")
+                for item in src_maybes:
+                    parts.append(build_cards_card(item, "maybe"))
+                parts.append("</details>")
+
+        parts.append("</details>\n")
+
+    # Filtered section — collapsible, default collapsed
     if fails:
-        parts.append('<div class="section-label filtered">\U0001f534 Filtered</div>')
-        parts.append('<div class="filtered-list">')
-        for item in fails:
-            parts.append(build_terminal_fail(item))
-        parts.append("</div>")
-
-    parts.append("</div>\n")  # close section
+        if theme == "terminal":
+            parts.append('<details class="filtered-group">')
+            parts.append(f"<summary>\U0001f534 Filtered ({len(fails)})</summary>")
+            parts.append('<div class="filtered-list">')
+            for item in fails:
+                parts.append(build_terminal_fail(item))
+            parts.append("</div></details>")
+        else:
+            parts.append(
+                f"<details><summary>\U0001f534 Filtered ({len(fails)})</summary>"
+                f"{_build_fail_table(fails)}</details>"
+            )
     parts.append("</div>\n")  # close main
 
     parts.append(
