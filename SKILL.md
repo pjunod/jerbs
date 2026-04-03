@@ -492,40 +492,42 @@ page showing the pending items — the user may have come back specifically to r
 
 ## Step 5 — Present results
 
-**CRITICAL: DO NOT list individual job results in the chat/terminal.** No per-item text,
-no markdown cards, no verdict details, no company names with descriptions. ALL of that
-goes in the HTML page only.
+**CRITICAL: DO NOT list individual job results in the chat message.** No per-item text,
+no markdown cards, no verdict details, no company names with descriptions in the chat.
+ALL of that goes in the React artifact only.
 
-The ONLY thing you output in the chat after screening is:
+### Generate a React artifact
 
-1. "Generating results page..."
-2. Silently write results JSON, run the export script, open the HTML file
-3. A one-line confirmation with counts (include pending count if any)
-4. An offer to export to spreadsheet
+After screening, generate a React artifact (.jsx file) based on the template at
+`templates/results_artifact.jsx`. Follow these steps exactly:
 
-Here is the exact flow — follow it literally:
+1. Copy the full template from `templates/results_artifact.jsx`
+2. Replace the `RESULTS_DATA` constant with the actual screening data:
+   - Merge `pending_results` into `results`, marking each with `from_previous_run: true`
+   - Populate all fields per the schema in the template comment block
+3. Keep all other code in the template exactly as-is — do not modify styles, components,
+   or logic
+4. Write the populated file as a `.jsx` artifact and present it to the user
+
+### Chat message format
+
+The ONLY thing you output in chat after screening is a brief summary in this exact format:
 
 ```
-Generating results page...
-```
-```bash
-python shared/scripts/export_html.py results.json ~/.claude/jerbs/results-YYYY-MM-DD.html
-open ~/.claude/jerbs/results-YYYY-MM-DD.html
-```
-```
-Opened results page (N interested · N maybe · N filtered).
+Screened [N] listings: [X] interested, [Y] maybe, [Z] filtered.
+
+[Name 2–3 top leads by company + role, one line each]
+
+Open the results below to browse all listings, copy draft replies, and view job links.
+
 Want me to export these to a spreadsheet?
 ```
 
-That's it. The HTML page has everything — the terminal just confirms it worked.
-
-The HTML page uses `shared/scripts/export_html.py` with two built-in themes:
-- **Terminal** (default) — IBM Plex Mono, CRT scanlines, expandable cards, filter bar
-- **Cards** — clean card-based layout with light/dark toggle
-
-Both include action banners at top, integrated results with source labels,
-collapsible filtered items, clickable links throughout, and a **Save button**
-in the header for downloading the HTML file.
+- Do NOT include reasons, comp notes, draft text, missing fields, or any per-item detail
+  in the chat message
+- Do NOT include filtered items in the top leads callout
+- If no new emails were found but pending results exist, say so:
+  "No new emails — showing [N] pending results from previous runs."
 
 ---
 
