@@ -168,6 +168,13 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
 }
 .draft-block .draft-label { color: var(--blue); font-weight: 500; margin-bottom: 0.35rem; }
 .draft-block .draft-text { color: var(--text); white-space: pre-wrap; opacity: 0.85; }
+.draft-send-btn {
+  display: inline-block; margin-top: 0.5rem; padding: 0.4rem 1rem;
+  font-size: 0.8rem; font-weight: 600; color: #fff; background: var(--blue);
+  border: none; border-radius: 0.375rem; text-decoration: none;
+  cursor: pointer; transition: background 0.15s;
+}
+.draft-send-btn:hover { opacity: 0.85; }
 .sent-label { color: var(--green); font-weight: 500; margin-top: 0.5rem; }
 .verdict-label { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; }
 .verdict-label.pass { color: var(--green); }
@@ -345,6 +352,10 @@ body::before{content:'';position:fixed;inset:0;
 .draft-block .draft-label{font-family:var(--mono);font-size:10px;color:var(--blue);
   letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;}
 .draft-block .draft-text{color:var(--text);opacity:0.85;white-space:pre-wrap;font-family:var(--mono);font-size:12px;}
+.draft-send-btn{display:inline-block;margin-top:10px;padding:7px 16px;font-family:var(--mono);
+  font-size:11px;font-weight:600;letter-spacing:0.04em;color:#fff;background:var(--blue);
+  border:none;border-radius:4px;text-decoration:none;cursor:pointer;transition:background 0.15s;}
+.draft-send-btn:hover{background:#2b88e6;}
 .sent-label{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:0.08em;
   text-transform:uppercase;margin-top:10px;margin-bottom:4px;}
 footer{border-top:1px solid var(--border);padding:20px 40px;font-family:var(--mono);
@@ -450,11 +461,17 @@ def _build_draft_html(item):
             '<div class="draft-block">'
             f'<div class="draft-text">{_e(reply_draft)}</div></div>'
         )
-    label = f'<a href="{_e(draft_url)}">review &amp; send</a>' if draft_url else "draft"
+    send_btn = (
+        f'<a class="draft-send-btn" href="{_e(draft_url)}" target="_blank">'
+        "\U0001f4e8 Review &amp; Send</a>"
+        if draft_url
+        else ""
+    )
     return (
         '<div class="draft-block">'
-        f'<div class="draft-label">Draft reply — {label}</div>'
-        f'<div class="draft-text">{_e(reply_draft)}</div></div>'
+        '<div class="draft-label">Draft reply</div>'
+        f'<div class="draft-text">{_e(reply_draft)}</div>'
+        f"{send_btn}</div>"
     )
 
 

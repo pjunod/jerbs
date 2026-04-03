@@ -633,19 +633,39 @@ clickable links throughout, and a **Save button** in the header for downloading.
 The HTML must be completely self-contained (all CSS and JS inline, no external
 dependencies).
 
+**CRITICAL — use the CSS and JS from the bundled `shared/scripts/export_html.py`.**
+The .skill package includes `export_html.py` which contains the exact CSS (two theme
+stylesheets: `CSS_CARDS` and `CSS_TERMINAL`), JS, and card-building functions. You
+MUST copy the CSS and JS from that file verbatim into the HTML you generate. Do NOT
+write your own CSS or JS. The bundled file is the source of truth for styling.
+
+Specifically, copy these from `export_html.py` into your HTML:
+- `CSS_CARDS` → `<style id="css-cards">` (disabled if terminal is default)
+- `CSS_TERMINAL` → `<style id="css-terminal">` (disabled if cards is default)
+- `JS` → `<script>` block
+
+Then use the exact HTML structure from the card-builder functions in that file:
+- `build_terminal_card()` → expandable card for pass/maybe
+- `build_terminal_fail()` → compact filtered item
+- `build_cards_card()` → cards theme card
+- `build_cards_fail_row()` → cards theme filtered row
+
 **Every pass/maybe card MUST include all of these elements** (when data is available):
 1. Company name, role title, location
 2. Source badge (Job Alert, Direct, LinkedIn)
 3. Verdict reason (1-sentence explanation)
 4. Comp assessment (sliding-scale note from user's criteria)
 5. Missing info tags (each missing required field as a tag/pill)
-6. Draft reply block — full reply text with a "review & send" link to the Gmail draft
-7. Link buttons: **View email** (Gmail thread), **View posting** (job URL), **Open draft** (Gmail draft)
+6. Draft reply block — full reply text with a "Review & Send" button linking to the Gmail draft
+7. Link buttons: **Email** (Gmail thread), **Posting** (job URL)
 
 **Filtered items** show: company, role, location, source, and reason in a compact row.
 
 Do NOT omit the draft reply or link buttons — these are the primary actions the user
 takes from the results page. A card with only "View listing" is incomplete.
+
+Do NOT write your own CSS. The bundled stylesheet handles all styling including
+dark/light modes, themes, responsive layout, and animations.
 
 ---
 
