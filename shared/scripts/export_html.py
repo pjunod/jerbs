@@ -385,12 +385,6 @@ function setFilter(type,btn){
     else el.classList.add('hidden');
   });
 }
-function switchTheme(sel){
-  var cards=document.getElementById('css-cards');
-  var term=document.getElementById('css-terminal');
-  if(sel.value==='cards'){cards.disabled=false;term.disabled=true;}
-  else{cards.disabled=true;term.disabled=false;}
-}
 function toggleLight(){
   document.body.classList.toggle('light');
   var btn=document.getElementById('theme-btn');
@@ -685,18 +679,15 @@ def export_to_html(results_data, output_path, theme=None):
     total = sum(counts.values())
 
     mode_label = "Dry-run" if mode == "dry-run" else "Send mode"
-    cards_disabled = "disabled" if theme == "terminal" else ""
-    term_disabled = "disabled" if theme == "cards" else ""
+    css = CSS_TERMINAL if theme == "terminal" else CSS_CARDS
 
-    # Both CSS themes are embedded; one is disabled via <style disabled>
     head = (
         "<!DOCTYPE html>\n"
         '<html lang="en"><head>\n'
         '<meta charset="UTF-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
         f"<title>jerbs — Screening Report · {_e(run_date)}</title>\n"
-        f'<style id="css-cards" {cards_disabled}>{CSS_CARDS}</style>\n'
-        f'<style id="css-terminal" {term_disabled}>{CSS_TERMINAL}</style>\n'
+        f"<style>{css}</style>\n"
         f"<script>{JS}</script>\n"
         "</head><body>\n"
     )
@@ -726,10 +717,6 @@ def export_to_html(results_data, output_path, theme=None):
         '<div class="top-bar">'
         f'<h1>Jerbs Results <span class="mode-badge">{_e(mode_label)}</span></h1>'
         "<div>"
-        '<select class="theme-select" onchange="switchTheme(this)">'
-        f'<option value="terminal" {"selected" if theme == "terminal" else ""}>Terminal</option>'
-        f'<option value="cards" {"selected" if theme == "cards" else ""}>Cards</option>'
-        "</select> "
         '<button class="theme-toggle" id="theme-btn" onclick="toggleLight()">Light</button> '
         '<button class="dl-btn" onclick="downloadPage()">\u2913 Save</button>'
         "</div></div>\n"
@@ -738,7 +725,7 @@ def export_to_html(results_data, output_path, theme=None):
         f"{_build_stats_html(counts, len(actions))}\n"
     )
 
-    # Filter bar (terminal only, but present in DOM — cards theme hides .filter-bar via absence)
+    # Filter bar (terminal theme)
     filter_bar = (
         '<div class="filter-bar">'
         '<span class="filter-label">Show</span>'
@@ -749,16 +736,14 @@ def export_to_html(results_data, output_path, theme=None):
         "\U0001f7e1 Maybe</button>"
         '<button class="filter-btn" onclick="setFilter(\'filtered\', this)">'
         "\U0001f534 Filtered</button>"
-        " "
-        '<select class="theme-select" onchange="switchTheme(this)">'
-        f'<option value="terminal" {"selected" if theme == "terminal" else ""}>Terminal</option>'
-        f'<option value="cards" {"selected" if theme == "cards" else ""}>Cards</option>'
-        "</select>"
         "</div>\n"
+        if theme == "terminal"
+        else ""
     )
 
-    # Build body content — render for both themes, show based on active CSS
-    parts = [head, term_header, cards_header, filter_bar, '<div class="main">\n']
+    # Build body content — single theme only
+    header = term_header if theme == "terminal" else cards_header
+    parts = [head, header, filter_bar, '<div class="main">\n']
 
     # Action banners first
     if actions:
