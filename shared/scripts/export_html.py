@@ -150,7 +150,7 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
   background: var(--surface); color: var(--text-muted); border: 1px solid var(--border);
   font-size: 0.7rem; padding: 0.05rem 0.4rem; margin-left: 0.4rem;
 }
-.card-body { margin-top: 0.5rem; font-size: 0.88rem; color: var(--text-muted); }
+.card-body { margin-top: 0.5rem; font-size: 0.88rem; color: var(--text); opacity: 0.9; }
 .card-body .reason { color: var(--text); margin-bottom: 0.35rem; }
 .card-links { margin-top: 0.5rem; display: flex; gap: 1rem; flex-wrap: wrap; }
 .card-links a { color: var(--blue); text-decoration: none; font-size: 0.85rem; }
@@ -160,7 +160,7 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
 .comp-note {
   font-size: 0.8rem; padding: 0.25rem 0.5rem; background: var(--surface);
   border: 1px solid var(--border); border-radius: 0.25rem;
-  display: inline-block; margin-top: 0.25rem;
+  display: inline-block; margin-top: 0.25rem; color: var(--text);
 }
 .draft-block {
   margin-top: 0.5rem; padding: 0.75rem; background: var(--bg);
@@ -306,11 +306,11 @@ body::before{content:'';position:fixed;inset:0;
 .card.open .card-body{display:block;}
 .body-row{margin-top:12px;font-size:13px;line-height:1.65;}
 .body-label{font-family:var(--mono);font-size:10px;letter-spacing:0.12em;
-  text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;}
-.body-verdict{background:var(--bg3);border-left:2px solid var(--border2);
-  padding:10px 14px;border-radius:0 4px 4px 0;font-size:13px;line-height:1.6;}
-.pass .body-verdict{border-left-color:var(--green-dim);}
-.maybe .body-verdict{border-left-color:var(--amber-dim);}
+  text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;}
+.body-verdict{background:rgba(255,255,255,0.04);border-left:3px solid var(--border2);
+  padding:10px 14px;border-radius:0 4px 4px 0;font-size:13px;line-height:1.6;color:var(--text);}
+.pass .body-verdict{border-left-color:var(--green);background:rgba(45,255,155,0.05);}
+.maybe .body-verdict{border-left-color:var(--amber);background:rgba(255,179,64,0.05);}
 .missing-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
 .missing-tag{font-family:var(--mono);font-size:10px;background:rgba(255,179,64,0.08);
   border:1px solid rgba(255,179,64,0.2);color:var(--amber);border-radius:3px;
