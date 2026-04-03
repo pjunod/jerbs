@@ -683,7 +683,7 @@ class TestMain:
                                         jerbs.main()
         mock_run.assert_called_once()
 
-    def test_daemon_loop_triggers_rapid_mode_on_drafts(self, tmp_path):
+    def test_daemon_loop_runs_screen_each_iteration(self, tmp_path):
         cfile = tmp_path / "criteria.json"
         _write_criteria(cfile)
 
@@ -696,20 +696,19 @@ class TestMain:
         mock_scheduler.biz_end = 17
         mock_scheduler.tz_name = "America/New_York"
         mock_scheduler.current_interval.return_value = 300
-        mock_scheduler.current_mode.return_value = "normal"
+        mock_scheduler.current_mode.return_value = "biz_hours"
 
         with patch("sys.argv", ["jerbs", "--criteria", str(cfile)]):
             with patch("jerbs.GmailClient"):
                 with patch("jerbs.Screener"):
-                    with patch("jerbs.run_screen", return_value=True):
+                    with patch("jerbs.run_screen", return_value=True) as mock_run:
                         with patch("jerbs.Scheduler", return_value=mock_scheduler):
                             with patch("jerbs.log"):
                                 with patch("builtins.print"):
                                     with patch("jerbs.signal.signal"):
                                         with patch("threading.Event", return_value=mock_event):
                                             jerbs.main()
-        mock_scheduler.trigger_rapid.assert_called_once()
-        mock_scheduler.tick.assert_called_once()
+        mock_run.assert_called_once()
 
     def test_daemon_loop_breaks_when_wait_returns_true(self, tmp_path):
         """Covers the `break` on line 230 when stop_event.wait() returns True."""

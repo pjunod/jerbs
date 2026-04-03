@@ -1,9 +1,8 @@
 """
-Unit tests for scheduler.py — interval state machine.
+Unit tests for scheduler.py — two-tier interval state machine.
 """
 
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -13,8 +12,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "claude-code"))
 from scheduler import (
     BIZ_INTERVAL_S,
     OFFHRS_INTERVAL_S,
-    RAPID_DURATION_S,
-    RAPID_INTERVAL_S,
     Scheduler,
 )
 
@@ -63,59 +60,12 @@ class TestIsBizHours:
 
 
 # ---------------------------------------------------------------------------
-# rapid mode
-# ---------------------------------------------------------------------------
-
-
-class TestRapidMode:
-    def test_not_in_rapid_initially(self):
-        s = Scheduler()
-        assert s.in_rapid() is False
-
-    def test_in_rapid_after_trigger(self):
-        s = Scheduler()
-        s.trigger_rapid()
-        assert s.in_rapid() is True
-
-    def test_rapid_expires(self):
-        s = Scheduler()
-        # Set _rapid_end to just in the past
-        s._rapid_end = time.monotonic() - 1
-        assert s.in_rapid() is False
-
-    def test_rapid_remaining_positive_when_active(self):
-        s = Scheduler()
-        s.trigger_rapid()
-        remaining = s.rapid_remaining()
-        assert 0 < remaining <= RAPID_DURATION_S
-
-    def test_rapid_remaining_zero_when_inactive(self):
-        s = Scheduler()
-        assert s.rapid_remaining() == 0
-
-    def test_rapid_remaining_zero_when_expired(self):
-        s = Scheduler()
-        s._rapid_end = time.monotonic() - 1
-        assert s.rapid_remaining() == 0
-
-    def test_trigger_rapid_resets_timer(self):
-        s = Scheduler()
-        s.trigger_rapid()
-        first = s.rapid_remaining()
-        time.sleep(0.01)
-        s.trigger_rapid()
-        second = s.rapid_remaining()
-        # Second trigger should be >= first (timer reset)
-        assert second >= first - 1  # allow 1s tolerance
-
-
-# ---------------------------------------------------------------------------
 # current_mode and current_interval
 # ---------------------------------------------------------------------------
 
 
 class TestCurrentMode:
-    def _sched_at(self, hour: int, in_rapid: bool = False) -> Scheduler:
+    def _sched_at(self, hour: int) -> Scheduler:
         s = Scheduler(biz_start_hour=9, biz_end_hour=17, timezone="America/New_York")
         mock_dt = datetime(2026, 3, 28, hour, 0, 0, tzinfo=ZoneInfo("America/New_York"))
 
@@ -123,36 +73,22 @@ class TestCurrentMode:
             return s.biz_start <= mock_dt.hour < s.biz_end
 
         s.is_biz_hours = patched_is_biz
-        if in_rapid:
-            s.trigger_rapid()
         return s
 
-    def test_mode_rapid_takes_priority_over_biz(self):
-        s = self._sched_at(10, in_rapid=True)
-        assert s.current_mode() == "rapid"
-
-    def test_mode_rapid_takes_priority_over_off_hours(self):
-        s = self._sched_at(20, in_rapid=True)
-        assert s.current_mode() == "rapid"
-
     def test_mode_biz_hours(self):
-        s = self._sched_at(10, in_rapid=False)
+        s = self._sched_at(10)
         assert s.current_mode() == "biz_hours"
 
     def test_mode_off_hours(self):
-        s = self._sched_at(20, in_rapid=False)
+        s = self._sched_at(20)
         assert s.current_mode() == "off_hours"
 
-    def test_interval_rapid(self):
-        s = self._sched_at(10, in_rapid=True)
-        assert s.current_interval() == RAPID_INTERVAL_S
-
     def test_interval_biz_hours(self):
-        s = self._sched_at(10, in_rapid=False)
+        s = self._sched_at(10)
         assert s.current_interval() == BIZ_INTERVAL_S
 
     def test_interval_off_hours(self):
-        s = self._sched_at(20, in_rapid=False)
+        s = self._sched_at(20)
         assert s.current_interval() == OFFHRS_INTERVAL_S
 
 
