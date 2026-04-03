@@ -67,7 +67,8 @@ If no Drive MCP is connected:
     "_version": "2.0",
     "criteria": { ... },
     "correspondence": [ ... ],
-    "screened_message_ids": [ ... ]
+    "screened_message_ids": [ ... ],
+    "pending_results": [ ... ]
   }
   ```
 - At the end of any run where state changed, output the single file in a code block
@@ -313,6 +314,56 @@ strings (legacy format), treat all entries as non-expiring and migrate them to t
 format on the next save. After migration, new IDs are written in object format and pruning
 applies going forward. This keeps the array from growing unboundedly over months of use.
 
+### Pending results persistence
+
+Results with pass or maybe verdicts are saved to `pending_results` in the criteria/state
+file so they survive across sessions. This ensures the user can return to previous results
+that they haven't acted on yet.
+
+**After screening**, merge new pass/maybe results into `pending_results`:
+
+```json
+"pending_results": [
+  {
+    "source": "Direct Outreach",
+    "message_id": "18e4f...",
+    "thread_id": "...",
+    "company": "Acme Corp",
+    "role": "Staff Engineer",
+    "verdict": "pass",
+    "reason": "...",
+    "reply_draft": "...",
+    "draft_url": "...",
+    "posting_url": "...",
+    "email_url": "...",
+    "added_at": "2026-03-28",
+    "status": "pending"
+  }
+]
+```
+
+Each entry is the full result object plus:
+- `added_at` — date when the result was first added (for pruning)
+- `status` — always `"pending"` (dismissed items are removed entirely)
+
+**Deduplication:** If a message_id already exists in `pending_results`, do not add a
+duplicate — keep the existing entry.
+
+**Pruning:** Remove entries older than 14 days (based on `added_at`). This keeps the
+state file bounded while giving the user enough time to act.
+
+**On each run**, load `pending_results` before screening. Include them in the results
+display alongside newly screened items — mark them visually as "from previous run" so
+the user can distinguish new results from carried-over ones.
+
+**Dismissing results:** Users can remove items from pending_results:
+- "Dismiss [company]" → remove matching entries, save
+- "Clear pending results" → empty the array, save
+- "Dismiss all" → same as clear
+
+When an item is dismissed, it stays in `screened_message_ids` (so it won't be re-screened)
+but is removed from `pending_results` (so it won't be shown again).
+
 ---
 
 ## Step 4 — Screen each item
@@ -423,9 +474,19 @@ Write all results to `results.json` with this wrapper before calling `export_htm
   "mode": "dry-run | send",
   "lookback_days": N,
   "actions": [],
-  "results": [ ...result objects... ]
+  "pending_results": [ ...pending result objects from previous runs... ],
+  "results": [ ...newly screened result objects... ]
 }
 ```
+
+The `pending_results` array contains pass/maybe results from previous runs that the user
+hasn't dismissed yet. The `results` array contains only newly screened items from this run.
+The HTML page renders both — pending results appear in a separate "Previous results" section
+above the new results, visually distinguished (e.g. with a "from previous run" badge or
+muted styling). This lets the user see everything they still need to act on in one place.
+
+If there are no new emails to screen but pending results exist, still generate the results
+page showing the pending items — the user may have come back specifically to review them.
 
 ---
 
@@ -439,7 +500,7 @@ The ONLY thing you output in the chat after screening is:
 
 1. "Generating results page..."
 2. Silently write results JSON, run the export script, open the HTML file
-3. A one-line confirmation with counts
+3. A one-line confirmation with counts (include pending count if any)
 4. An offer to export to spreadsheet
 
 Here is the exact flow — follow it literally:
@@ -518,6 +579,9 @@ Users can update any section at any time without re-doing the full wizard:
 - "Reset my criteria" → re-run full wizard
 - "Show my current criteria" → print full profile summary
 - "Clear my screening history" → empty screened_message_ids, save
+- "Dismiss [company]" → remove matching entries from pending_results, save
+- "Dismiss all" / "Clear pending results" → empty pending_results, save
+- "Show pending" → list companies/roles still in pending_results
 - "Show my correspondence log" → print all logged entries, grouped by awaiting/replied
 - "Clear my correspondence log" → empty the log file, confirm first
 
