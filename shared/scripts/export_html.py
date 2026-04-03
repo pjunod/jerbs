@@ -518,6 +518,7 @@ body::before{content:'';position:fixed;inset:0;
   cursor:pointer;transition:all 0.15s;letter-spacing:0.04em;}
 .filter-btn:hover{border-color:var(--blue);color:var(--blue);}
 .filter-btn.active-all{border-color:var(--text-dim);color:var(--text);background:var(--bg3);}
+.filter-btn.active-blue{border-color:var(--blue);color:var(--blue);background:var(--blue-bg,rgba(88,166,255,0.08));}
 .filter-btn.active-green{border-color:var(--green);color:var(--green);background:var(--green-bg);}
 .filter-btn.active-amber{border-color:var(--amber);color:var(--amber);background:var(--amber-bg);}
 .filter-btn.active-red{border-color:var(--red);color:var(--red);background:var(--red-bg);}
@@ -551,8 +552,10 @@ body::before{content:'';position:fixed;inset:0;
   letter-spacing:0.04em;text-transform:uppercase;}
 .role{font-weight:500;font-size:14px;}
 .card-meta{font-family:var(--mono);font-size:11px;color:var(--text-dim);display:flex;gap:16px;flex-wrap:wrap;}
+.card-right{display:flex;flex-direction:column;align-items:center;
+  justify-content:space-between;flex-shrink:0;gap:6px;}
 .card-toggle{font-family:var(--mono);font-size:16px;color:var(--text-muted);flex-shrink:0;
-  transition:transform 0.2s;margin-top:2px;}
+  transition:transform 0.2s;}
 .card.open .card-toggle{transform:rotate(90deg);}
 .card-body{display:none;padding:0 18px 16px 40px;border-top:1px solid var(--border);}
 .card.open .card-body{display:block;}
@@ -715,11 +718,17 @@ function toggleCard(el){el.classList.toggle('open');}
 function setFilter(type,btn){
   document.querySelectorAll('.filter-btn').forEach(function(b){b.className='filter-btn';});
   if(type==='all')btn.classList.add('active-all');
+  else if(type==='new')btn.classList.add('active-blue');
   else if(type==='interested')btn.classList.add('active-green');
   else if(type==='maybe')btn.classList.add('active-amber');
   else if(type==='filtered')btn.classList.add('active-red');
   document.querySelectorAll('[data-verdict]').forEach(function(el){
-    if(type==='all'||el.dataset.verdict===type)el.classList.remove('hidden');
+    if(type==='all')el.classList.remove('hidden');
+    else if(type==='new'){
+      if(el.dataset.isnew==='true')el.classList.remove('hidden');
+      else el.classList.add('hidden');
+    }
+    else if(el.dataset.verdict===type)el.classList.remove('hidden');
     else el.classList.add('hidden');
   });
 }
@@ -853,8 +862,9 @@ def build_terminal_card(item, verdict, run_date=None):
     body_parts.append(_build_draft_html(item))
     body_parts.append(_build_link_buttons(item))
 
+    new_attr = ' data-isnew="true"' if is_new else ""
     return (
-        f'<div class="card {css}" data-verdict="{css}">'
+        f'<div class="card {css}" data-verdict="{css}"{new_attr}>'
         '<div class="card-header" onclick="toggleCard(this.parentElement)">'
         '<div class="verdict-dot"></div>'
         '<div class="card-main">'
@@ -864,8 +874,10 @@ def build_terminal_card(item, verdict, run_date=None):
         "</div>"
         f'<div class="card-meta"><span>{location}</span>'
         f"<span>{_e(source_label)}{comp_meta}</span></div>"
-        f"</div>{age_html}"
-        '<div class="card-toggle">\u25ba</div></div>'
+        '</div><div class="card-right">'
+        f"{age_html}"
+        '<div class="card-toggle">\u25ba</div>'
+        "</div></div>"
         f'<div class="card-body">{"".join(body_parts)}</div></div>'
     )
 
@@ -930,8 +942,9 @@ def build_cards_card(item, verdict, run_date=None):
         else ""
     )
 
+    new_attr = ' data-isnew="true"' if is_new else ""
     return (
-        f'<div class="card {css_class}" data-verdict="{css_class}">'
+        f'<div class="card {css_class}" data-verdict="{css_class}"{new_attr}>'
         '<div class="card-top">'
         f"<div><h3>{company} — {role}</h3>"
         f'<span class="location">{location}</span></div>'
@@ -1152,6 +1165,8 @@ def export_to_html(results_data, output_path, theme=None):
         '<div class="filter-bar">'
         '<span class="filter-label">Show</span>'
         '<button class="filter-btn active-all" onclick="setFilter(\'all\', this)">All</button>'
+        '<button class="filter-btn" onclick="setFilter(\'new\', this)">'
+        "\U0001f539 New</button>"
         '<button class="filter-btn" onclick="setFilter(\'pass\', this)">'
         "\U0001f7e2 Interested</button>"
         '<button class="filter-btn" onclick="setFilter(\'maybe\', this)">'
