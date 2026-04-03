@@ -332,6 +332,35 @@ Ask: "Run with these settings? (or say 'update [section]' to change something)"
 
 ---
 
+## Step 2.5 — Check active threads
+
+Before screening, check for active threads from prior runs. Search Gmail for replies
+to any threads where you previously created drafts or sent messages:
+
+1. Search for threads where a draft reply was created or sent in a prior run
+2. For each, use `gmail_read_thread` to check if the recruiter has replied
+3. Build action banners for the results page:
+   - **Reply received**: The recruiter responded — the user needs to act on it
+   - **Awaiting reply**: No response yet — informational, shows days waiting
+
+Each action object goes into the `actions` array in the results wrapper:
+
+```json
+{
+  "title": "Active Thread — Company Name",
+  "body": "Tom from Falcon LLM replied: 'Python is fine, here is the booking link.' You have an unsent draft. Send or schedule it now.",
+  "links": [
+    {"label": "Open Gmail drafts", "url": "https://mail.google.com/mail/u/0/#drafts"},
+    {"label": "View thread", "url": "https://mail.google.com/mail/u/0/#inbox/<thread_id>"}
+  ]
+}
+```
+
+The HTML page renders these as prominent banners at the top of the results, before
+any screening results. If there are no active threads, leave the `actions` array empty.
+
+---
+
 ## Step 3 — Run screening passes
 
 ### Search window and result limits
@@ -533,6 +562,22 @@ The HTML template renders these fields into cards with:
 - Draft reply block with "review & send" link to the Gmail draft
 - Link buttons: email thread link, job posting link, draft link
 - For filtered items: compact row with company, role, and reason
+
+**Results wrapper** — when generating the HTML, use this data structure:
+```json
+{
+  "run_date": "YYYY-MM-DD",
+  "profile_name": "from criteria",
+  "mode": "dry-run | send",
+  "lookback_days": N,
+  "actions": [ ...action objects from Step 2.5... ],
+  "results": [ ...result objects... ]
+}
+```
+
+The `actions` array drives the **Action Needed** banners at the top of the HTML page.
+Each action has `title`, `body`, and `links` (array of `{label, url}` objects). If
+there are no active threads, leave it as an empty array.
 
 ---
 
