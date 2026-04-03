@@ -16,8 +16,9 @@ Or import and call:
 
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from html import escape
+from pathlib import Path
 
 # ── Shared constants ─────────────────────────────────────────────────────────
 
@@ -81,26 +82,69 @@ def _parse_date(date_str):
         return None
 
 
-def _age_label(date_str, run_date_str=None):
-    """Return a human-readable age label like 'today', '2d ago', '1w ago'."""
+def _age_days(date_str, run_date_str=None):
+    """Return the number of days between date_str and run_date (or today)."""
     dt = _parse_date(date_str)
     if dt is None:
-        return ""
+        return None
     ref = _parse_date(run_date_str) or datetime.today()
     delta = (ref - dt).days
-    if delta < 0:
+    return delta if delta >= 0 else None
+
+
+def _age_label(days):
+    """Return a human-readable age label from a day count."""
+    if days is None:
         return ""
-    if delta == 0:
+    if days == 0:
         return "today"
-    if delta == 1:
+    if days == 1:
         return "1d ago"
-    if delta < 7:
-        return f"{delta}d ago"
-    if delta < 14:
-        return "1w ago"
-    if delta < 30:
-        return f"{delta // 7}w ago"
-    return f"{delta // 30}mo ago"
+    if days <= _PRUNE_DAYS:
+        return f"{days}d ago"
+    if days < 30:
+        return f"{days // 7}w ago"
+    return f"{days // 30}mo ago"
+
+
+_PRUNE_DAYS = 14  # pending results pruned after this many days
+
+
+def _age_color(days):
+    """Return an HSL color string for the age badge.
+
+    Gradient from green (0 days) → red (PRUNE_DAYS), clamped.
+    Hue 120 = green, 60 = yellow, 0 = red.
+    """
+    if days is None:
+        return None
+    t = min(max(days / _PRUNE_DAYS, 0.0), 1.0)
+    hue = 120 * (1 - t)
+    return f"hsl({hue:.0f}, 70%, 42%)"
+
+
+_AGE_BADGE_WIDTH = "58px"
+
+
+def _age_badge_html(date_str, run_date_str=None, is_new=False):
+    """Build a complete age badge <span> with gradient color, or empty string."""
+    w = _AGE_BADGE_WIDTH
+    if is_new:
+        return (
+            f' <span class="age-badge"'
+            f' style="color:#58a6ff;border-color:#58a6ff;'
+            f'min-width:{w};width:{w}">'
+            f"new</span>"
+        )
+    days = _age_days(date_str, run_date_str)
+    label = _age_label(days)
+    if not label:
+        return ""
+    color = _age_color(days)
+    color_style = f"color:{color};border-color:{color};" if color else ""
+    return (
+        f' <span class="age-badge" style="{color_style}min-width:{w};width:{w}">{_e(label)}</span>'
+    )
 
 
 def _sort_by_date_desc(items, run_date_str=None):
@@ -299,9 +343,10 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
 .verdict-label.pass { color: var(--green); }
 .verdict-label.maybe { color: var(--yellow); }
 .age-badge {
-  display: inline-block; font-size: 0.7rem; color: var(--text-muted);
-  background: var(--surface); border: 1px solid var(--border);
-  padding: 0.05rem 0.4rem; border-radius: 0.8rem; white-space: nowrap;
+  display: inline-block; font-size: 0.7rem;
+  background: transparent; border: 1px solid;
+  padding: 0.05rem 0; border-radius: 0.8rem; white-space: nowrap;
+  flex-shrink: 0; text-align: center; box-sizing: border-box;
 }
 .persistence-summary {
   background: var(--surface); border: 1px solid var(--border);
@@ -473,6 +518,7 @@ body::before{content:'';position:fixed;inset:0;
   cursor:pointer;transition:all 0.15s;letter-spacing:0.04em;}
 .filter-btn:hover{border-color:var(--blue);color:var(--blue);}
 .filter-btn.active-all{border-color:var(--text-dim);color:var(--text);background:var(--bg3);}
+.filter-btn.active-blue{border-color:var(--blue);color:var(--blue);background:var(--blue-bg,rgba(88,166,255,0.08));}
 .filter-btn.active-green{border-color:var(--green);color:var(--green);background:var(--green-bg);}
 .filter-btn.active-amber{border-color:var(--amber);color:var(--amber);background:var(--amber-bg);}
 .filter-btn.active-red{border-color:var(--red);color:var(--red);background:var(--red-bg);}
@@ -506,8 +552,10 @@ body::before{content:'';position:fixed;inset:0;
   letter-spacing:0.04em;text-transform:uppercase;}
 .role{font-weight:500;font-size:14px;}
 .card-meta{font-family:var(--mono);font-size:11px;color:var(--text-dim);display:flex;gap:16px;flex-wrap:wrap;}
+.card-right{display:flex;flex-direction:column;align-items:center;
+  justify-content:space-between;flex-shrink:0;gap:6px;}
 .card-toggle{font-family:var(--mono);font-size:16px;color:var(--text-muted);flex-shrink:0;
-  transition:transform 0.2s;margin-top:2px;}
+  transition:transform 0.2s;}
 .card.open .card-toggle{transform:rotate(90deg);}
 .card-body{display:none;padding:0 18px 16px 40px;border-top:1px solid var(--border);}
 .card.open .card-body{display:block;}
@@ -561,9 +609,10 @@ body::before{content:'';position:fixed;inset:0;
 .draft-send-btn:hover{background:#2b88e6;}
 .sent-label{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:0.08em;
   text-transform:uppercase;margin-top:10px;margin-bottom:4px;}
-.age-badge{font-family:var(--mono);font-size:10px;color:var(--text-dim);
-  background:var(--bg3);border:1px solid var(--border);padding:1px 7px;
-  border-radius:8px;white-space:nowrap;margin-left:4px;}
+.age-badge{font-family:var(--mono);font-size:10px;
+  background:transparent;border:1px solid;padding:1px 0;
+  border-radius:8px;white-space:nowrap;flex-shrink:0;align-self:center;
+  text-align:center;box-sizing:border-box;}
 .persistence-summary{background:var(--bg2);border:1px solid var(--border);
   border-radius:6px;padding:14px 20px;margin-bottom:20px;
   font-family:var(--mono);font-size:11px;}
@@ -669,11 +718,17 @@ function toggleCard(el){el.classList.toggle('open');}
 function setFilter(type,btn){
   document.querySelectorAll('.filter-btn').forEach(function(b){b.className='filter-btn';});
   if(type==='all')btn.classList.add('active-all');
+  else if(type==='new')btn.classList.add('active-blue');
   else if(type==='interested')btn.classList.add('active-green');
   else if(type==='maybe')btn.classList.add('active-amber');
   else if(type==='filtered')btn.classList.add('active-red');
   document.querySelectorAll('[data-verdict]').forEach(function(el){
-    if(type==='all'||el.dataset.verdict===type)el.classList.remove('hidden');
+    if(type==='all')el.classList.remove('hidden');
+    else if(type==='new'){
+      if(el.dataset.isnew==='true')el.classList.remove('hidden');
+      else el.classList.add('hidden');
+    }
+    else if(el.dataset.verdict===type)el.classList.remove('hidden');
     else el.classList.add('hidden');
   });
 }
@@ -784,11 +839,10 @@ def build_terminal_card(item, verdict, run_date=None):
     source = item.get("source", "")
     source_label = SOURCE_LABELS.get(source, source)
     date_str = item.get("email_date") or item.get("added_at") or ""
-    age = _age_label(date_str, run_date)
+    is_new = item.get("status") != "pending"
 
     comp_meta = f" \u00b7 {_e(comp)}" if comp else ""
-    age_html = f' <span class="age-badge">{_e(age)}</span>' if age else ""
-
+    age_html = _age_badge_html(date_str, run_date, is_new=is_new)
     body_parts = []
     if reason:
         body_parts.append(
@@ -808,17 +862,22 @@ def build_terminal_card(item, verdict, run_date=None):
     body_parts.append(_build_draft_html(item))
     body_parts.append(_build_link_buttons(item))
 
+    new_attr = ' data-isnew="true"' if is_new else ""
     return (
-        f'<div class="card {css}" data-verdict="{css}">'
+        f'<div class="card {css}" data-verdict="{css}"{new_attr}>'
         '<div class="card-header" onclick="toggleCard(this.parentElement)">'
         '<div class="verdict-dot"></div>'
         '<div class="card-main">'
         '<div class="card-title-row">'
         f'<span class="company">{company}</span>'
-        f'<span class="role">{role}</span>{age_html}</div>'
+        f'<span class="role">{role}</span>'
+        "</div>"
         f'<div class="card-meta"><span>{location}</span>'
         f"<span>{_e(source_label)}{comp_meta}</span></div>"
-        '</div><div class="card-toggle">\u25ba</div></div>'
+        '</div><div class="card-right">'
+        f"{age_html}"
+        '<div class="card-toggle">\u25ba</div>'
+        "</div></div>"
         f'<div class="card-body">{"".join(body_parts)}</div></div>'
     )
 
@@ -856,9 +915,8 @@ def build_cards_card(item, verdict, run_date=None):
         f'<span class="badge badge-source">{_e(source_label)}</span>' if source_label else ""
     )
     date_str = item.get("email_date") or item.get("added_at") or ""
-    age = _age_label(date_str, run_date)
-    age_html = f' <span class="age-badge">{_e(age)}</span>' if age else ""
-
+    is_new = item.get("status") != "pending"
+    age_html = _age_badge_html(date_str, run_date, is_new=is_new)
     links = []
     if posting_url:
         links.append(_link(posting_url, "View posting"))
@@ -884,12 +942,14 @@ def build_cards_card(item, verdict, run_date=None):
         else ""
     )
 
+    new_attr = ' data-isnew="true"' if is_new else ""
     return (
-        f'<div class="card {css_class}" data-verdict="{css_class}">'
+        f'<div class="card {css_class}" data-verdict="{css_class}"{new_attr}>'
         '<div class="card-top">'
-        f"<div><h3>{company} — {role}{age_html}</h3>"
+        f"<div><h3>{company} — {role}</h3>"
         f'<span class="location">{location}</span></div>'
-        f'<div><span class="badge {badge_class}">{badge_label}</span>'
+        f"<div>{age_html}"
+        f' <span class="badge {badge_class}">{badge_label}</span>'
         f"{source_badge}</div></div>"
         f'<div class="card-body">{reason_html}'
         f"{comp_html}{missing_html}{_build_draft_html(item)}</div>"
@@ -977,6 +1037,49 @@ build_fail_row = build_cards_fail_row
 build_fail_table = _build_fail_table
 
 
+# ── Pending results helpers ──────────────────────────────────────────────────
+
+CRITERIA_PATHS = [
+    Path.home() / ".claude" / "jerbs" / "criteria.json",
+    Path.home() / ".jerbs" / "criteria.json",
+]
+
+
+def _load_pending_fallback():
+    """
+    Load pending_results from the criteria file on disk as a fallback
+    when results.json doesn't include them. Returns [] if not found.
+    """
+    for path in CRITERIA_PATHS:
+        if path.exists():
+            try:
+                with open(path, encoding="utf-8") as f:
+                    criteria = json.load(f)
+                cutoff = (datetime.today() - timedelta(days=14)).strftime("%Y-%m-%d")
+                return [
+                    entry
+                    for entry in criteria.get("pending_results", [])
+                    if entry.get("added_at", "") >= cutoff
+                ]
+            except (json.JSONDecodeError, OSError):
+                continue
+    return []
+
+
+def _resolve_pending(results_data, new_message_ids):
+    """
+    Get pending results to display: use results.json field first,
+    fall back to criteria.json on disk only when the key is absent.
+    Excludes any items that appear in this run's new results.
+    """
+    if "pending_results" in results_data:
+        pending = results_data["pending_results"] or []
+    else:
+        pending = _load_pending_fallback()
+    # Exclude items that were re-screened in the current run
+    return [p for p in pending if p.get("message_id") not in new_message_ids]
+
+
 # ── Main export ──────────────────────────────────────────────────────────────
 
 
@@ -993,10 +1096,20 @@ def export_to_html(results_data, output_path, theme=None):
     actions = results_data.get("actions", [])
     results = results_data.get("results", [])
 
+    # Merge pending results into the main results list so they appear
+    # in the same source/verdict groups, distinguished only by age badge.
+    new_ids = {r["message_id"] for r in results if r.get("message_id")}
+    pending = _resolve_pending(results_data, new_ids)
+    results = results + pending
+
     passes = [r for r in results if r.get("verdict") == "pass"]
     maybes = [r for r in results if r.get("verdict") == "maybe"]
     fails = [r for r in results if r.get("verdict") == "fail"]
-    counts = {"pass": len(passes), "maybe": len(maybes), "fail": len(fails)}
+    counts = {
+        "pass": len(passes),
+        "maybe": len(maybes),
+        "fail": len(fails),
+    }
     total = sum(counts.values())
 
     mode_label = "Dry-run" if mode == "dry-run" else "Send mode"
@@ -1052,6 +1165,8 @@ def export_to_html(results_data, output_path, theme=None):
         '<div class="filter-bar">'
         '<span class="filter-label">Show</span>'
         '<button class="filter-btn active-all" onclick="setFilter(\'all\', this)">All</button>'
+        '<button class="filter-btn" onclick="setFilter(\'new\', this)">'
+        "\U0001f539 New</button>"
         '<button class="filter-btn" onclick="setFilter(\'pass\', this)">'
         "\U0001f7e2 Interested</button>"
         '<button class="filter-btn" onclick="setFilter(\'maybe\', this)">'
