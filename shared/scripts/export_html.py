@@ -16,8 +16,9 @@ Or import and call:
 
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from html import escape
+from pathlib import Path
 
 # ── Shared constants ─────────────────────────────────────────────────────────
 
@@ -303,6 +304,18 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
   background: var(--surface); border: 1px solid var(--border);
   padding: 0.05rem 0.4rem; border-radius: 0.8rem; white-space: nowrap;
 }
+.pending-badge {
+  display: inline-block; font-size: 0.65rem; color: var(--purple, #bc8cff);
+  background: var(--purple-bg, #1c1a2e); border: 1px solid var(--purple, #bc8cff);
+  padding: 0.05rem 0.4rem; border-radius: 0.8rem; white-space: nowrap;
+  margin-left: 0.3rem;
+}
+.pending-section-header {
+  font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--purple, #bc8cff);
+  margin: 1.25rem 0 0.75rem; padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
 .persistence-summary {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 0.5rem; padding: 0.75rem 1.25rem;
@@ -564,6 +577,12 @@ body::before{content:'';position:fixed;inset:0;
 .age-badge{font-family:var(--mono);font-size:10px;color:var(--text-dim);
   background:var(--bg3);border:1px solid var(--border);padding:1px 7px;
   border-radius:8px;white-space:nowrap;margin-left:4px;}
+.pending-badge{font-family:var(--mono);font-size:9px;color:#bc8cff;
+  background:#1c1a2e;border:1px solid #bc8cff;padding:1px 7px;
+  border-radius:8px;white-space:nowrap;margin-left:4px;}
+.pending-section-header{font-family:var(--mono);font-size:12px;font-weight:600;
+  letter-spacing:0.08em;text-transform:uppercase;color:#bc8cff;
+  margin:20px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border);}
 .persistence-summary{background:var(--bg2);border:1px solid var(--border);
   border-radius:6px;padding:14px 20px;margin-bottom:20px;
   font-family:var(--mono);font-size:11px;}
@@ -788,6 +807,8 @@ def build_terminal_card(item, verdict, run_date=None):
 
     comp_meta = f" \u00b7 {_e(comp)}" if comp else ""
     age_html = f' <span class="age-badge">{_e(age)}</span>' if age else ""
+    is_pending = item.get("status") == "pending"
+    pending_html = ' <span class="pending-badge">previous run</span>' if is_pending else ""
 
     body_parts = []
     if reason:
@@ -815,7 +836,8 @@ def build_terminal_card(item, verdict, run_date=None):
         '<div class="card-main">'
         '<div class="card-title-row">'
         f'<span class="company">{company}</span>'
-        f'<span class="role">{role}</span>{age_html}</div>'
+        f'<span class="role">{role}</span>'
+        f"{age_html}{pending_html}</div>"
         f'<div class="card-meta"><span>{location}</span>'
         f"<span>{_e(source_label)}{comp_meta}</span></div>"
         '</div><div class="card-toggle">\u25ba</div></div>'
@@ -858,6 +880,8 @@ def build_cards_card(item, verdict, run_date=None):
     date_str = item.get("email_date") or item.get("added_at") or ""
     age = _age_label(date_str, run_date)
     age_html = f' <span class="age-badge">{_e(age)}</span>' if age else ""
+    is_pending = item.get("status") == "pending"
+    pending_html = ' <span class="pending-badge">previous run</span>' if is_pending else ""
 
     links = []
     if posting_url:
@@ -887,7 +911,7 @@ def build_cards_card(item, verdict, run_date=None):
     return (
         f'<div class="card {css_class}" data-verdict="{css_class}">'
         '<div class="card-top">'
-        f"<div><h3>{company} — {role}{age_html}</h3>"
+        f"<div><h3>{company} — {role}{age_html}{pending_html}</h3>"
         f'<span class="location">{location}</span></div>'
         f'<div><span class="badge {badge_class}">{badge_label}</span>'
         f"{source_badge}</div></div>"
@@ -977,6 +1001,72 @@ build_fail_row = build_cards_fail_row
 build_fail_table = _build_fail_table
 
 
+# ── Pending results helpers ──────────────────────────────────────────────────
+
+CRITERIA_PATHS = [
+    Path.home() / ".claude" / "jerbs" / "criteria.json",
+    Path.home() / ".jerbs" / "criteria.json",
+]
+
+
+def _load_pending_fallback():
+    """
+    Load pending_results from the criteria file on disk as a fallback
+    when results.json doesn't include them. Returns [] if not found.
+    """
+    for path in CRITERIA_PATHS:
+        if path.exists():
+            try:
+                with open(path, encoding="utf-8") as f:
+                    criteria = json.load(f)
+                cutoff = (datetime.today() - timedelta(days=14)).strftime("%Y-%m-%d")
+                return [
+                    entry
+                    for entry in criteria.get("pending_results", [])
+                    if entry.get("added_at", "") >= cutoff
+                ]
+            except (json.JSONDecodeError, OSError):
+                continue
+    return []
+
+
+def _resolve_pending(results_data, new_message_ids):
+    """
+    Get pending results to display: use results.json field first,
+    fall back to criteria.json on disk only when the key is absent.
+    Excludes any items that appear in this run's new results.
+    """
+    if "pending_results" in results_data:
+        pending = results_data["pending_results"] or []
+    else:
+        pending = _load_pending_fallback()
+    # Exclude items that were re-screened in the current run
+    return [p for p in pending if p.get("message_id") not in new_message_ids]
+
+
+def _build_pending_cards(pending, theme, run_date):
+    """Build HTML for the pending results section."""
+    if not pending:
+        return []
+
+    parts = []
+    parts.append(f'<div class="pending-section-header">Previous Results ({len(pending)})</div>')
+
+    passes = _sort_by_date_desc([p for p in pending if p.get("verdict") == "pass"], run_date)
+    maybes = _sort_by_date_desc([p for p in pending if p.get("verdict") == "maybe"], run_date)
+
+    card_fn = build_terminal_card if theme == "terminal" else build_cards_card
+
+    if passes:
+        for item in passes:
+            parts.append(card_fn(item, "pass", run_date))
+    if maybes:
+        for item in maybes:
+            parts.append(card_fn(item, "maybe", run_date))
+
+    return parts
+
+
 # ── Main export ──────────────────────────────────────────────────────────────
 
 
@@ -993,10 +1083,20 @@ def export_to_html(results_data, output_path, theme=None):
     actions = results_data.get("actions", [])
     results = results_data.get("results", [])
 
+    # Resolve pending results (from JSON field or criteria.json fallback)
+    new_ids = {r["message_id"] for r in results if r.get("message_id")}
+    pending = _resolve_pending(results_data, new_ids)
+
     passes = [r for r in results if r.get("verdict") == "pass"]
     maybes = [r for r in results if r.get("verdict") == "maybe"]
     fails = [r for r in results if r.get("verdict") == "fail"]
-    counts = {"pass": len(passes), "maybe": len(maybes), "fail": len(fails)}
+    p_passes = [p for p in pending if p.get("verdict") == "pass"]
+    p_maybes = [p for p in pending if p.get("verdict") == "maybe"]
+    counts = {
+        "pass": len(passes) + len(p_passes),
+        "maybe": len(maybes) + len(p_maybes),
+        "fail": len(fails),
+    }
     total = sum(counts.values())
 
     mode_label = "Dry-run" if mode == "dry-run" else "Send mode"
@@ -1136,6 +1236,11 @@ def export_to_html(results_data, output_path, theme=None):
 
         parts.append("</details>\n")
 
+    # Pending results from previous runs
+    pending_cards = _build_pending_cards(pending, theme, run_date)
+    if pending_cards:
+        parts.extend(pending_cards)
+
     # Filtered section — collapsible, default collapsed
     if fails:
         if theme == "terminal":
@@ -1162,7 +1267,8 @@ def export_to_html(results_data, output_path, theme=None):
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
 
-    print(f"Exported {total} results → {output_path}")
+    pending_note = f" (+{len(pending)} from previous runs)" if pending else ""
+    print(f"Exported {total} results{pending_note} → {output_path}")
 
 
 if __name__ == "__main__":

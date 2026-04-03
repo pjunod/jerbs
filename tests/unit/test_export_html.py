@@ -23,10 +23,13 @@ from export_html import (
     VERDICT_LABELS,
     _age_label,
     _build_missing_tags,
+    _build_pending_cards,
     _build_persistence_summary,
     _e,
     _link,
+    _load_pending_fallback,
     _parse_date,
+    _resolve_pending,
     _sort_by_date_desc,
     build_action_banner,
     build_card,
@@ -72,6 +75,7 @@ def run_html_export(items, **kwargs):
         "mode": kwargs.get("mode", "dry-run"),
         "lookback_days": kwargs.get("lookback_days", "1"),
         "actions": kwargs.get("actions", []),
+        "pending_results": kwargs.get("pending_results", []),
         "results": items,
     }
     if "persistence_stats" in kwargs:
@@ -532,7 +536,7 @@ class TestExportToHtml:
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         try:
-            export_to_html({"results": []}, path)
+            export_to_html({"results": [], "pending_results": []}, path)
             assert os.path.exists(path)
             with open(path, encoding="utf-8") as f:
                 content = f.read()
@@ -544,7 +548,7 @@ class TestExportToHtml:
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         try:
-            export_to_html({"results": [make_result()]}, path)
+            export_to_html({"results": [make_result()], "pending_results": []}, path)
             captured = capsys.readouterr()
             assert "Exported 1 results" in captured.out
         finally:
@@ -554,7 +558,7 @@ class TestExportToHtml:
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         try:
-            export_to_html({"results": []}, path, theme="cards")
+            export_to_html({"results": [], "pending_results": []}, path, theme="cards")
             with open(path, encoding="utf-8") as f:
                 html = f.read()
             assert "Job Search" in html  # default profile name
@@ -1003,3 +1007,214 @@ class TestPersistenceSummaryInExport:
     def test_no_persistence_summary_when_empty(self):
         html = run_html_export([])
         assert '<div class="persistence-summary">' not in html
+
+
+# ---------------------------------------------------------------------------
+# Pending results rendering
+# ---------------------------------------------------------------------------
+
+
+def make_pending(verdict="pass", company="OldCorp", role="Staff SRE", **kw):
+    r = make_result(verdict=verdict, company=company, role=role, **kw)
+    r["status"] = "pending"
+    r["added_at"] = kw.get("added_at", "2026-04-01")
+    r["message_id"] = kw.get("message_id", f"msg_{company}")
+    return r
+
+
+class TestResolvePending:
+    def test_uses_pending_from_results_data(self):
+        data = {"pending_results": [make_pending()]}
+        result = _resolve_pending(data, set())
+        assert len(result) == 1
+        assert result[0]["company"] == "OldCorp"
+
+    def test_excludes_rescreened_items(self):
+        data = {"pending_results": [make_pending(message_id="abc")]}
+        result = _resolve_pending(data, {"abc"})
+        assert len(result) == 0
+
+    def test_empty_list_respected_no_fallback(self):
+        data = {"pending_results": []}
+        with patch(
+            "export_html._load_pending_fallback",
+            return_value=[make_pending()],
+        ):
+            result = _resolve_pending(data, set())
+        assert len(result) == 0
+
+    def test_missing_key_triggers_fallback(self):
+        data = {"results": []}
+        with patch(
+            "export_html._load_pending_fallback",
+            return_value=[make_pending()],
+        ):
+            result = _resolve_pending(data, set())
+        assert len(result) == 1
+
+
+class TestLoadPendingFallback:
+    def test_loads_from_criteria_file(self, tmp_path):
+        criteria = {
+            "pending_results": [
+                make_pending(added_at="2026-04-01"),
+            ]
+        }
+        criteria_file = tmp_path / "criteria.json"
+        criteria_file.write_text(json.dumps(criteria))
+        with patch("export_html.CRITERIA_PATHS", [criteria_file]):
+            result = _load_pending_fallback()
+        assert len(result) == 1
+
+    def test_prunes_old_entries(self, tmp_path):
+        criteria = {
+            "pending_results": [
+                make_pending(added_at="2020-01-01"),
+            ]
+        }
+        criteria_file = tmp_path / "criteria.json"
+        criteria_file.write_text(json.dumps(criteria))
+        with patch("export_html.CRITERIA_PATHS", [criteria_file]):
+            result = _load_pending_fallback()
+        assert len(result) == 0
+
+    def test_returns_empty_when_no_file(self):
+        with patch(
+            "export_html.CRITERIA_PATHS",
+            [Path("/nonexistent/criteria.json")],
+        ):
+            result = _load_pending_fallback()
+        assert result == []
+
+    def test_handles_corrupt_json(self, tmp_path):
+        criteria_file = tmp_path / "criteria.json"
+        criteria_file.write_text("not valid json{{{")
+        with patch("export_html.CRITERIA_PATHS", [criteria_file]):
+            result = _load_pending_fallback()
+        assert result == []
+
+
+class TestBuildPendingCards:
+    def test_no_output_when_empty(self):
+        assert _build_pending_cards([], "terminal", "2026-04-02") == []
+
+    def test_renders_section_header(self):
+        parts = _build_pending_cards([make_pending()], "terminal", "2026-04-02")
+        html = "\n".join(parts)
+        assert "Previous Results" in html
+        assert "pending-section-header" in html
+
+    def test_renders_terminal_cards(self):
+        parts = _build_pending_cards([make_pending()], "terminal", "2026-04-02")
+        html = "\n".join(parts)
+        assert "OldCorp" in html
+        assert "card pass" in html
+
+    def test_renders_cards_theme(self):
+        parts = _build_pending_cards([make_pending()], "cards", "2026-04-02")
+        html = "\n".join(parts)
+        assert "OldCorp" in html
+
+    def test_groups_by_verdict(self):
+        items = [
+            make_pending("pass", "PassCo", message_id="p1"),
+            make_pending("maybe", "MaybeCo", message_id="p2"),
+        ]
+        parts = _build_pending_cards(items, "terminal", "2026-04-02")
+        html = "\n".join(parts)
+        assert "PassCo" in html
+        assert "MaybeCo" in html
+
+
+class TestPendingBadge:
+    def test_terminal_card_shows_badge_for_pending(self):
+        item = make_pending()
+        html = build_terminal_card(item, "pass", "2026-04-02")
+        assert "pending-badge" in html
+        assert "previous run" in html
+
+    def test_terminal_card_no_badge_for_new(self):
+        item = make_result()
+        html = build_terminal_card(item, "pass", "2026-04-02")
+        assert "pending-badge" not in html
+
+    def test_cards_card_shows_badge_for_pending(self):
+        item = make_pending()
+        html = build_cards_card(item, "pass", "2026-04-02")
+        assert "pending-badge" in html
+        assert "previous run" in html
+
+    def test_cards_card_no_badge_for_new(self):
+        item = make_result()
+        html = build_cards_card(item, "pass", "2026-04-02")
+        assert "pending-badge" not in html
+
+
+class TestPendingInFullExport:
+    def test_pending_included_in_html(self):
+        pending = [make_pending()]
+        html = run_html_export(
+            [make_result(company="NewCo")],
+            pending_results=pending,
+        )
+        assert "OldCorp" in html
+        assert "NewCo" in html
+        assert "Previous Results" in html
+
+    def test_pending_counted_in_header(self):
+        pending = [make_pending("pass", message_id="p1")]
+        html = run_html_export(
+            [make_result("pass", company="NewCo")],
+            pending_results=pending,
+        )
+        # 2 pass total (1 new + 1 pending)
+        assert ">2<" in html
+
+    def test_no_pending_section_when_empty(self):
+        html = run_html_export([make_result()])
+        assert "Previous Results" not in html
+
+    def test_pending_deduped_against_new(self):
+        pending = [make_pending(message_id="same_id")]
+        new = [make_result(company="NewCo", message_id="same_id")]
+        html = run_html_export(new, pending_results=pending)
+        assert "Previous Results" not in html
+
+    def test_only_pending_no_new_results(self):
+        pending = [make_pending()]
+        html = run_html_export([], pending_results=pending)
+        assert "OldCorp" in html
+        assert "Previous Results" in html
+
+    def test_print_includes_pending_note(self, capsys):
+        pending = [make_pending()]
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        try:
+            export_to_html(
+                {
+                    "results": [make_result()],
+                    "pending_results": pending,
+                },
+                path,
+            )
+            captured = capsys.readouterr()
+            assert "+1 from previous runs" in captured.out
+        finally:
+            os.unlink(path)
+
+    def test_print_no_pending_note_when_empty(self, capsys):
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        try:
+            export_to_html(
+                {
+                    "results": [make_result()],
+                    "pending_results": [],
+                },
+                path,
+            )
+            captured = capsys.readouterr()
+            assert "previous runs" not in captured.out
+        finally:
+            os.unlink(path)
