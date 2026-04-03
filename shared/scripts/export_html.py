@@ -71,6 +71,93 @@ def _group_by_source(items):
     return ordered
 
 
+def _parse_date(date_str):
+    """Parse a date string (YYYY-MM-DD or ISO format) into a datetime, or None."""
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str[:10], "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return None
+
+
+def _age_label(date_str, run_date_str=None):
+    """Return a human-readable age label like 'today', '2d ago', '1w ago'."""
+    dt = _parse_date(date_str)
+    if dt is None:
+        return ""
+    ref = _parse_date(run_date_str) or datetime.today()
+    delta = (ref - dt).days
+    if delta < 0:
+        return ""
+    if delta == 0:
+        return "today"
+    if delta == 1:
+        return "1d ago"
+    if delta < 7:
+        return f"{delta}d ago"
+    if delta < 14:
+        return "1w ago"
+    if delta < 30:
+        return f"{delta // 7}w ago"
+    return f"{delta // 30}mo ago"
+
+
+def _sort_by_date_desc(items, run_date_str=None):
+    """Sort items by email_date (or added_at) descending — newest first."""
+
+    def sort_key(item):
+        date_str = item.get("email_date") or item.get("added_at") or ""
+        dt = _parse_date(date_str)
+        if dt is None:
+            return datetime.min
+        return dt
+
+    return sorted(items, key=sort_key, reverse=True)
+
+
+def _build_persistence_summary(results_data):
+    """Build an HTML block summarizing persistence activity for the run."""
+    stats = results_data.get("persistence_stats", {})
+    if not stats:
+        return ""
+
+    lines = []
+    merged = stats.get("pending_merged", 0)
+    if merged:
+        lines.append(
+            f"Merged {merged} pending result{'s' if merged != 1 else ''} from previous runs"
+        )
+    responses = stats.get("responses_found", 0)
+    if responses:
+        lines.append(
+            f"Found {responses} recruiter response{'s' if responses != 1 else ''} to prior replies"
+        )
+    pruned_ids = stats.get("screened_ids_pruned", 0)
+    if pruned_ids:
+        lines.append(f"Pruned {pruned_ids} stale screening record{'s' if pruned_ids != 1 else ''}")
+    pruned_corr = stats.get("correspondence_pruned", 0)
+    if pruned_corr:
+        lines.append(
+            f"Pruned {pruned_corr} closed correspondence entr{'ies' if pruned_corr != 1 else 'y'}"
+        )
+    pending_total = stats.get("pending_total", 0)
+    if pending_total and not merged:
+        lines.append(
+            f"{pending_total} pending result{'s' if pending_total != 1 else ''} carried forward"
+        )
+
+    if not lines:
+        return ""
+
+    items_html = "".join(f"<li>{_e(line)}</li>" for line in lines)
+    return (
+        '<div class="persistence-summary">'
+        '<div class="persistence-label">Session activity</div>'
+        f"<ul>{items_html}</ul></div>"
+    )
+
+
 # ── Cards theme CSS ──────────────────────────────────────────────────────────
 
 CSS_CARDS = """\
@@ -211,6 +298,28 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
 .verdict-label { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; }
 .verdict-label.pass { color: var(--green); }
 .verdict-label.maybe { color: var(--yellow); }
+.age-badge {
+  display: inline-block; font-size: 0.7rem; color: var(--text-muted);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 0.05rem 0.4rem; border-radius: 0.8rem; white-space: nowrap;
+}
+.persistence-summary {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 0.5rem; padding: 0.75rem 1.25rem;
+  margin-bottom: 1.5rem; font-size: 0.85rem;
+}
+.persistence-summary .persistence-label {
+  font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+.persistence-summary ul {
+  list-style: none; padding: 0; margin: 0;
+  color: var(--text-muted);
+}
+.persistence-summary li::before {
+  content: '\\b7 '; color: var(--text-muted);
+}
 .fail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .fail-table th {
   text-align: left; color: var(--text-muted); font-weight: 500;
@@ -452,6 +561,18 @@ body::before{content:'';position:fixed;inset:0;
 .draft-send-btn:hover{background:#2b88e6;}
 .sent-label{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:0.08em;
   text-transform:uppercase;margin-top:10px;margin-bottom:4px;}
+.age-badge{font-family:var(--mono);font-size:10px;color:var(--text-dim);
+  background:var(--bg3);border:1px solid var(--border);padding:1px 7px;
+  border-radius:8px;white-space:nowrap;margin-left:4px;}
+.persistence-summary{background:var(--bg2);border:1px solid var(--border);
+  border-radius:6px;padding:14px 20px;margin-bottom:20px;
+  font-family:var(--mono);font-size:11px;}
+.persistence-summary .persistence-label{font-size:10px;font-weight:600;
+  letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);
+  margin-bottom:6px;}
+.persistence-summary ul{list-style:none;padding:0;margin:0;color:var(--text-dim);}
+.persistence-summary li{padding:2px 0;}
+.persistence-summary li::before{content:'\\b7 ';color:var(--text-muted);}
 footer{border-top:1px solid var(--border);padding:20px 40px;font-family:var(--mono);
   font-size:11px;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap;
   justify-content:space-between;}
@@ -651,7 +772,7 @@ def _build_draft_html(item):
     )
 
 
-def build_terminal_card(item, verdict):
+def build_terminal_card(item, verdict, run_date=None):
     """Build an expandable card for the terminal theme."""
     css = VERDICT_CSS_CLASS.get(verdict, "")
     company = _e(item.get("company", "Unknown"))
@@ -662,8 +783,11 @@ def build_terminal_card(item, verdict):
     missing = item.get("missing_fields") or []
     source = item.get("source", "")
     source_label = SOURCE_LABELS.get(source, source)
+    date_str = item.get("email_date") or item.get("added_at") or ""
+    age = _age_label(date_str, run_date)
 
     comp_meta = f" \u00b7 {_e(comp)}" if comp else ""
+    age_html = f' <span class="age-badge">{_e(age)}</span>' if age else ""
 
     body_parts = []
     if reason:
@@ -691,7 +815,7 @@ def build_terminal_card(item, verdict):
         '<div class="card-main">'
         '<div class="card-title-row">'
         f'<span class="company">{company}</span>'
-        f'<span class="role">{role}</span></div>'
+        f'<span class="role">{role}</span>{age_html}</div>'
         f'<div class="card-meta"><span>{location}</span>'
         f"<span>{_e(source_label)}{comp_meta}</span></div>"
         '</div><div class="card-toggle">\u25ba</div></div>'
@@ -712,7 +836,7 @@ def build_terminal_fail(item):
     )
 
 
-def build_cards_card(item, verdict):
+def build_cards_card(item, verdict, run_date=None):
     """Build a card for the cards theme."""
     css_class = VERDICT_CSS_CLASS.get(verdict, "")
     badge_class = VERDICT_BADGE_CLASS.get(verdict, "badge-fail")
@@ -731,6 +855,9 @@ def build_cards_card(item, verdict):
     source_badge = (
         f'<span class="badge badge-source">{_e(source_label)}</span>' if source_label else ""
     )
+    date_str = item.get("email_date") or item.get("added_at") or ""
+    age = _age_label(date_str, run_date)
+    age_html = f' <span class="age-badge">{_e(age)}</span>' if age else ""
 
     links = []
     if posting_url:
@@ -760,7 +887,7 @@ def build_cards_card(item, verdict):
     return (
         f'<div class="card {css_class}" data-verdict="{css_class}">'
         '<div class="card-top">'
-        f"<div><h3>{company} — {role}</h3>"
+        f"<div><h3>{company} — {role}{age_html}</h3>"
         f'<span class="location">{location}</span></div>'
         f'<div><span class="badge {badge_class}">{badge_label}</span>'
         f"{source_badge}</div></div>"
@@ -940,6 +1067,11 @@ def export_to_html(results_data, output_path, theme=None):
     header = term_header if theme == "terminal" else cards_header
     parts = [head, header, filter_bar, '<div class="main">\n']
 
+    # Persistence summary (if stats provided)
+    persistence_html = _build_persistence_summary(results_data)
+    if persistence_html:
+        parts.append(persistence_html)
+
     # Action banners first
     if actions:
         parts.append('<div class="section">')
@@ -954,8 +1086,8 @@ def export_to_html(results_data, output_path, theme=None):
 
     for source, items in source_groups:
         source_label = SOURCE_LABELS.get(source, source)
-        src_passes = [i for i in items if i.get("verdict") == "pass"]
-        src_maybes = [i for i in items if i.get("verdict") == "maybe"]
+        src_passes = _sort_by_date_desc([i for i in items if i.get("verdict") == "pass"], run_date)
+        src_maybes = _sort_by_date_desc([i for i in items if i.get("verdict") == "maybe"], run_date)
         if not src_passes and not src_maybes:
             continue
 
@@ -976,7 +1108,7 @@ def export_to_html(results_data, output_path, theme=None):
                 )
                 parts.append('<div class="section-group">')
                 for item in src_passes:
-                    parts.append(build_terminal_card(item, "pass"))
+                    parts.append(build_terminal_card(item, "pass", run_date))
                 parts.append("</div></details>")
 
             if src_maybes:
@@ -984,7 +1116,7 @@ def export_to_html(results_data, output_path, theme=None):
                 parts.append(f"<summary>\U0001f7e1 Maybe ({len(src_maybes)}){toggle_btn}</summary>")
                 parts.append('<div class="section-group">')
                 for item in src_maybes:
-                    parts.append(build_terminal_card(item, "maybe"))
+                    parts.append(build_terminal_card(item, "maybe", run_date))
                 parts.append("</div></details>")
 
         else:
@@ -992,14 +1124,14 @@ def export_to_html(results_data, output_path, theme=None):
                 parts.append('<details class="verdict-group interested" open>')
                 parts.append(f"<summary>\U0001f7e2 Interested ({len(src_passes)})</summary>")
                 for item in src_passes:
-                    parts.append(build_cards_card(item, "pass"))
+                    parts.append(build_cards_card(item, "pass", run_date))
                 parts.append("</details>")
 
             if src_maybes:
                 parts.append('<details class="verdict-group maybe" open>')
                 parts.append(f"<summary>\U0001f7e1 Maybe ({len(src_maybes)})</summary>")
                 for item in src_maybes:
-                    parts.append(build_cards_card(item, "maybe"))
+                    parts.append(build_cards_card(item, "maybe", run_date))
                 parts.append("</details>")
 
         parts.append("</details>\n")

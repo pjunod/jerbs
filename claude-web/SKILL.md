@@ -602,6 +602,13 @@ The HTML template renders these fields into cards with:
   "mode": "dry-run | send",
   "lookback_days": N,
   "actions": [ ...action objects from Step 2.5... ],
+  "persistence_stats": {
+    "pending_merged": 0,
+    "pending_total": 0,
+    "responses_found": 0,
+    "screened_ids_pruned": 0,
+    "correspondence_pruned": 0
+  },
   "pending_results": [ ...pending result objects from previous runs... ],
   "results": [ ...newly screened result objects... ]
 }
@@ -616,6 +623,21 @@ hasn't dismissed yet. The `results` array contains only newly screened items fro
 The HTML page renders both — pending results appear in a separate "Previous results" section
 above the new results, visually distinguished (e.g. with a "from previous run" badge or
 muted styling). This lets the user see everything they still need to act on in one place.
+
+The `persistence_stats` object tells the HTML page what happened behind the scenes during
+the run. Populate it with actual counts from the current run:
+- `pending_merged` — number of pending results merged from previous runs into this display
+- `pending_total` — total pending results after merge (shown only if no merge happened)
+- `responses_found` — recruiter responses detected in Step 2.5
+- `screened_ids_pruned` — stale screening IDs pruned (>60 days old)
+- `correspondence_pruned` — closed correspondence entries pruned (>90 days old)
+
+The HTML page renders these as a "Session activity" block at the top of results so the
+user can see what the persistence layer did. Only include non-zero counts.
+
+**Sorting:** Results within each source/verdict group are sorted newest-first by
+`email_date` (or `added_at` for pending results). Each card displays an age badge
+(e.g. "today", "2d ago", "1w ago") derived from `email_date`.
 
 If there are no new emails to screen but pending results exist, still generate the results
 page showing the pending items — the user may have come back specifically to review them.
@@ -633,8 +655,9 @@ in the chat, STOP — you are doing it wrong.
 The ONLY thing you output in the chat after screening is:
 
 1. A one-line summary with counts (include pending count if any)
-2. The full HTML report as an **artifact** that opens in the side panel
-3. An offer to export to spreadsheet
+2. A brief persistence activity summary (only non-zero items, one line each)
+3. The full HTML report as an **artifact** that opens in the side panel
+4. An offer to export to spreadsheet
 
 **CRITICAL — use antArtifact tags, NOT a code block or inline HTML:**
 
@@ -649,6 +672,10 @@ Here is the exact output structure — follow it literally:
 ---
 
 Here's your results page — **N interested**, **N maybe**, **N filtered**.
+Merged N pending results from previous runs.
+Found N recruiter response(s) to prior replies.
+
+(Only include the persistence lines that have non-zero counts — omit lines where nothing happened.)
 
 <antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
 <!DOCTYPE html>
