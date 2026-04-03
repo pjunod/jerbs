@@ -74,6 +74,7 @@
     "enabled_at": "",
     "_note": "When false (dry-run), replies are shown as copy-paste text only. When true, Claude sends replies via Gmail and logs them to the correspondence log. Toggle with 'enable send mode' / 'disable send mode'. Claude always confirms before enabling."
   },
+  "results_theme": "terminal",
   "correspondence_log_path": "~/.claude/jerbs/correspondence.json",
   "search_settings": {
     "lookback_days": "auto",

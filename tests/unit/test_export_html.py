@@ -72,7 +72,7 @@ def run_html_export(items, **kwargs):
     with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as f:
         path = f.name
     try:
-        export_to_html(data, path)
+        export_to_html(data, path, theme=kwargs.get("theme"))
         with open(path, encoding="utf-8") as f:
             return f.read()
     finally:
@@ -391,15 +391,16 @@ class TestExportToHtml:
         html = run_html_export([], run_date="2026-04-02")
         assert "2026-04-02</title>" in html
 
-    def test_page_has_both_css_themes(self):
-        html = run_html_export([])
-        assert "css-cards" in html
-        assert "css-terminal" in html
+    def test_page_has_selected_theme_css(self):
+        html_term = run_html_export([], theme="terminal")
+        assert "IBM Plex Mono" in html_term
+        html_cards = run_html_export([], theme="cards")
+        assert "Segoe UI" in html_cards or "sans-serif" in html_cards
 
-    def test_page_has_theme_switcher(self):
-        html = run_html_export([])
-        assert "switchTheme" in html
-        assert "theme-select" in html
+    def test_page_has_single_theme_only(self):
+        html = run_html_export([], theme="terminal")
+        # Should not contain cards-only elements
+        assert "top-bar" not in html
 
     def test_page_has_light_toggle(self):
         html = run_html_export([])
@@ -415,11 +416,11 @@ class TestExportToHtml:
         assert "Send mode" in html
 
     def test_profile_name_shown(self):
-        html = run_html_export([], profile_name="Paul's Job Search")
+        html = run_html_export([], profile_name="Paul's Job Search", theme="cards")
         assert "Paul&#x27;s Job Search" in html
 
     def test_lookback_shown(self):
-        html = run_html_export([], lookback_days="7")
+        html = run_html_export([], lookback_days="7", theme="cards")
         assert "7-day" in html
 
     def test_actions_section_at_top(self):
@@ -467,7 +468,7 @@ class TestExportToHtml:
             make_result("pass", source="Direct Outreach"),
             make_result("pass", source="Job Alert Listings"),
         ]
-        html = run_html_export(items)
+        html = run_html_export(items, theme="cards")
         assert "badge-source" in html
 
     def test_fail_items_contain_reason(self):
@@ -489,11 +490,12 @@ class TestExportToHtml:
             make_result("maybe"),
             make_result("fail"),
         ]
-        html = run_html_export(items)
-        # Check stat boxes
-        assert 'green">2<' in html
-        assert 'yellow">1<' in html
-        assert 'red">1<' in html
+        # Terminal uses pill-num spans
+        html = run_html_export(items, theme="terminal")
+        assert 'pill-num">2<' in html  # 2 interested
+        # Cards uses stat-num spans
+        html_cards = run_html_export(items, theme="cards")
+        assert 'green">2<' in html_cards
 
     def test_footer_present(self):
         html = run_html_export([], run_date="2026-04-02")
@@ -527,7 +529,7 @@ class TestExportToHtml:
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         try:
-            export_to_html({"results": []}, path)
+            export_to_html({"results": []}, path, theme="cards")
             with open(path, encoding="utf-8") as f:
                 html = f.read()
             assert "Job Search" in html  # default profile name
@@ -564,7 +566,7 @@ class TestConstants:
 
     def test_js_not_empty(self):
         assert "toggleCard" in JS
-        assert "switchTheme" in JS
+        assert "toggleLight" in JS
 
     def test_css_cards_has_light_theme(self):
         assert ".light" in CSS_CARDS
@@ -709,34 +711,19 @@ class TestTerminalFail:
 class TestThemeSwitching:
     def test_default_theme_is_terminal(self):
         html = run_html_export([make_result()])
-        # Terminal CSS should be enabled (no disabled attr)
-        assert 'id="css-terminal" >' in html or 'id="css-terminal">' in html
+        # Terminal CSS should be present (IBM Plex Mono font)
+        assert "IBM Plex Mono" in html
+        # Cards-only elements should not be present
+        assert "top-bar" not in html
 
     def test_cards_theme_explicit(self):
-        data = {
-            "run_date": "2026-04-02",
-            "results": [make_result()],
-            "theme": "cards",
-        }
-        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-            path = f.name
-        try:
-            export_to_html(data, path, theme="cards")
-            with open(path, encoding="utf-8") as f:
-                html = f.read()
-            # Cards CSS should be enabled
-            assert 'id="css-cards" >' in html or 'id="css-cards">' in html
-        finally:
-            os.unlink(path)
+        html = run_html_export([make_result()], theme="cards")
+        # Cards CSS should be present (stat boxes)
+        assert "stat-num" in html
+        # Terminal-only elements should not be present
+        assert "filter-bar" not in html
 
     def test_invalid_theme_falls_back_to_default(self):
-        data = {"run_date": "2026-04-02", "results": []}
-        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-            path = f.name
-        try:
-            export_to_html(data, path, theme="invalid")
-            with open(path, encoding="utf-8") as f:
-                html = f.read()
-            assert "css-terminal" in html
-        finally:
-            os.unlink(path)
+        html = run_html_export([], theme="invalid")
+        # Should fall back to terminal
+        assert "IBM Plex Mono" in html
