@@ -28,10 +28,4 @@ jobs:
         run: |
           python -m pytest tests/unit/ -v --tb=short \
             --cov=claude-code --cov=shared/scripts \
-            --cov-report=xml --cov-report=term-missing
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          files: coverage.xml
-          fail_ci_if_error: false
+            --cov-report=term-missing --cov-fail-under=100
