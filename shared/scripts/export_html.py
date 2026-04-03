@@ -82,26 +82,75 @@ def _parse_date(date_str):
         return None
 
 
-def _age_label(date_str, run_date_str=None):
-    """Return a human-readable age label like 'today', '2d ago', '1w ago'."""
+def _age_days(date_str, run_date_str=None):
+    """Return the number of days between date_str and run_date (or today)."""
     dt = _parse_date(date_str)
     if dt is None:
-        return ""
+        return None
     ref = _parse_date(run_date_str) or datetime.today()
     delta = (ref - dt).days
-    if delta < 0:
+    return delta if delta >= 0 else None
+
+
+def _age_label(days):
+    """Return a human-readable age label from a day count."""
+    if days is None:
         return ""
-    if delta == 0:
+    if days == 0:
         return "today"
-    if delta == 1:
+    if days == 1:
         return "1d ago"
-    if delta < 7:
-        return f"{delta}d ago"
-    if delta < 14:
-        return "1w ago"
-    if delta < 30:
-        return f"{delta // 7}w ago"
-    return f"{delta // 30}mo ago"
+    if days <= _PRUNE_DAYS:
+        return f"{days}d ago"
+    if days < 30:
+        return f"{days // 7}w ago"
+    return f"{days // 30}mo ago"
+
+
+_PRUNE_DAYS = 14  # pending results pruned after this many days
+
+
+def _age_color(days):
+    """Return an HSL color string for the age badge.
+
+    Gradient from green (0 days) → red (PRUNE_DAYS), clamped.
+    Hue 120 = green, 60 = yellow, 0 = red.
+    """
+    if days is None:
+        return None
+    t = min(max(days / _PRUNE_DAYS, 0.0), 1.0)
+    hue = 120 * (1 - t)
+    return f"hsl({hue:.0f}, 70%, 42%)"
+
+
+_AGE_BADGE_WIDTH = "58px"
+
+
+def _age_badge_html(date_str, run_date_str=None, is_new=False):
+    """Build a complete age badge <span> with gradient color, or empty string."""
+    w = _AGE_BADGE_WIDTH
+    if is_new:
+        return (
+            f' <span class="age-badge"'
+            f' style="color:#58a6ff;border-color:#58a6ff;'
+            f'min-width:{w};width:{w}">'
+            f"new</span>"
+        )
+    days = _age_days(date_str, run_date_str)
+    label = _age_label(days)
+    if not label:
+        return ""
+    color = _age_color(days)
+    color_style = (
+        f"color:{color};border-color:{color};"
+        if color
+        else ""
+    )
+    return (
+        f' <span class="age-badge"'
+        f' style="{color_style}min-width:{w};width:{w}">'
+        f"{_e(label)}</span>"
+    )
 
 
 def _sort_by_date_desc(items, run_date_str=None):
@@ -300,21 +349,10 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
 .verdict-label.pass { color: var(--green); }
 .verdict-label.maybe { color: var(--yellow); }
 .age-badge {
-  display: inline-block; font-size: 0.7rem; color: var(--text-muted);
-  background: var(--surface); border: 1px solid var(--border);
-  padding: 0.05rem 0.4rem; border-radius: 0.8rem; white-space: nowrap;
-}
-.pending-badge {
-  display: inline-block; font-size: 0.65rem; color: var(--purple, #bc8cff);
-  background: var(--purple-bg, #1c1a2e); border: 1px solid var(--purple, #bc8cff);
-  padding: 0.05rem 0.4rem; border-radius: 0.8rem; white-space: nowrap;
-  margin-left: 0.3rem;
-}
-.pending-section-header {
-  font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.05em; color: var(--purple, #bc8cff);
-  margin: 1.25rem 0 0.75rem; padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--border);
+  display: inline-block; font-size: 0.7rem;
+  background: transparent; border: 1px solid;
+  padding: 0.05rem 0; border-radius: 0.8rem; white-space: nowrap;
+  flex-shrink: 0; text-align: center; box-sizing: border-box;
 }
 .persistence-summary {
   background: var(--surface); border: 1px solid var(--border);
@@ -574,15 +612,10 @@ body::before{content:'';position:fixed;inset:0;
 .draft-send-btn:hover{background:#2b88e6;}
 .sent-label{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:0.08em;
   text-transform:uppercase;margin-top:10px;margin-bottom:4px;}
-.age-badge{font-family:var(--mono);font-size:10px;color:var(--text-dim);
-  background:var(--bg3);border:1px solid var(--border);padding:1px 7px;
-  border-radius:8px;white-space:nowrap;margin-left:4px;}
-.pending-badge{font-family:var(--mono);font-size:9px;color:#bc8cff;
-  background:#1c1a2e;border:1px solid #bc8cff;padding:1px 7px;
-  border-radius:8px;white-space:nowrap;margin-left:4px;}
-.pending-section-header{font-family:var(--mono);font-size:12px;font-weight:600;
-  letter-spacing:0.08em;text-transform:uppercase;color:#bc8cff;
-  margin:20px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.age-badge{font-family:var(--mono);font-size:10px;
+  background:transparent;border:1px solid;padding:1px 0;
+  border-radius:8px;white-space:nowrap;flex-shrink:0;align-self:center;
+  text-align:center;box-sizing:border-box;}
 .persistence-summary{background:var(--bg2);border:1px solid var(--border);
   border-radius:6px;padding:14px 20px;margin-bottom:20px;
   font-family:var(--mono);font-size:11px;}
@@ -803,13 +836,10 @@ def build_terminal_card(item, verdict, run_date=None):
     source = item.get("source", "")
     source_label = SOURCE_LABELS.get(source, source)
     date_str = item.get("email_date") or item.get("added_at") or ""
-    age = _age_label(date_str, run_date)
+    is_new = item.get("status") != "pending"
 
     comp_meta = f" \u00b7 {_e(comp)}" if comp else ""
-    age_html = f' <span class="age-badge">{_e(age)}</span>' if age else ""
-    is_pending = item.get("status") == "pending"
-    pending_html = ' <span class="pending-badge">previous run</span>' if is_pending else ""
-
+    age_html = _age_badge_html(date_str, run_date, is_new=is_new)
     body_parts = []
     if reason:
         body_parts.append(
@@ -837,10 +867,11 @@ def build_terminal_card(item, verdict, run_date=None):
         '<div class="card-title-row">'
         f'<span class="company">{company}</span>'
         f'<span class="role">{role}</span>'
-        f"{age_html}{pending_html}</div>"
+        "</div>"
         f'<div class="card-meta"><span>{location}</span>'
         f"<span>{_e(source_label)}{comp_meta}</span></div>"
-        '</div><div class="card-toggle">\u25ba</div></div>'
+        f"</div>{age_html}"
+        '<div class="card-toggle">\u25ba</div></div>'
         f'<div class="card-body">{"".join(body_parts)}</div></div>'
     )
 
@@ -878,11 +909,8 @@ def build_cards_card(item, verdict, run_date=None):
         f'<span class="badge badge-source">{_e(source_label)}</span>' if source_label else ""
     )
     date_str = item.get("email_date") or item.get("added_at") or ""
-    age = _age_label(date_str, run_date)
-    age_html = f' <span class="age-badge">{_e(age)}</span>' if age else ""
-    is_pending = item.get("status") == "pending"
-    pending_html = ' <span class="pending-badge">previous run</span>' if is_pending else ""
-
+    is_new = item.get("status") != "pending"
+    age_html = _age_badge_html(date_str, run_date, is_new=is_new)
     links = []
     if posting_url:
         links.append(_link(posting_url, "View posting"))
@@ -911,9 +939,10 @@ def build_cards_card(item, verdict, run_date=None):
     return (
         f'<div class="card {css_class}" data-verdict="{css_class}">'
         '<div class="card-top">'
-        f"<div><h3>{company} — {role}{age_html}{pending_html}</h3>"
+        f"<div><h3>{company} — {role}</h3>"
         f'<span class="location">{location}</span></div>'
-        f'<div><span class="badge {badge_class}">{badge_label}</span>'
+        f"<div>{age_html}"
+        f' <span class="badge {badge_class}">{badge_label}</span>'
         f"{source_badge}</div></div>"
         f'<div class="card-body">{reason_html}'
         f"{comp_html}{missing_html}{_build_draft_html(item)}</div>"
@@ -1044,29 +1073,6 @@ def _resolve_pending(results_data, new_message_ids):
     return [p for p in pending if p.get("message_id") not in new_message_ids]
 
 
-def _build_pending_cards(pending, theme, run_date):
-    """Build HTML for the pending results section."""
-    if not pending:
-        return []
-
-    parts = []
-    parts.append(f'<div class="pending-section-header">Previous Results ({len(pending)})</div>')
-
-    passes = _sort_by_date_desc([p for p in pending if p.get("verdict") == "pass"], run_date)
-    maybes = _sort_by_date_desc([p for p in pending if p.get("verdict") == "maybe"], run_date)
-
-    card_fn = build_terminal_card if theme == "terminal" else build_cards_card
-
-    if passes:
-        for item in passes:
-            parts.append(card_fn(item, "pass", run_date))
-    if maybes:
-        for item in maybes:
-            parts.append(card_fn(item, "maybe", run_date))
-
-    return parts
-
-
 # ── Main export ──────────────────────────────────────────────────────────────
 
 
@@ -1083,18 +1089,18 @@ def export_to_html(results_data, output_path, theme=None):
     actions = results_data.get("actions", [])
     results = results_data.get("results", [])
 
-    # Resolve pending results (from JSON field or criteria.json fallback)
+    # Merge pending results into the main results list so they appear
+    # in the same source/verdict groups, distinguished only by age badge.
     new_ids = {r["message_id"] for r in results if r.get("message_id")}
     pending = _resolve_pending(results_data, new_ids)
+    results = results + pending
 
     passes = [r for r in results if r.get("verdict") == "pass"]
     maybes = [r for r in results if r.get("verdict") == "maybe"]
     fails = [r for r in results if r.get("verdict") == "fail"]
-    p_passes = [p for p in pending if p.get("verdict") == "pass"]
-    p_maybes = [p for p in pending if p.get("verdict") == "maybe"]
     counts = {
-        "pass": len(passes) + len(p_passes),
-        "maybe": len(maybes) + len(p_maybes),
+        "pass": len(passes),
+        "maybe": len(maybes),
         "fail": len(fails),
     }
     total = sum(counts.values())
@@ -1236,11 +1242,6 @@ def export_to_html(results_data, output_path, theme=None):
 
         parts.append("</details>\n")
 
-    # Pending results from previous runs
-    pending_cards = _build_pending_cards(pending, theme, run_date)
-    if pending_cards:
-        parts.extend(pending_cards)
-
     # Filtered section — collapsible, default collapsed
     if fails:
         if theme == "terminal":
@@ -1267,8 +1268,7 @@ def export_to_html(results_data, output_path, theme=None):
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
 
-    pending_note = f" (+{len(pending)} from previous runs)" if pending else ""
-    print(f"Exported {total} results{pending_note} → {output_path}")
+    print(f"Exported {total} results → {output_path}")
 
 
 if __name__ == "__main__":

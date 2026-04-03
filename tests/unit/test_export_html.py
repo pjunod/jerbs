@@ -21,9 +21,11 @@ from export_html import (
     VERDICT_BADGE_CLASS,
     VERDICT_CSS_CLASS,
     VERDICT_LABELS,
+    _age_badge_html,
+    _age_color,
+    _age_days,
     _age_label,
     _build_missing_tags,
-    _build_pending_cards,
     _build_persistence_summary,
     _e,
     _link,
@@ -787,37 +789,102 @@ class TestParseDate:
 
 
 # ---------------------------------------------------------------------------
-# _age_label
+# _age_days
+# ---------------------------------------------------------------------------
+
+
+class TestAgeDays:
+    def test_same_day(self):
+        assert _age_days("2026-04-03", "2026-04-03") == 0
+
+    def test_one_day(self):
+        assert _age_days("2026-04-02", "2026-04-03") == 1
+
+    def test_several_days(self):
+        assert _age_days("2026-03-30", "2026-04-03") == 4
+
+    def test_empty_returns_none(self):
+        assert _age_days("", "2026-04-03") is None
+
+    def test_none_returns_none(self):
+        assert _age_days(None, "2026-04-03") is None
+
+    def test_future_returns_none(self):
+        assert _age_days("2026-04-05", "2026-04-03") is None
+
+
+# ---------------------------------------------------------------------------
+# _age_label (takes day count)
 # ---------------------------------------------------------------------------
 
 
 class TestAgeLabel:
     def test_today(self):
-        assert _age_label("2026-04-03", "2026-04-03") == "today"
+        assert _age_label(0) == "today"
 
     def test_one_day_ago(self):
-        assert _age_label("2026-04-02", "2026-04-03") == "1d ago"
+        assert _age_label(1) == "1d ago"
 
     def test_days_ago(self):
-        assert _age_label("2026-03-30", "2026-04-03") == "4d ago"
+        assert _age_label(4) == "4d ago"
 
-    def test_one_week_ago(self):
-        assert _age_label("2026-03-27", "2026-04-03") == "1w ago"
+    def test_14d_ago(self):
+        assert _age_label(14) == "14d ago"
 
     def test_weeks_ago(self):
-        assert _age_label("2026-03-15", "2026-04-03") == "2w ago"
+        assert _age_label(19) == "2w ago"
 
     def test_month_ago(self):
-        assert _age_label("2026-03-01", "2026-04-03") == "1mo ago"
+        assert _age_label(33) == "1mo ago"
+
+    def test_none_returns_empty(self):
+        assert _age_label(None) == ""
+
+
+# ---------------------------------------------------------------------------
+# _age_color
+# ---------------------------------------------------------------------------
+
+
+class TestAgeColor:
+    def test_zero_days_is_green(self):
+        assert _age_color(0) == "hsl(120, 70%, 42%)"
+
+    def test_14_days_is_red(self):
+        assert _age_color(14) == "hsl(0, 70%, 42%)"
+
+    def test_7_days_is_midpoint(self):
+        assert _age_color(7) == "hsl(60, 70%, 42%)"
+
+    def test_none_returns_none(self):
+        assert _age_color(None) is None
+
+    def test_clamps_above_prune(self):
+        assert _age_color(30) == "hsl(0, 70%, 42%)"
+
+
+# ---------------------------------------------------------------------------
+# _age_badge_html
+# ---------------------------------------------------------------------------
+
+
+class TestAgeBadgeHtml:
+    def test_new_badge_is_blue(self):
+        html = _age_badge_html("2026-04-03", "2026-04-03", is_new=True)
+        assert "new" in html
+        assert "#58a6ff" in html
+
+    def test_pending_badge_has_age(self):
+        html = _age_badge_html("2026-04-01", "2026-04-03", is_new=False)
+        assert "2d ago" in html
+        assert "hsl(" in html
 
     def test_empty_date_returns_empty(self):
-        assert _age_label("", "2026-04-03") == ""
+        assert _age_badge_html("", "2026-04-03") == ""
 
-    def test_none_date_returns_empty(self):
-        assert _age_label(None, "2026-04-03") == ""
-
-    def test_future_date_returns_empty(self):
-        assert _age_label("2026-04-05", "2026-04-03") == ""
+    def test_fixed_width(self):
+        html = _age_badge_html("2026-04-03", "2026-04-03", is_new=True)
+        assert "58px" in html
 
 
 # ---------------------------------------------------------------------------
@@ -1094,64 +1161,40 @@ class TestLoadPendingFallback:
         assert result == []
 
 
-class TestBuildPendingCards:
-    def test_no_output_when_empty(self):
-        assert _build_pending_cards([], "terminal", "2026-04-02") == []
-
-    def test_renders_section_header(self):
-        parts = _build_pending_cards([make_pending()], "terminal", "2026-04-02")
-        html = "\n".join(parts)
-        assert "Previous Results" in html
-        assert "pending-section-header" in html
-
-    def test_renders_terminal_cards(self):
-        parts = _build_pending_cards([make_pending()], "terminal", "2026-04-02")
-        html = "\n".join(parts)
-        assert "OldCorp" in html
-        assert "card pass" in html
-
-    def test_renders_cards_theme(self):
-        parts = _build_pending_cards([make_pending()], "cards", "2026-04-02")
-        html = "\n".join(parts)
-        assert "OldCorp" in html
-
-    def test_groups_by_verdict(self):
-        items = [
-            make_pending("pass", "PassCo", message_id="p1"),
-            make_pending("maybe", "MaybeCo", message_id="p2"),
-        ]
-        parts = _build_pending_cards(items, "terminal", "2026-04-02")
-        html = "\n".join(parts)
-        assert "PassCo" in html
-        assert "MaybeCo" in html
-
-
-class TestPendingBadge:
-    def test_terminal_card_shows_badge_for_pending(self):
-        item = make_pending()
-        html = build_terminal_card(item, "pass", "2026-04-02")
-        assert "pending-badge" in html
-        assert "previous run" in html
-
-    def test_terminal_card_no_badge_for_new(self):
+class TestAgeBadgeInCards:
+    def test_terminal_card_shows_new_badge_for_new_item(self):
         item = make_result()
         html = build_terminal_card(item, "pass", "2026-04-02")
-        assert "pending-badge" not in html
+        assert "#58a6ff" in html
+        assert "new" in html
 
-    def test_cards_card_shows_badge_for_pending(self):
+    def test_terminal_card_shows_age_for_pending(self):
         item = make_pending()
-        html = build_cards_card(item, "pass", "2026-04-02")
-        assert "pending-badge" in html
-        assert "previous run" in html
+        html = build_terminal_card(item, "pass", "2026-04-02")
+        assert "d ago" in html or "today" in html
+        assert "hsl(" in html
 
-    def test_cards_card_no_badge_for_new(self):
+    def test_cards_card_shows_new_badge_for_new_item(self):
         item = make_result()
         html = build_cards_card(item, "pass", "2026-04-02")
-        assert "pending-badge" not in html
+        assert "#58a6ff" in html
+        assert "new" in html
+
+    def test_cards_card_shows_age_for_pending(self):
+        item = make_pending()
+        html = build_cards_card(item, "pass", "2026-04-02")
+        assert "d ago" in html or "today" in html
+        assert "hsl(" in html
+
+    def test_badges_have_fixed_width(self):
+        new_html = build_terminal_card(make_result(), "pass", "2026-04-02")
+        pend_html = build_terminal_card(make_pending(), "pass", "2026-04-02")
+        assert "58px" in new_html
+        assert "58px" in pend_html
 
 
-class TestPendingInFullExport:
-    def test_pending_included_in_html(self):
+class TestPendingMergedInFullExport:
+    def test_pending_merged_into_source_groups(self):
         pending = [make_pending()]
         html = run_html_export(
             [make_result(company="NewCo")],
@@ -1159,7 +1202,8 @@ class TestPendingInFullExport:
         )
         assert "OldCorp" in html
         assert "NewCo" in html
-        assert "Previous Results" in html
+        # No separate "Previous Results" section
+        assert "Previous Results" not in html
 
     def test_pending_counted_in_header(self):
         pending = [make_pending("pass", message_id="p1")]
@@ -1170,51 +1214,14 @@ class TestPendingInFullExport:
         # 2 pass total (1 new + 1 pending)
         assert ">2<" in html
 
-    def test_no_pending_section_when_empty(self):
-        html = run_html_export([make_result()])
-        assert "Previous Results" not in html
-
     def test_pending_deduped_against_new(self):
         pending = [make_pending(message_id="same_id")]
         new = [make_result(company="NewCo", message_id="same_id")]
         html = run_html_export(new, pending_results=pending)
-        assert "Previous Results" not in html
+        # OldCorp should be excluded (same message_id as NewCo)
+        assert "OldCorp" not in html
 
     def test_only_pending_no_new_results(self):
         pending = [make_pending()]
         html = run_html_export([], pending_results=pending)
         assert "OldCorp" in html
-        assert "Previous Results" in html
-
-    def test_print_includes_pending_note(self, capsys):
-        pending = [make_pending()]
-        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-            path = f.name
-        try:
-            export_to_html(
-                {
-                    "results": [make_result()],
-                    "pending_results": pending,
-                },
-                path,
-            )
-            captured = capsys.readouterr()
-            assert "+1 from previous runs" in captured.out
-        finally:
-            os.unlink(path)
-
-    def test_print_no_pending_note_when_empty(self, capsys):
-        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-            path = f.name
-        try:
-            export_to_html(
-                {
-                    "results": [make_result()],
-                    "pending_results": [],
-                },
-                path,
-            )
-            captured = capsys.readouterr()
-            assert "previous runs" not in captured.out
-        finally:
-            os.unlink(path)
