@@ -21,11 +21,16 @@ from export_html import (
     VERDICT_BADGE_CLASS,
     VERDICT_CSS_CLASS,
     VERDICT_LABELS,
+    _age_label,
     _build_missing_tags,
+    _build_persistence_summary,
     _e,
     _link,
+    _parse_date,
+    _sort_by_date_desc,
     build_action_banner,
     build_card,
+    build_cards_card,
     build_fail_row,
     build_fail_table,
     build_stats_html,
@@ -69,6 +74,8 @@ def run_html_export(items, **kwargs):
         "actions": kwargs.get("actions", []),
         "results": items,
     }
+    if "persistence_stats" in kwargs:
+        data["persistence_stats"] = kwargs["persistence_stats"]
     with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as f:
         path = f.name
     try:
@@ -745,3 +752,254 @@ class TestThemeSwitching:
         html = run_html_export([], theme="invalid")
         # Should fall back to terminal
         assert "IBM Plex Mono" in html
+
+
+# ---------------------------------------------------------------------------
+# _parse_date
+# ---------------------------------------------------------------------------
+
+
+class TestParseDate:
+    def test_parses_yyyy_mm_dd(self):
+        dt = _parse_date("2026-04-01")
+        assert dt is not None
+        assert dt.year == 2026
+        assert dt.month == 4
+        assert dt.day == 1
+
+    def test_parses_iso_format(self):
+        dt = _parse_date("2026-04-01T14:30:00Z")
+        assert dt is not None
+        assert dt.day == 1
+
+    def test_empty_string_returns_none(self):
+        assert _parse_date("") is None
+
+    def test_none_returns_none(self):
+        assert _parse_date(None) is None
+
+    def test_invalid_string_returns_none(self):
+        assert _parse_date("not-a-date") is None
+
+
+# ---------------------------------------------------------------------------
+# _age_label
+# ---------------------------------------------------------------------------
+
+
+class TestAgeLabel:
+    def test_today(self):
+        assert _age_label("2026-04-03", "2026-04-03") == "today"
+
+    def test_one_day_ago(self):
+        assert _age_label("2026-04-02", "2026-04-03") == "1d ago"
+
+    def test_days_ago(self):
+        assert _age_label("2026-03-30", "2026-04-03") == "4d ago"
+
+    def test_one_week_ago(self):
+        assert _age_label("2026-03-27", "2026-04-03") == "1w ago"
+
+    def test_weeks_ago(self):
+        assert _age_label("2026-03-15", "2026-04-03") == "2w ago"
+
+    def test_month_ago(self):
+        assert _age_label("2026-03-01", "2026-04-03") == "1mo ago"
+
+    def test_empty_date_returns_empty(self):
+        assert _age_label("", "2026-04-03") == ""
+
+    def test_none_date_returns_empty(self):
+        assert _age_label(None, "2026-04-03") == ""
+
+    def test_future_date_returns_empty(self):
+        assert _age_label("2026-04-05", "2026-04-03") == ""
+
+
+# ---------------------------------------------------------------------------
+# _sort_by_date_desc
+# ---------------------------------------------------------------------------
+
+
+class TestSortByDateDesc:
+    def test_sorts_newest_first(self):
+        items = [
+            {"email_date": "2026-03-30", "company": "Old"},
+            {"email_date": "2026-04-02", "company": "New"},
+            {"email_date": "2026-04-01", "company": "Mid"},
+        ]
+        result = _sort_by_date_desc(items)
+        assert [r["company"] for r in result] == ["New", "Mid", "Old"]
+
+    def test_uses_added_at_as_fallback(self):
+        items = [
+            {"added_at": "2026-03-28", "company": "Old"},
+            {"email_date": "2026-04-01", "company": "New"},
+        ]
+        result = _sort_by_date_desc(items)
+        assert result[0]["company"] == "New"
+
+    def test_items_without_date_sort_last(self):
+        items = [
+            {"company": "NoDate"},
+            {"email_date": "2026-04-01", "company": "HasDate"},
+        ]
+        result = _sort_by_date_desc(items)
+        assert result[0]["company"] == "HasDate"
+        assert result[1]["company"] == "NoDate"
+
+    def test_empty_list(self):
+        assert _sort_by_date_desc([]) == []
+
+    def test_preserves_original_list(self):
+        items = [
+            {"email_date": "2026-03-30"},
+            {"email_date": "2026-04-02"},
+        ]
+        _sort_by_date_desc(items)
+        assert items[0]["email_date"] == "2026-03-30"
+
+
+# ---------------------------------------------------------------------------
+# _build_persistence_summary
+# ---------------------------------------------------------------------------
+
+
+class TestBuildPersistenceSummary:
+    def test_empty_when_no_stats(self):
+        assert _build_persistence_summary({}) == ""
+        assert _build_persistence_summary({"persistence_stats": {}}) == ""
+
+    def test_empty_when_all_zero(self):
+        stats = {
+            "persistence_stats": {
+                "pending_merged": 0,
+                "responses_found": 0,
+                "screened_ids_pruned": 0,
+                "correspondence_pruned": 0,
+            }
+        }
+        assert _build_persistence_summary(stats) == ""
+
+    def test_shows_merged_pending(self):
+        html = _build_persistence_summary({"persistence_stats": {"pending_merged": 3}})
+        assert "Merged 3 pending results" in html
+        assert "persistence-summary" in html
+
+    def test_shows_responses_found(self):
+        html = _build_persistence_summary({"persistence_stats": {"responses_found": 1}})
+        assert "Found 1 recruiter response" in html
+
+    def test_shows_pruned_ids(self):
+        html = _build_persistence_summary({"persistence_stats": {"screened_ids_pruned": 12}})
+        assert "Pruned 12 stale screening records" in html
+
+    def test_shows_correspondence_pruned(self):
+        html = _build_persistence_summary({"persistence_stats": {"correspondence_pruned": 2}})
+        assert "Pruned 2 closed correspondence entries" in html
+
+    def test_shows_pending_total_when_no_merge(self):
+        html = _build_persistence_summary({"persistence_stats": {"pending_total": 5}})
+        assert "5 pending results carried forward" in html
+
+    def test_hides_pending_total_when_merged(self):
+        html = _build_persistence_summary(
+            {"persistence_stats": {"pending_merged": 2, "pending_total": 5}}
+        )
+        assert "carried forward" not in html
+
+    def test_singular_forms(self):
+        html = _build_persistence_summary({"persistence_stats": {"pending_merged": 1}})
+        assert "1 pending result from" in html
+        assert "results" not in html
+
+    def test_multiple_stats_combined(self):
+        html = _build_persistence_summary(
+            {
+                "persistence_stats": {
+                    "pending_merged": 2,
+                    "responses_found": 1,
+                    "screened_ids_pruned": 5,
+                }
+            }
+        )
+        assert "Merged 2" in html
+        assert "Found 1" in html
+        assert "Pruned 5" in html
+
+
+# ---------------------------------------------------------------------------
+# Age badges in cards
+# ---------------------------------------------------------------------------
+
+
+class TestAgeBadgeInCards:
+    def test_terminal_card_shows_age_badge(self):
+        item = make_result(email_date="2026-04-01")
+        html = build_terminal_card(item, "pass", run_date="2026-04-03")
+        assert "age-badge" in html
+        assert "2d ago" in html
+
+    def test_terminal_card_no_badge_without_date(self):
+        item = make_result()
+        html = build_terminal_card(item, "pass", run_date="2026-04-03")
+        assert "age-badge" not in html
+
+    def test_cards_card_shows_age_badge(self):
+        item = make_result(email_date="2026-04-03")
+        html = build_cards_card(item, "pass", run_date="2026-04-03")
+        assert "age-badge" in html
+        assert "today" in html
+
+    def test_cards_card_no_badge_without_date(self):
+        item = make_result()
+        html = build_cards_card(item, "pass", run_date="2026-04-03")
+        assert "age-badge" not in html
+
+    def test_uses_added_at_for_age(self):
+        item = make_result(added_at="2026-04-02")
+        html = build_terminal_card(item, "pass", run_date="2026-04-03")
+        assert "age-badge" in html
+        assert "1d ago" in html
+
+
+# ---------------------------------------------------------------------------
+# Sorting in full export
+# ---------------------------------------------------------------------------
+
+
+class TestSortingInExport:
+    def test_results_sorted_newest_first_within_section(self):
+        items = [
+            make_result("pass", company="OldCo", email_date="2026-03-30"),
+            make_result("pass", company="NewCo", email_date="2026-04-02"),
+        ]
+        html = run_html_export(items, run_date="2026-04-03")
+        assert html.index("NewCo") < html.index("OldCo")
+
+    def test_maybe_results_also_sorted(self):
+        items = [
+            make_result("maybe", company="OldMaybe", email_date="2026-03-28"),
+            make_result("maybe", company="NewMaybe", email_date="2026-04-01"),
+        ]
+        html = run_html_export(items, run_date="2026-04-03")
+        assert html.index("NewMaybe") < html.index("OldMaybe")
+
+
+# ---------------------------------------------------------------------------
+# Persistence summary in full export
+# ---------------------------------------------------------------------------
+
+
+class TestPersistenceSummaryInExport:
+    def test_persistence_summary_rendered(self):
+        html = run_html_export(
+            [],
+            persistence_stats={"pending_merged": 3},
+        )
+        assert "persistence-summary" in html
+        assert "Merged 3" in html
+
+    def test_no_persistence_summary_when_empty(self):
+        html = run_html_export([])
+        assert '<div class="persistence-summary">' not in html
