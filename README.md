@@ -2,7 +2,7 @@
 
 [![Unit tests](https://github.com/pjunod/jerbs/actions/workflows/test.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/test.yml)
 [![Lint](https://github.com/pjunod/jerbs/actions/workflows/lint.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/lint.yml)
-[![Coverage](https://codecov.io/gh/pjunod/jerbs/graph/badge.svg)](https://codecov.io/gh/pjunod/jerbs)
+[![Coverage: 100%](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/pjunod/jerbs/actions/workflows/test.yml)
 [![Prompt injection security](https://github.com/pjunod/jerbs/actions/workflows/redteam.yml/badge.svg)](https://github.com/pjunod/jerbs/actions/workflows/redteam.yml)
 
 A Claude skill that screens your job-related emails against your personal criteria, drafts
