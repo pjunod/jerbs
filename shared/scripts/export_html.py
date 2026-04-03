@@ -141,15 +141,9 @@ def _age_badge_html(date_str, run_date_str=None, is_new=False):
     if not label:
         return ""
     color = _age_color(days)
-    color_style = (
-        f"color:{color};border-color:{color};"
-        if color
-        else ""
-    )
+    color_style = f"color:{color};border-color:{color};" if color else ""
     return (
-        f' <span class="age-badge"'
-        f' style="{color_style}min-width:{w};width:{w}">'
-        f"{_e(label)}</span>"
+        f' <span class="age-badge" style="{color_style}min-width:{w};width:{w}">{_e(label)}</span>'
     )
 
 
