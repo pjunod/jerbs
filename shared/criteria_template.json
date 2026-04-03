@@ -88,5 +88,6 @@
     "_note": "When true, jerbs screens LinkedIn DMs in addition to Gmail. Requires linkedin_cookies.json in ~/.jerbs/."
   },
   "screened_message_ids": [],
+  "pending_results": [],
   "last_run_date": ""
 }

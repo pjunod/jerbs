@@ -120,7 +120,12 @@ def run_screen(
         linkedin=linkedin,
     )
 
-    if not results:
+    # Load and display pending results from previous runs
+    pending = _load_pending_results(criteria)
+    if pending:
+        log(f"Pending from previous runs: {len(pending)} items still awaiting action")
+
+    if not results and not pending:
         log("No new emails to screen.")
         return False
 
@@ -135,12 +140,15 @@ def run_screen(
         for r in results:
             _log_result(r, gmail, criteria, send_mode, linkedin=linkedin)
 
+    # Combine new pass/maybe results with existing pending results for export
+    all_actionable = pending + [r for r in results if r["verdict"] in ("pass", "maybe")]
     if export:
-        _export_results(results, criteria)
+        _export_results(all_actionable + filtered, criteria)
 
     criteria["last_run_date"] = datetime.now(UTC).strftime("%Y-%m-%d")
     new_ids = [r["message_id"] for r in results if r.get("message_id")]
     _update_screened_ids(criteria, new_ids)
+    _update_pending_results(criteria, results)
     _prune_correspondence_log(criteria)
     save_criteria(criteria, CRITERIA_PATH)
 
@@ -175,6 +183,49 @@ def _export_results(results: list, criteria: dict):
         log(f"Exported to {out}")
     except Exception as e:
         log(f"Export failed: {e}")
+
+
+def _load_pending_results(criteria: dict) -> list[dict]:
+    """
+    Load pending results from previous runs that haven't been dismissed.
+    Prunes entries older than 14 days.
+    """
+    today = datetime.now(UTC)
+    cutoff = (today - timedelta(days=14)).strftime("%Y-%m-%d")
+
+    pending = []
+    for entry in criteria.get("pending_results", []):
+        if entry.get("added_at", "") >= cutoff:
+            pending.append(entry)
+
+    return pending
+
+
+def _update_pending_results(criteria: dict, new_results: list[dict]) -> None:
+    """
+    Merge new pass/maybe results into pending_results, prune old entries.
+
+    Each pending result is the full result dict plus:
+    - added_at: date when the result was first added
+    - status: "pending" (dismissed items are removed entirely)
+    """
+    today_str = datetime.now(UTC).strftime("%Y-%m-%d")
+    cutoff = (datetime.now(UTC) - timedelta(days=14)).strftime("%Y-%m-%d")
+
+    # Index existing pending by message_id for dedup
+    existing: dict[str, dict] = {}
+    for entry in criteria.get("pending_results", []):
+        if entry.get("added_at", "") >= cutoff:
+            existing[entry["message_id"]] = entry
+
+    # Add new pass/maybe results
+    for r in new_results:
+        if r["verdict"] in ("pass", "maybe") and r.get("message_id"):
+            if r["message_id"] not in existing:
+                entry = {**r, "added_at": today_str, "status": "pending"}
+                existing[r["message_id"]] = entry
+
+    criteria["pending_results"] = list(existing.values())
 
 
 def _update_screened_ids(criteria: dict, new_ids: list[str]) -> None:

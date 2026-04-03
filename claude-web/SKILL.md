@@ -46,7 +46,8 @@ If no Drive MCP is connected:
     "_version": "2.0",
     "criteria": { ... },
     "correspondence": [ ... ],
-    "screened_message_ids": [ ... ]
+    "screened_message_ids": [ ... ],
+    "pending_results": [ ... ]
   }
   ```
 - At the end of any run where state changed, output the single file in a code block
@@ -442,6 +443,36 @@ If the LinkedIn MCP is not connected, skip Pass 3 silently — do not prompt the
 After screening, add all newly screened message IDs to `screened_message_ids`, set
 `last_run_date` to today, and save the criteria file.
 
+### Pending results persistence
+
+Results with pass or maybe verdicts are saved to `pending_results` in the state file so
+they survive across sessions. This ensures the user can return to previous results that
+they haven't acted on yet.
+
+**After screening**, merge new pass/maybe results into `pending_results`. Each entry is the
+full result object plus:
+- `added_at` — date when the result was first added (for pruning)
+- `status` — always `"pending"` (dismissed items are removed entirely)
+
+**Deduplication:** If a message_id already exists in `pending_results`, keep the existing
+entry — do not add a duplicate.
+
+**Pruning:** Remove entries older than 14 days (based on `added_at`).
+
+**On each run**, load `pending_results` before screening. Include them in the results
+display alongside newly screened items — mark them visually as "from previous run" so
+the user can distinguish new results from carried-over ones.
+
+If there are no new emails to screen but pending results exist, still generate the results
+page showing the pending items — the user may have come back specifically to review them.
+
+**Dismissing results:** Users can remove items from pending_results:
+- "Dismiss [company]" → remove matching entries, save
+- "Clear pending results" / "Dismiss all" → empty the array, save
+
+When an item is dismissed, it stays in `screened_message_ids` (so it won't be re-screened)
+but is removed from `pending_results` (so it won't be shown again).
+
 ---
 
 ## Step 4 — Screen each item
@@ -571,13 +602,23 @@ The HTML template renders these fields into cards with:
   "mode": "dry-run | send",
   "lookback_days": N,
   "actions": [ ...action objects from Step 2.5... ],
-  "results": [ ...result objects... ]
+  "pending_results": [ ...pending result objects from previous runs... ],
+  "results": [ ...newly screened result objects... ]
 }
 ```
 
 The `actions` array drives the **Action Needed** banners at the top of the HTML page.
 Each action has `title`, `body`, and `links` (array of `{label, url}` objects). If
 there are no active threads, leave it as an empty array.
+
+The `pending_results` array contains pass/maybe results from previous runs that the user
+hasn't dismissed yet. The `results` array contains only newly screened items from this run.
+The HTML page renders both — pending results appear in a separate "Previous results" section
+above the new results, visually distinguished (e.g. with a "from previous run" badge or
+muted styling). This lets the user see everything they still need to act on in one place.
+
+If there are no new emails to screen but pending results exist, still generate the results
+page showing the pending items — the user may have come back specifically to review them.
 
 ---
 
@@ -591,7 +632,7 @@ in the chat, STOP — you are doing it wrong.
 
 The ONLY thing you output in the chat after screening is:
 
-1. A one-line summary with counts
+1. A one-line summary with counts (include pending count if any)
 2. The full HTML report as an **artifact** that opens in the side panel
 3. An offer to export to spreadsheet
 
@@ -686,6 +727,9 @@ Users can update any section at any time without re-doing the full wizard:
 - "Reset my criteria" → re-run full wizard
 - "Show my current criteria" → print full profile summary
 - "Clear my screening history" → empty screened_message_ids, save
+- "Dismiss [company]" → remove matching entries from pending_results, save
+- "Dismiss all" / "Clear pending results" → empty pending_results, save
+- "Show pending" → list companies/roles still in pending_results
 
 Always confirm changes before saving: "Got it — I'll [change]. Save?"
 
