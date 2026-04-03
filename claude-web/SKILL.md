@@ -455,23 +455,39 @@ would accept a specific city for higher comp, note that in the assessment.
 For any pass/maybe, check which required fields are missing and draft a single reply
 requesting all of them at once.
 
-### Draft replies
-- Only for pass and maybe verdicts
-- Use user's configured tone and signature
-- Direct — no sycophantic opener
-- Request all missing required fields in one message
-- **In dry-run mode:** Create a Gmail draft reply in the correct thread using
-  `gmail_create_draft`, then show the reply text and a clickable link to the draft.
-  The draft link format is: `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
-  where `draft_message_id` comes from the `gmail_create_draft` response. Label it:
-  `📋 Draft reply — [click to review & send](draft_url)`
-  followed by the full reply text so the user can read it inline. The user can click the
-  link to open the draft in Gmail and send it with one click, or ignore it to leave unsent.
-- **In send mode:** Send the reply via `gmail_send_message`, replying to the correct thread.
-  Always show the full text of what was sent. Label it: `✅ Sent`
-- **Never include any criteria values** — no salary figures, TC targets, company names
-  from the whitelist/blacklist, or negotiation details. Ask for *their* details without
-  revealing yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
+### Draft replies (MUST happen during screening, not after)
+
+For every pass and maybe verdict, you MUST create a draft reply **during screening**
+before moving to the next item. Do NOT skip this step. Do NOT defer it to later.
+The draft reply text and Gmail draft URL are stored in the result object and rendered
+in the HTML results page — this is the ONLY place the user sees them.
+
+**Workflow for each pass/maybe item:**
+1. Determine verdict and reason
+2. Compose the reply text:
+   - Use user's configured tone and signature
+   - Direct — no sycophantic opener
+   - Request all missing required fields in one message
+   - **Never include any criteria values** — no salary figures, TC targets, company
+     names from the whitelist/blacklist. Ask for *their* details without revealing
+     yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
+3. Call `gmail_create_draft` with the reply text, replying to the correct thread
+4. Store the results in the result object:
+   - `reply_draft` = the full reply text you composed
+   - `draft_url` = `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
+     (where `draft_message_id` comes from the `gmail_create_draft` response)
+   - `sent` = false (dry-run) or true (send mode)
+
+**In send mode:** Use `gmail_send_message` instead of `gmail_create_draft`. Set
+`sent: true` in the result object.
+
+The HTML card will then render:
+- The full draft reply text (so the user can read it inline)
+- A clickable "review & send" link that opens the Gmail draft
+- The user clicks the link, reviews the draft in Gmail, and sends with one click
+
+**If you skip `gmail_create_draft`, the result cards will have no reply text and no
+send link — this defeats the entire purpose of the tool.**
 
 ### Result object schema
 
@@ -505,7 +521,9 @@ drive the HTML card rendering — missing fields mean missing UI elements.
 
 **Key rules:**
 - `email_url` is ALWAYS set — construct from message_id: `https://mail.google.com/mail/u/0/#inbox/<message_id>`
-- `reply_draft` + `draft_url` are set for every pass/maybe verdict after calling `gmail_create_draft`
+- `reply_draft` + `draft_url` MUST be set for every pass/maybe verdict. You MUST call
+  `gmail_create_draft` for each one during screening. If these fields are empty, the
+  card will have no reply and no send link — the user cannot act on the result.
 - `posting_url` is set when the email contains a link to a job posting
 - `comp_assessment` uses the user's sliding_scale_notes to give an honest assessment
 - `missing_fields` lists fields from the user's required_info that weren't in the email

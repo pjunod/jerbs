@@ -355,31 +355,36 @@ would accept a specific city for higher comp, note that in the assessment.
 For any pass/maybe, check which required fields are missing and draft a single reply
 requesting all of them at once.
 
-### Draft replies
-- Only for pass and maybe verdicts
-- Use user's configured tone and signature
-- Direct — no sycophantic opener
-- Request all missing required fields in one message
-- **Never include any criteria values** — no salary figures, TC targets, company names
-  from the whitelist/blacklist, or negotiation details. Ask for *their* details without
-  revealing yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
+### Draft replies (MUST happen during screening, not after)
 
-**In dry-run mode:** Create a Gmail draft reply in the correct thread using
-`gmail_create_draft`, then show the reply text and a clickable link to the draft.
-The draft link format is: `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
-where `draft_message_id` comes from the `gmail_create_draft` response. Label it:
+For every pass and maybe verdict, you MUST create a draft reply **during screening**
+before moving to the next item. Do NOT skip this step. Do NOT defer it to later.
+The draft reply text and Gmail draft URL are stored in the result object and rendered
+in the HTML results page — this is the ONLY place the user sees them.
 
-`📋 Draft reply — [click to review & send](draft_url)`
+**Workflow for each pass/maybe item:**
+1. Determine verdict and reason
+2. Compose the reply text:
+   - Use user's configured tone and signature
+   - Direct — no sycophantic opener
+   - Request all missing required fields in one message
+   - **Never include any criteria values** — no salary figures, TC targets, company
+     names from the whitelist/blacklist. Ask for *their* details without revealing
+     yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
+3. Call `gmail_create_draft` with the reply text, replying to the correct thread
+4. Store the results in the result object:
+   - `reply_draft` = the full reply text you composed
+   - `draft_url` = `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
+     (where `draft_message_id` comes from the `gmail_create_draft` response)
+   - `sent` = false (dry-run) or true (send mode)
+5. Log the draft to the correspondence log with `mode: "draft"`
 
-followed by the full reply text so the user can read it inline. The user can click the
-link to open the draft in Gmail and send it with one click, or ignore it to leave it unsent.
-Log the draft to the correspondence log with `mode: "draft"`.
+**In send mode:** Use `gmail_send_message` instead of `gmail_create_draft`. Set
+`sent: true`. Log to correspondence log with `mode: "sent"`.
 
-**In send mode:** Send the reply via `gmail_send_message`, replying to the correct thread.
-Then log the sent message to the correspondence log. Label it:
-`✅ Sent — logged to correspondence log`
-
-In send mode, always show the full text of what was sent so the user can see it.
+The HTML card will render the full draft reply text and a clickable "review & send"
+link to the Gmail draft. **If you skip `gmail_create_draft`, the result cards will
+have no reply text and no send link — this defeats the entire purpose of the tool.**
 
 ### Result object schema
 
