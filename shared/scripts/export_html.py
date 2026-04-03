@@ -542,10 +542,12 @@ body::before{content:'';position:fixed;inset:0;
 .card.fail{border-left:3px solid var(--red-dim);opacity:0.7;}
 .card-header{padding:14px 18px 12px;display:flex;align-items:flex-start;gap:14px;
   cursor:pointer;user-select:none;}
-.verdict-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.verdict-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;
+  transition:opacity 0.4s,box-shadow 0.4s;}
 .pass .verdict-dot{background:var(--green);box-shadow:0 0 6px var(--green);}
 .maybe .verdict-dot{background:var(--amber);box-shadow:0 0 6px var(--amber);}
 .fail .verdict-dot{background:var(--red-dim);}
+.card.viewed .verdict-dot{opacity:0.2;box-shadow:none;}
 .card-main{flex:1;min-width:0;}
 .card-title-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
 .company{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text-dim);
@@ -714,7 +716,7 @@ footer{border-top:1px solid var(--border);padding:20px 40px;font-family:var(--mo
 # ── JavaScript ───────────────────────────────────────────────────────────────
 
 JS = """\
-function toggleCard(el){el.classList.toggle('open');}
+function toggleCard(el){el.classList.toggle('open');el.classList.add('viewed');}
 function setFilter(type,btn){
   document.querySelectorAll('.filter-btn').forEach(function(b){b.className='filter-btn';});
   if(type==='all')btn.classList.add('active-all');
