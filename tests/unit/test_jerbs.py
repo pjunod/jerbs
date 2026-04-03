@@ -496,6 +496,29 @@ class TestRunScreenBranches:
                     jerbs.run_screen(criteria, gmail, screener, export=True)
         mock_export.assert_called_once()
 
+    def test_pending_results_logged_when_present(self):
+        from datetime import date
+
+        screener_mock = MagicMock()
+        screener_mock.run.return_value = ([], False)
+        gmail = MagicMock()
+        criteria = _minimal_criteria()
+        criteria["pending_results"] = [
+            {
+                "verdict": "pass",
+                "company": "PrevCo",
+                "role": "SRE",
+                "message_id": "prev1",
+                "added_at": date.today().isoformat(),
+                "status": "pending",
+            }
+        ]
+        log_calls = []
+        with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+            with patch("jerbs.save_criteria"):
+                jerbs.run_screen(criteria, gmail, screener_mock)
+        assert any("Pending from previous runs" in c for c in log_calls)
+
 
 # ---------------------------------------------------------------------------
 # _send_draft
