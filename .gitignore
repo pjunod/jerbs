@@ -24,6 +24,7 @@ job_screener_*.xlsx
 .promptfoo/
 .coverage
 tests/redteam/SKILL.md
+tests/fixtures/preview.html
 
 # Claude Code
 .claude/
