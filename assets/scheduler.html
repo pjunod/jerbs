@@ -76,7 +76,7 @@
         <option value="19">7:00 PM</option><option value="20">8:00 PM</option>
       </select>
     </div>
-    <div class="hint">
+    <div class="hint" id="interval-hint">
       Business hours → every 15 min &nbsp;·&nbsp; Off-hours → every 60 min &nbsp;·&nbsp; Rapid (auto) → every 5 min for 30 min when draft replies are generated
     </div>
   </div>
@@ -113,11 +113,32 @@
 </div>
 
 <script>
-  const RAPID_MS          = 5  * 60 * 1000;
-  const BIZ_MS            = 15 * 60 * 1000;
-  const OFFHRS_MS         = 60 * 60 * 1000;
-  const RAPID_DURATION_MS = 30 * 60 * 1000;
-  const TRIGGER_TOKEN     = 'JERBS:RAPID_START';
+  // Normal intervals
+  const NORMAL_RAPID_MS          = 5  * 60 * 1000;
+  const NORMAL_BIZ_MS            = 15 * 60 * 1000;
+  const NORMAL_OFFHRS_MS         = 60 * 60 * 1000;
+  const NORMAL_RAPID_DURATION_MS = 30 * 60 * 1000;
+
+  // Test mode intervals (10x faster)
+  const TEST_RAPID_MS          = 30 * 1000;       // 30 sec
+  const TEST_BIZ_MS            = 90 * 1000;       // 1.5 min
+  const TEST_OFFHRS_MS         = 3  * 60 * 1000;  // 3 min
+  const TEST_RAPID_DURATION_MS = 3  * 60 * 1000;  // 3 min
+
+  // Activate test mode via ?test in the URL (hidden from users)
+  const testMode = new URLSearchParams(window.location.search).has('test');
+
+  function RAPID_MS()          { return testMode ? TEST_RAPID_MS          : NORMAL_RAPID_MS; }
+  function BIZ_MS()            { return testMode ? TEST_BIZ_MS            : NORMAL_BIZ_MS; }
+  function OFFHRS_MS()         { return testMode ? TEST_OFFHRS_MS         : NORMAL_OFFHRS_MS; }
+  function RAPID_DURATION_MS() { return testMode ? TEST_RAPID_DURATION_MS : NORMAL_RAPID_DURATION_MS; }
+
+  if (testMode) {
+    document.getElementById('interval-hint').innerHTML =
+      '<strong>TEST MODE</strong> — Business hours → every 90s &nbsp;·&nbsp; Off-hours → every 3 min &nbsp;·&nbsp; Rapid → every 30s for 3 min';
+  }
+
+  const TRIGGER_TOKEN = 'JERBS:RAPID_START';
 
   let isRunning    = false;
   let tickInterval = null;
@@ -143,8 +164,8 @@
   }
 
   function currentInterval() {
-    if (rapidModeEnd && Date.now() < rapidModeEnd) return RAPID_MS;
-    return isBusinessHours() ? BIZ_MS : OFFHRS_MS;
+    if (rapidModeEnd && Date.now() < rapidModeEnd) return RAPID_MS();
+    return isBusinessHours() ? BIZ_MS() : OFFHRS_MS();
   }
 
   function currentMode() {
@@ -174,16 +195,19 @@
 
   function triggerRapid(reason) {
     const already = rapidModeEnd && Date.now() < rapidModeEnd;
-    rapidModeEnd = Date.now() + RAPID_DURATION_MS;
-    nextRunAt    = Date.now() + RAPID_MS;
-    lastInterval = RAPID_MS;
-    addLog((already ? 'Rapid extended: ' : 'Auto rapid: ') + (reason || 'draft replies detected') + ' — 5 min for 30 min.', 'log-rapid');
+    rapidModeEnd = Date.now() + RAPID_DURATION_MS();
+    nextRunAt    = Date.now() + RAPID_MS();
+    lastInterval = RAPID_MS();
+    const rLabel = testMode ? '30s for 3 min' : '5 min for 30 min';
+    addLog((already ? 'Rapid extended: ' : 'Auto rapid: ') + (reason || 'draft replies detected') + ' — ' + rLabel + '.', 'log-rapid');
     updateUI();
   }
 
   function updateModeDisplay() {
     const mode = currentMode();
-    const labels = { rapid:'Rapid response — auto (5 min)', bizhours:'Business hours (15 min)', offhours:'Off-hours (60 min)', stopped:'Stopped' };
+    const labels = testMode
+      ? { rapid:'Rapid response — TEST (30s)', bizhours:'Business hours — TEST (90s)', offhours:'Off-hours — TEST (3 min)', stopped:'Stopped' }
+      : { rapid:'Rapid response — auto (5 min)', bizhours:'Business hours (15 min)', offhours:'Off-hours (60 min)', stopped:'Stopped' };
     document.getElementById('mode-badge').className = 'mode-badge mode-' + mode;
     document.getElementById('mode-dot').className   = 'mode-dot dot-' + mode;
     document.getElementById('mode-text').textContent = labels[mode];
@@ -201,12 +225,14 @@
     if (rapidModeEnd && now < rapidModeEnd) {
       rw.style.display = 'block';
       document.getElementById('stat-rapid').textContent = fmtTime(rapidModeEnd);
-      document.getElementById('rapid-bar').style.width = Math.round(Math.max(0, Math.min(100, (rapidModeEnd - now) / RAPID_DURATION_MS * 100))) + '%';
+      document.getElementById('rapid-bar').style.width = Math.round(Math.max(0, Math.min(100, (rapidModeEnd - now) / RAPID_DURATION_MS() * 100))) + '%';
     } else {
       if (rapidModeEnd && now >= rapidModeEnd) {
         rapidModeEnd = null;
         rw.style.display = 'none';
-        addLog('Rapid mode ended — back to ' + (isBusinessHours() ? '15-min' : '60-min') + '.', 'log-auto');
+        const bizLabel = testMode ? '90s' : '15-min';
+        const offLabel = testMode ? '3-min' : '60-min';
+        addLog('Rapid mode ended — back to ' + (isBusinessHours() ? bizLabel : offLabel) + '.', 'log-auto');
         scheduleNext(false);
       } else {
         rw.style.display = 'none';
