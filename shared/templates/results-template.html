@@ -154,6 +154,11 @@ body::before{content:'';position:fixed;inset:0;
   font-size:11px;font-weight:600;letter-spacing:0.04em;color:#fff;background:var(--blue);
   border:none;border-radius:4px;text-decoration:none;cursor:pointer;transition:background 0.15s;}
 .draft-send-btn:hover{background:#2b88e6;}
+.draft-create-btn{display:inline-block;margin-top:10px;padding:7px 16px;font-family:var(--mono);
+  font-size:11px;font-weight:600;letter-spacing:0.04em;color:#fff;background:var(--green);
+  border:none;border-radius:4px;text-decoration:none;cursor:pointer;transition:all 0.15s;}
+.draft-create-btn:hover{opacity:0.85;}
+.draft-create-btn:disabled{opacity:0.4;cursor:not-allowed;}
 .sent-label{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:0.08em;
   text-transform:uppercase;margin-top:10px;margin-bottom:4px;}
 .age-badge{font-family:var(--mono);font-size:10px;
@@ -695,6 +700,22 @@ function downloadPage(){
   a.download='jerbs-results-'+(d?d[0]:'report')+'.html';
   a.click();URL.revokeObjectURL(a.href);
 }
+function createDraft(btnId, threadId, btn){
+  if(!threadId)return;
+  btn.disabled=true;btn.textContent='Creating\u2026';
+  var block=btn.closest('.draft-block');
+  var textEl=block?block.querySelector('.draft-text'):null;
+  var replyText=textEl?textEl.textContent:'';
+  if(!replyText){btn.textContent='No draft text';return;}
+  if(typeof sendPrompt==='function'){
+    sendPrompt('Create a Gmail draft reply to thread ID '+threadId+
+      ' with this exact text (do not modify it):\n\n'+replyText+
+      '\n\nAfter creating the draft, give me the Gmail draft URL so I can review and send it.');
+  }else{
+    btn.textContent='Not available (open in Claude.ai)';
+    btn.disabled=true;
+  }
+}
 </script>
 
 <!-- ── Scheduler JS ─────────────────────────────────────────────────── -->
@@ -1052,13 +1073,20 @@ function downloadPage(){
         '<div class="draft-block">' +
         '<div class="draft-text">' + escapeHtml(replyDraft) + '</div></div>';
     }
-    var sendBtn = draftUrl
-      ? '<a class="draft-send-btn" href="' + escapeHtml(draftUrl) + '" target="_blank">\ud83d\udce8 Review &amp; Send</a>'
-      : '';
+    var actionBtn;
+    if (draftUrl) {
+      actionBtn = '<a class="draft-send-btn" href="' + escapeHtml(draftUrl) + '" target="_blank">\ud83d\udce8 Review &amp; Send</a>';
+    } else {
+      var threadId = escapeHtml(item.thread_id || '');
+      var btnId = 'draft-btn-' + escapeHtml(item.message_id || Math.random().toString(36).slice(2));
+      actionBtn = '<button class="draft-create-btn" id="' + btnId + '" ' +
+        'onclick="createDraft(\'' + btnId + '\', \'' + threadId + '\', this)">' +
+        '\u270f\ufe0f Create Draft &amp; Send</button>';
+    }
     return '<div class="draft-block">' +
       '<div class="draft-label">Draft reply</div>' +
       '<div class="draft-text">' + escapeHtml(replyDraft) + '</div>' +
-      sendBtn + '</div>';
+      actionBtn + '</div>';
   }
 
   function buildPersistenceSummary(data) {
