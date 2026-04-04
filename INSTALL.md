@@ -22,8 +22,8 @@ Then say **"set up jerbs"** or **"/jerbs"** to get started. The setup wizard han
 **Requirements:** Claude.ai account · Gmail connected
 
 1. Download **[`claude-web/jerbs.skill`](claude-web/jerbs.skill)**
-2. Claude.ai → **Settings → Connectors → Gmail → Connect**
-3. Claude.ai → **Settings → Skills → Install from file** → upload `jerbs.skill`
+2. Claude.ai → **Customize → Connectors → Gmail → Connect**
+3. Claude.ai → **Customize → Skills → + → Create skill → Upload a skill** → upload `jerbs.skill`
 4. New conversation → say **"set up jerbs"**
 
 That's it. The setup wizard handles the rest.
