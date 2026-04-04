@@ -80,6 +80,28 @@ This is the new version of an old problem. Junior developers do the same thing �
 
 **5. Remember that the human's job is changing, not disappearing.** I didn't write any of the rendering code. I also couldn't have caught this problem by reading individual PRs. My value was in stepping back and asking the right question at the right time. That's the emerging shape of human-AI collaboration: the AI builds, the human architects.
 
+## "Wouldn't RAG Have Prevented This?"
+
+This is the first question engineers ask, and the answer is: partially.
+
+A retrieval system that surfaces related files when the AI starts building something new would have flagged the existing Python renderer before the JavaScript template was built from scratch. Basic semantic search — "files related to HTML generation" — would have surfaced it. Living architecture docs in the AI's context would have helped too. If a file had said "rendering is handled by export_html.py," the AI likely would have proposed extending it rather than building a parallel system.
+
+But RAG has real limits here:
+
+**RAG tells you "this exists," not "this is the better pattern."** Even with perfect retrieval, the AI would have known about the Python generator — but might have made the new template call into it, adding a dependency instead of recognizing the template was the superior approach that should replace both. The architectural judgment — that client-side rendering from JSON is strictly better than server-side string concatenation when both produce the same output — requires understanding the system, not just finding related files.
+
+**Cross-language duplication is invisible to retrieval.** RAG over a Python codebase finds Python patterns. Finding that `_age_badge_html()` in Python does the same thing as `ageBadgeHtml()` in JavaScript requires semantic understanding across languages, not keyword matching.
+
+**RAG retrieves context for the task at hand. It doesn't proactively flag concerns about things you aren't working on.** Nobody was "working on the rendering pipeline" when the duplication was introduced. They were building a browser deployment mode. The duplication was a side effect of solving a different problem.
+
+What actually prevents this is harder to build than a vector database:
+
+- **Architecture-aware planning** — before building any new module, an active investigation step: "search the codebase for existing implementations of this concern." Not retrieval. Investigation.
+- **Cross-session architectural memory** — not raw file retrieval, but curated summaries of design decisions and system relationships. "The rendering pipeline uses export_html.py for server-side generation" is more useful than finding the file itself.
+- **A human who notices friction** — which is exactly what happened here. I noticed that "getting the output rendering to match in all cases has been problematic" and asked why. No amount of RAG replaces that instinct.
+
+The real gap isn't retrieval. It's that AI assistants don't have a persistent concept of "the system." RAG gives them memory of *files*. What they need is memory of *architecture* — the relationships between components, the design decisions behind what exists, the "why" that makes duplication recognizable as duplication. That's a harder problem, and the industry is only starting to work on it.
+
 ## The Uncomfortable Truth
 
 This problem will get worse before it gets better. As AI assistants get faster and more capable, teams will ship more code faster. The duplication won't be within a single PR — it'll be across features built weeks apart, by different team members, in different conversations with different AI sessions.
