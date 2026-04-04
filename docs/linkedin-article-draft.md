@@ -106,9 +106,9 @@ The real gap isn't retrieval. It's that AI assistants don't have a persistent co
 
 This problem will get worse before it gets better. As AI assistants get faster and more capable, teams will ship more code faster. The duplication won't be within a single PR — it'll be across features built weeks apart, by different team members, in different conversations with different AI sessions.
 
-The teams that thrive won't be the ones with the best AI tools. They'll be the ones that build the discipline to periodically look up from the code and ask: "what did we build, and does it all fit together?"
+The teams that thrive won't be the ones with the best AI tools. They'll be the ones that put development processes in place that force the bigger picture view — architecture reviews before new modules land, system-level documentation that stays current, checkpoints that ask "does this change fit into what we already have?" before the PR is approved.
 
-That's a fundamentally human question. And it might be the most important skill in AI-assisted development.
+The discipline can't live in one person's head. It has to be in the process. Because when AI is generating code faster than any individual can review it holistically, the process is the only thing standing between "well-crafted components" and "a system that makes sense."
 
 ---
 
