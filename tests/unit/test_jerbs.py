@@ -602,6 +602,116 @@ class TestExportResults:
 
 
 # ---------------------------------------------------------------------------
+# _export_html_results
+# ---------------------------------------------------------------------------
+
+
+class TestExportHtmlResults:
+    def test_generates_html_file(self, tmp_path):
+        mock_module = MagicMock()
+        mock_export = MagicMock()
+        mock_module.export_to_html = mock_export
+        with patch.dict("sys.modules", {"export_html": mock_module}):
+            with patch("jerbs.log"):
+                with patch("jerbs.Path.home", return_value=tmp_path):
+                    result = jerbs._export_html_results(
+                        [{"verdict": "pass", "company": "Acme"}],
+                        [],
+                        {"profile_name": "Test"},
+                    )
+        mock_export.assert_called_once()
+        assert result is not None
+        # Verify the results_data passed to export_to_html
+        call_data = mock_export.call_args[0][0]
+        assert call_data["results"][0]["company"] == "Acme"
+        assert call_data["mode"] == "dry-run"
+
+    def test_send_mode_reflected_in_data(self, tmp_path):
+        mock_module = MagicMock()
+        mock_export = MagicMock()
+        mock_module.export_to_html = mock_export
+        with patch.dict("sys.modules", {"export_html": mock_module}):
+            with patch("jerbs.log"):
+                with patch("jerbs.Path.home", return_value=tmp_path):
+                    jerbs._export_html_results([], [], {}, send_mode=True)
+        call_data = mock_export.call_args[0][0]
+        assert call_data["mode"] == "send"
+
+    def test_includes_pending_results(self, tmp_path):
+        mock_module = MagicMock()
+        mock_export = MagicMock()
+        mock_module.export_to_html = mock_export
+        pending = [{"verdict": "pass", "company": "OldCo", "status": "pending"}]
+        with patch.dict("sys.modules", {"export_html": mock_module}):
+            with patch("jerbs.log"):
+                with patch("jerbs.Path.home", return_value=tmp_path):
+                    jerbs._export_html_results([], pending, {})
+        call_data = mock_export.call_args[0][0]
+        assert len(call_data["pending_results"]) == 1
+        assert call_data["pending_results"][0]["company"] == "OldCo"
+
+    def test_returns_none_on_error(self):
+        mock_module = MagicMock()
+        mock_module.export_to_html.side_effect = Exception("write error")
+        log_calls = []
+        with patch.dict("sys.modules", {"export_html": mock_module}):
+            with patch("jerbs.log", side_effect=lambda msg, **kw: log_calls.append(msg)):
+                result = jerbs._export_html_results([], [], {})
+        assert result is None
+        assert any("HTML export failed" in c for c in log_calls)
+
+    def test_creates_output_directory(self, tmp_path):
+        mock_module = MagicMock()
+        mock_module.export_to_html = MagicMock()
+        with patch.dict("sys.modules", {"export_html": mock_module}):
+            with patch("jerbs.log"):
+                with patch("jerbs.Path.home", return_value=tmp_path):
+                    jerbs._export_html_results([], [], {})
+        assert (tmp_path / ".jerbs").exists()
+
+    def test_uses_profile_name_from_criteria(self, tmp_path):
+        mock_module = MagicMock()
+        mock_export = MagicMock()
+        mock_module.export_to_html = mock_export
+        with patch.dict("sys.modules", {"export_html": mock_module}):
+            with patch("jerbs.log"):
+                with patch("jerbs.Path.home", return_value=tmp_path):
+                    jerbs._export_html_results([], [], {"profile_name": "Paul's Search"})
+        call_data = mock_export.call_args[0][0]
+        assert call_data["profile_name"] == "Paul's Search"
+
+
+class TestRunScreenCallsHtmlExport:
+    def test_run_screen_generates_html(self):
+        screener = MagicMock()
+        screener.run.return_value = (
+            [
+                {
+                    "verdict": "pass",
+                    "company": "Acme",
+                    "role": "SRE",
+                    "dealbreaker": None,
+                    "missing_fields": [],
+                    "reply_draft": None,
+                    "message_id": "m1",
+                }
+            ],
+            False,
+        )
+        gmail = MagicMock()
+        criteria = _minimal_criteria()
+        with patch("jerbs.log"):
+            with patch("jerbs.save_criteria"):
+                with patch("jerbs._export_html_results") as mock_html:
+                    jerbs.run_screen(criteria, gmail, screener)
+        mock_html.assert_called_once()
+        # Verify results were passed
+        call_args = mock_html.call_args
+        assert len(call_args[0][0]) == 1  # results
+        assert call_args[0][0][0]["company"] == "Acme"
+
+
+# ---------------------------------------------------------------------------
 # main()
 # ---------------------------------------------------------------------------
 
