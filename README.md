@@ -9,6 +9,43 @@ A Claude skill that screens your job-related emails against your personal criter
 follow-up replies, and tracks your recruiter correspondence — so you only spend time on
 opportunities worth pursuing.
 
+**[Live demo →](https://pjunod.github.io/jerbs/)**
+
+---
+
+## Screenshots
+
+### Terminal theme
+
+<img src="docs/images/terminal-hero.png" alt="Terminal theme — screening report overview with verdict counts, action banners, and result cards" width="800">
+
+<details>
+<summary>Expanded card with verdict, comp assessment, and draft reply</summary>
+
+<img src="docs/images/terminal-card-detail.png" alt="Terminal theme — expanded card showing verdict reasoning, comp assessment, missing info tags, and a draft reply with Review & Send button" width="700">
+
+</details>
+
+### Cards theme
+
+<img src="docs/images/cards-hero.png" alt="Cards theme (dark) — clean card layout with stat tiles, filter bar, and action banners" width="800">
+
+<details>
+<summary>Expanded card detail</summary>
+
+<img src="docs/images/cards-card-detail.png" alt="Cards theme — expanded card with verdict, comp, missing fields, draft reply, and action links" width="700">
+
+</details>
+
+<details>
+<summary>Light mode</summary>
+
+<img src="docs/images/cards-light.png" alt="Cards theme in light mode" width="800">
+
+</details>
+
+> Both themes are fully interactive — try the **[live demo](https://pjunod.github.io/jerbs/)** to click through filters, expand cards, and toggle light/dark mode.
+
 ---
 
 ## What it does
@@ -68,7 +105,9 @@ jerbs/
 │       └── README.md                ← red team setup and usage
 │
 └── docs/
-    └── setup.md                     ← detailed setup guide for all deployment modes
+    ├── setup.md                     ← detailed setup guide for all deployment modes
+    ├── demo/                        ← live demo HTML (deployed to GitHub Pages)
+    └── images/                      ← screenshots for README
 ```
 
 ### Two SKILL.md files
