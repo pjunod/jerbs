@@ -1,4 +1,4 @@
-# AI Wrote Perfect Code Twice — And That Was the Problem
+# AI Built My App in 8 Days. The Architectural Debt Was Already There by Day 2.
 
 I've been building a side project almost entirely with AI coding assistants. The app screens job emails across three deployment modes: a browser interface, a CLI tool, and a local daemon. The whole thing went from initial commit to 88 merged PRs in eight days.
 
