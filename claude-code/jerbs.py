@@ -142,6 +142,7 @@ def run_screen(
 
     # Combine new pass/maybe results with existing pending results for export
     all_actionable = pending + [r for r in results if r["verdict"] in ("pass", "maybe")]
+    _export_html_results(results, pending, criteria, send_mode=send_mode)
     if export:
         _export_results(all_actionable + filtered, criteria)
 
@@ -183,6 +184,34 @@ def _export_results(results: list, criteria: dict):
         log(f"Exported to {out}")
     except Exception as e:
         log(f"Export failed: {e}")
+
+
+def _export_html_results(
+    results: list, pending: list, criteria: dict, send_mode: bool = False
+) -> str | None:
+    """Generate an interactive HTML results page. Returns the output path or None on error."""
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent / "shared" / "scripts"))
+        from export_html import export_to_html
+
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        results_data = {
+            "run_date": date_str,
+            "profile_name": criteria.get("profile_name", "Job Search"),
+            "mode": "send" if send_mode else "dry-run",
+            "lookback_days": criteria.get("search_settings", {}).get("lookback_days", 1),
+            "actions": [],
+            "pending_results": pending,
+            "results": results,
+        }
+        out = Path.home() / ".jerbs" / f"results-{date_str}.html"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        export_to_html(results_data, str(out))
+        log(f"HTML results → {out}")
+        return str(out)
+    except Exception as e:
+        log(f"HTML export failed: {e}")
+        return None
 
 
 def _load_pending_results(criteria: dict) -> list[dict]:
