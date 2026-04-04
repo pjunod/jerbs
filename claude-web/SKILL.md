@@ -515,31 +515,33 @@ would accept a specific city for higher comp, note that in the assessment.
 For any pass/maybe, check which required fields are missing and draft a single reply
 requesting all of them at once.
 
-### Draft replies (MUST happen during screening, not after)
+### Draft replies (batched after screening)
 
-For every pass and maybe verdict, you MUST create a draft reply **during screening**
-before moving to the next item. Do NOT skip this step. Do NOT defer it to later.
-The draft reply text and Gmail draft URL are stored in the result object and rendered
-in the HTML results page — this is the ONLY place the user sees them.
+For every pass and maybe verdict, compose the reply text during screening but **defer
+the `gmail_create_draft` calls until all screening is complete**. This batches all
+draft creation at the end of the run, reducing tool calls and avoiding the per-turn
+tool-use limit on claude.ai.
 
-**Workflow for each pass/maybe item:**
+**During screening — for each pass/maybe item:**
 1. Determine verdict and reason
-2. Compose the reply text:
+2. Compose the reply text and store it in `reply_draft`:
    - Use user's configured tone and signature
    - Direct — no sycophantic opener
    - Request all missing required fields in one message
    - **Never include any criteria values** — no salary figures, TC targets, company
      names from the whitelist/blacklist. Ask for *their* details without revealing
      yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
-3. Call `gmail_create_draft` with the reply text, replying to the correct thread
-4. Store the results in the result object:
-   - `reply_draft` = the full reply text you composed
-   - `draft_url` = `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
-     (where `draft_message_id` comes from the `gmail_create_draft` response)
-   - `sent` = false (dry-run) or true (send mode)
+3. Set `draft_url` to empty string and `sent` to false — these are filled in later
+
+**After all screening is complete — batch draft creation:**
+1. Collect all result objects that have a non-empty `reply_draft`
+2. For each one, call `gmail_create_draft` with the reply text, replying to the
+   correct thread (use the result's `thread_id`)
+3. Update each result's `draft_url` with the URL from the response:
+   `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
 
 **In send mode:** Use `gmail_send_message` instead of `gmail_create_draft`. Set
-`sent: true` in the result object.
+`sent: true` in each result object.
 
 The HTML card will then render:
 - The full draft reply text (so the user can read it inline)
@@ -581,9 +583,9 @@ drive the HTML card rendering — missing fields mean missing UI elements.
 
 **Key rules:**
 - `email_url` is ALWAYS set — construct from message_id: `https://mail.google.com/mail/u/0/#inbox/<message_id>`
-- `reply_draft` + `draft_url` MUST be set for every pass/maybe verdict. You MUST call
-  `gmail_create_draft` for each one during screening. If these fields are empty, the
-  card will have no reply and no send link — the user cannot act on the result.
+- `reply_draft` MUST be set for every pass/maybe verdict during screening. `draft_url`
+  is filled in after screening when drafts are batch-created via `gmail_create_draft`.
+  If these fields are empty, the card will have no reply and no send link.
 - `posting_url` is set when the email contains a link to a job posting
 - `comp_assessment` uses the user's sliding_scale_notes to give an honest assessment
 - `missing_fields` lists fields from the user's required_info that weren't in the email
