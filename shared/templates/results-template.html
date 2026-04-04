@@ -1293,6 +1293,11 @@ function downloadPage(){
       try {
         renderPage(data);
         initLightDark();
+        // Strip ?theme= so the switcher button can override via localStorage
+        if (window.history.replaceState && window.location.search.indexOf('theme=') !== -1) {
+          var url = window.location.pathname + window.location.hash;
+          window.history.replaceState(null, '', url);
+        }
       } catch(re) {
         document.getElementById('app').innerHTML =
           '<div style="padding:40px;color:#f85149;font-family:monospace;">' +
