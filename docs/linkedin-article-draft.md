@@ -1,6 +1,6 @@
 # AI Wrote Perfect Code Twice — And That Was the Problem
 
-I've been building a side project almost entirely with AI coding assistants. The app screens job emails across three deployment modes: a browser interface, a CLI tool, and a local daemon. Each mode was built incrementally over weeks of work.
+I've been building a side project almost entirely with AI coding assistants. The app screens job emails across three deployment modes: a browser interface, a CLI tool, and a local daemon. The whole thing went from initial commit to 88 merged PRs in eight days.
 
 Yesterday I typed this into my AI coding assistant:
 
@@ -24,7 +24,7 @@ Neither piece of code was *broken*. They both worked. But "it works" isn't the s
 
 The Python generator was a 1,364-line monolith that built HTML through string concatenation, with hundreds of lines of CSS and JavaScript stored as inline Python constants. It was overengineered from the start — the kind of solution an AI produces when you ask it to solve a problem without constraints. It got us past the immediate need and on to other things, which is all it needed to do at the time.
 
-Then the browser mode came along. AI assistants build incrementally, within the context of the current conversation. When the browser mode was built weeks after the CLI mode, the AI didn't "remember" the existing Python renderer. It solved the problem in front of it — using the approach that made sense for the browser delivery mechanism — and produced a second rendering engine without recognizing the first one should have been retired. The JavaScript template was the cleaner design — a self-contained SPA that reads JSON and renders client-side — but it was built alongside the Python generator, not as a replacement for it.
+Then the browser mode came along. AI assistants build incrementally, within the context of the current conversation. When the browser mode was built — just *one day* after the CLI renderer landed — the AI didn't "remember" the existing Python renderer. Not weeks later. Not after team turnover. The next day, in a new conversation. It solved the problem in front of it, using the approach that made sense for the browser delivery mechanism, and produced a second rendering engine without recognizing the first one should have been retired. The JavaScript template was the cleaner design — a self-contained SPA that reads JSON and renders client-side — but it was built alongside the Python generator, not as a replacement for it.
 
 Nobody told it to look at the system as a whole. It was never asked "hey, is there already something that does this?"
 
