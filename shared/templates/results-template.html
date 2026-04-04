@@ -539,8 +539,65 @@ footer {
 }
 </style>
 
-<!-- ── Embedded results data (replaced at generation time) ────────────── -->
+<!-- ── Scheduler panel CSS ────────────────────────────────────────────── -->
+<style id="css-scheduler">
+.sched-panel{border-bottom:1px solid var(--border);background:var(--bg2);}
+.sched-header{padding:10px 40px;display:flex;align-items:center;gap:14px;
+  cursor:pointer;user-select:none;min-height:44px;}
+.sched-mode{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+  font-size:11px;font-weight:500;letter-spacing:0.04em;}
+.sched-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sched-dot-stopped{background:var(--text-muted);}
+.sched-dot-offhours{background:var(--amber);}
+.sched-dot-bizhours{background:var(--green);}
+.sched-dot-rapid{background:var(--blue);}
+.sched-mode-stopped .sched-mode{color:var(--text-muted);}
+.sched-mode-offhours .sched-mode{color:var(--amber);}
+.sched-mode-bizhours .sched-mode{color:var(--green);}
+.sched-mode-rapid .sched-mode{color:var(--blue);}
+.sched-countdown{font-family:var(--mono);font-size:22px;font-weight:300;
+  color:var(--text);letter-spacing:-0.02em;min-width:60px;}
+.sched-runs{font-family:var(--mono);font-size:11px;color:var(--text-dim);
+  margin-left:auto;display:flex;align-items:center;gap:16px;}
+.sched-rapid-timer{font-family:var(--mono);font-size:11px;color:var(--blue);
+  display:flex;align-items:center;gap:6px;}
+.sched-rapid-timer .rapid-bar-wrap{width:60px;height:3px;background:var(--border);
+  border-radius:2px;display:inline-block;}
+.sched-rapid-timer .rapid-bar{height:3px;background:var(--blue);border-radius:2px;
+  transition:width 1s linear;}
+.sched-btns{display:flex;gap:6px;}
+.sched-btn{font-family:var(--mono);font-size:11px;padding:4px 12px;border-radius:3px;
+  border:1px solid var(--border2);background:transparent;color:var(--text-dim);
+  cursor:pointer;letter-spacing:0.04em;transition:all 0.15s;}
+.sched-btn:hover{border-color:var(--blue);color:var(--blue);}
+.sched-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.sched-btn-primary{border-color:var(--green);color:var(--green);}
+.sched-btn-primary:hover{background:var(--green-bg);}
+.sched-toggle{font-family:var(--mono);font-size:12px;color:var(--text-muted);
+  transition:transform 0.2s;flex-shrink:0;}
+.sched-panel.open .sched-toggle{transform:rotate(90deg);}
+.sched-body{display:none;padding:0 40px 14px;border-top:1px solid var(--border);}
+.sched-panel.open .sched-body{display:block;}
+.sched-settings{display:flex;gap:16px;flex-wrap:wrap;padding:10px 0;align-items:center;}
+.sched-settings label{font-family:var(--mono);font-size:10px;color:var(--text-dim);
+  letter-spacing:0.08em;text-transform:uppercase;}
+.sched-settings select{font-family:var(--mono);font-size:11px;padding:4px 8px;
+  border-radius:3px;border:1px solid var(--border2);background:var(--bg3);
+  color:var(--text);cursor:pointer;}
+.sched-log{margin-top:8px;background:var(--bg);border:1px solid var(--border);
+  border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:11px;
+  color:var(--text-dim);max-height:140px;overflow-y:auto;}
+.sched-log-line{padding:1px 0;}
+.sched-log-fire{color:var(--green);}
+.sched-log-rapid{color:var(--blue);}
+.sched-log-auto{color:var(--amber);}
+.sched-hint{font-family:var(--mono);font-size:10px;color:var(--text-muted);
+  padding:6px 0;letter-spacing:0.02em;}
+</style>
+
+<!-- ── Embedded data (replaced at generation time) ──────────────────────── -->
 <script id="results-data" type="application/json">__RESULTS_DATA__</script>
+<script id="scheduler-settings" type="application/json">__SCHEDULER_SETTINGS__</script>
 
 <!-- ── Existing JS (from export_html.py) ─────────────────────────────── -->
 <script>
@@ -638,6 +695,203 @@ function downloadPage(){
   a.download='jerbs-results-'+(d?d[0]:'report')+'.html';
   a.click();URL.revokeObjectURL(a.href);
 }
+</script>
+
+<!-- ── Scheduler JS ─────────────────────────────────────────────────── -->
+<script>
+(function(){
+  var RAPID_MS=5*60*1000, BIZ_MS=15*60*1000, OFFHRS_MS=60*60*1000,
+      RAPID_DURATION_MS=30*60*1000;
+  var schedRunning=false, schedTick=null, schedNext=null, schedRapidEnd=null,
+      schedRuns=0, schedLast=null;
+
+  function schedInit(){
+    try{
+      var el=document.getElementById('scheduler-settings');
+      if(!el)return;
+      var raw=el.textContent;
+      if(!raw||raw.indexOf('__')===0)return;
+      var s=JSON.parse(raw);
+      if(!s||!s.timezone)return;
+      var tz=document.getElementById('sched-tz');
+      if(tz){for(var i=0;i<tz.options.length;i++){
+        if(tz.options[i].value===s.timezone){tz.value=s.timezone;break;}}}
+      if(s.bizStart!=null){var bs=document.getElementById('sched-biz-start');if(bs)bs.value=s.bizStart;}
+      if(s.bizEnd!=null){var be=document.getElementById('sched-biz-end');if(be)be.value=s.bizEnd;}
+      if(s.rapidModeEnd)schedRapidEnd=s.rapidModeEnd;
+      if(s.runCount)schedRuns=s.runCount;
+      if(s.autoStart)setTimeout(schedStart,100);
+    }catch(e){}
+  }
+
+  function schedLocalHour(){
+    var tz=document.getElementById('sched-tz');
+    var v=tz?tz.value:'America/New_York';
+    try{
+      var p=new Intl.DateTimeFormat('en-US',{timeZone:v,hour:'numeric',hour12:false}).formatToParts(new Date());
+      var h=p.find(function(x){return x.type==='hour';});
+      return parseInt(h?h.value:new Date().getHours(),10);
+    }catch(e){return new Date().getHours();}
+  }
+
+  function schedIsBiz(){
+    var hour=schedLocalHour();
+    var s=parseInt((document.getElementById('sched-biz-start')||{}).value||'9',10);
+    var e=parseInt((document.getElementById('sched-biz-end')||{}).value||'17',10);
+    return hour>=s&&hour<e;
+  }
+
+  function schedInterval(){
+    if(schedRapidEnd&&Date.now()<schedRapidEnd)return RAPID_MS;
+    return schedIsBiz()?BIZ_MS:OFFHRS_MS;
+  }
+
+  function schedMode(){
+    if(schedRapidEnd&&Date.now()<schedRapidEnd)return'rapid';
+    return schedIsBiz()?'bizhours':'offhours';
+  }
+
+  function schedFmtMs(ms){
+    if(ms<=0)return'00:00';
+    var s=Math.round(ms/1000);
+    return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  }
+  function schedFmtTime(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+
+  function schedLog(msg,cls){
+    var el=document.getElementById('sched-log');if(!el)return;
+    var now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    var line=document.createElement('div');
+    line.className='sched-log-line'+(cls?' sched-log-'+cls:'');
+    line.textContent=now+'  '+msg;
+    el.appendChild(line);el.scrollTop=el.scrollHeight;
+  }
+
+  function schedTriggerRapid(reason){
+    var already=schedRapidEnd&&Date.now()<schedRapidEnd;
+    schedRapidEnd=Date.now()+RAPID_DURATION_MS;
+    schedNext=Date.now()+RAPID_MS;schedLast=RAPID_MS;
+    schedLog((already?'Rapid extended: ':'Auto rapid: ')+(reason||'draft replies detected')+' — 5 min for 30 min.','rapid');
+    schedUpdateUI();
+  }
+
+  function schedUpdateUI(){
+    if(!schedRunning)return;
+    var now=Date.now(),mode=schedMode();
+    var labels={rapid:'Rapid response (5 min)',bizhours:'Business hours (15 min)',
+      offhours:'Off-hours (60 min)',stopped:'Stopped'};
+    var panel=document.getElementById('sched-panel');
+    if(panel){panel.className='sched-panel sched-mode-'+mode+(panel.classList.contains('open')?' open':'');}
+    var dot=document.getElementById('sched-dot');
+    if(dot)dot.className='sched-dot sched-dot-'+mode;
+    var mt=document.getElementById('sched-mode-text');
+    if(mt)mt.textContent=labels[mode]||'';
+    var cd=document.getElementById('sched-countdown');
+    if(cd)cd.textContent=schedFmtMs(schedNext-now);
+    var cl=document.getElementById('sched-countdown-label');
+    if(cl)cl.textContent='Next run '+schedFmtTime(schedNext);
+    var sr=document.getElementById('sched-stat-runs');
+    if(sr)sr.textContent=schedRuns+' runs';
+    var rt=document.getElementById('sched-rapid-timer');
+    if(rt){
+      if(schedRapidEnd&&now<schedRapidEnd){
+        rt.style.display='flex';
+        var pct=Math.round(Math.max(0,Math.min(100,(schedRapidEnd-now)/RAPID_DURATION_MS*100)));
+        var bar=rt.querySelector('.rapid-bar');if(bar)bar.style.width=pct+'%';
+        var rl=rt.querySelector('.rapid-label');if(rl)rl.textContent='Rapid '+schedFmtMs(schedRapidEnd-now);
+      }else{
+        if(schedRapidEnd&&now>=schedRapidEnd){
+          schedRapidEnd=null;rt.style.display='none';
+          schedLog('Rapid mode ended — back to '+(schedIsBiz()?'15-min':'60-min')+'.','auto');
+          schedScheduleNext(false);
+        }else{rt.style.display='none';}
+      }
+    }
+    var ni=schedInterval();
+    if(schedLast!==null&&schedLast!==ni&&!(schedRapidEnd&&now<schedRapidEnd)){
+      schedLast=ni;schedScheduleNext(false);
+    }
+  }
+
+  function schedScheduleNext(sooner){
+    var c=Date.now()+schedInterval();
+    if(!sooner||!schedNext||c<schedNext){schedNext=c;schedLast=schedInterval();}
+  }
+
+  function schedBuildPrompt(){
+    return'Please run my jerbs screener — both passes, combined report.\n\n'+
+      'PASS 1 query: (subject:(opportunity OR role OR position OR opening OR hiring) OR '+
+      'from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com)) newer_than:1d\n'+
+      'PASS 2 query: newer_than:1d -from:linkedin.com -from:jobalerts.indeed.com '+
+      '-from:indeedemail.com -from:noreply -from:no-reply '+
+      '(subject:(opportunity OR role OR position OR opening OR hiring OR "reaching out" '+
+      'OR "your background" OR "your profile" OR "came across") OR ("your experience" '+
+      'OR "your background" OR "came across your profile" OR "reaching out" OR "great fit" '+
+      'OR "perfect fit"))\n\n'+
+      'Load criteria from my criteria file and apply them. Run in read-only mode — '+
+      'do not send, delete, label, archive, or create drafts in Gmail.\n\n'+
+      'IMPORTANT — AUTOMATIC RAPID MODE: If you generated any draft replies, re-render '+
+      'the artifact with rapidModeEnd set to trigger rapid mode.';
+  }
+
+  function schedFireRun(){
+    schedRuns++;
+    schedLog('Run #'+schedRuns+' fired ('+schedMode()+').','fire');
+    schedScheduleNext(false);
+    if(typeof sendPrompt==='function')sendPrompt(schedBuildPrompt());
+  }
+
+  function schedDoTick(){
+    if(!schedRunning)return;
+    if(Date.now()>=schedNext)schedFireRun();
+    schedUpdateUI();
+  }
+
+  window.schedStart=function(){
+    if(schedRunning)return;schedRunning=true;
+    var logEl=document.getElementById('sched-log');
+    if(logEl)logEl.innerHTML='';
+    schedLog('Scheduler started.');
+    schedScheduleNext(false);
+    schedTick=setInterval(schedDoTick,1000);
+    var sb=document.getElementById('sched-start-btn');
+    if(sb){sb.disabled=true;sb.textContent='Running';}
+    var pb=document.getElementById('sched-pause-btn');if(pb)pb.disabled=false;
+    var rb=document.getElementById('sched-run-btn');if(rb)rb.disabled=false;
+    schedUpdateUI();
+  };
+
+  window.schedPause=function(evt){
+    if(evt)evt.stopPropagation();
+    schedRunning=false;clearInterval(schedTick);schedTick=null;
+    schedNext=null;schedRapidEnd=null;
+    schedLog('Scheduler paused.');
+    var panel=document.getElementById('sched-panel');
+    if(panel)panel.className='sched-panel sched-mode-stopped'+(panel.classList.contains('open')?' open':'');
+    var dot=document.getElementById('sched-dot');if(dot)dot.className='sched-dot sched-dot-stopped';
+    var mt=document.getElementById('sched-mode-text');if(mt)mt.textContent='Paused';
+    var cd=document.getElementById('sched-countdown');if(cd)cd.textContent='--:--';
+    var cl=document.getElementById('sched-countdown-label');if(cl)cl.textContent='';
+    var rt=document.getElementById('sched-rapid-timer');if(rt)rt.style.display='none';
+    var sb=document.getElementById('sched-start-btn');if(sb){sb.disabled=false;sb.textContent='Resume';}
+    var pb=document.getElementById('sched-pause-btn');if(pb)pb.disabled=true;
+    var rb=document.getElementById('sched-run-btn');if(rb)rb.disabled=true;
+  };
+
+  window.schedRunNow=function(evt){
+    if(evt)evt.stopPropagation();
+    if(!schedRunning)return;
+    schedLog('Manual run triggered.');
+    schedFireRun();
+  };
+
+  window.schedToggle=function(){
+    var panel=document.getElementById('sched-panel');
+    if(panel)panel.classList.toggle('open');
+  };
+
+  document.addEventListener('DOMContentLoaded',schedInit);
+})();
 </script>
 
 <!-- ── Client-side rendering JS ──────────────────────────────────────── -->
@@ -1093,6 +1347,62 @@ function downloadPage(){
 
     var parts = [];
 
+    // ── Scheduler panel (only when settings injected) ────────────────
+    var schedEl = document.getElementById('scheduler-settings');
+    var hasScheduler = false;
+    try {
+      if (schedEl) {
+        var schedRaw = schedEl.textContent;
+        if (schedRaw && schedRaw.indexOf('__') !== 0) {
+          var schedTest = JSON.parse(schedRaw);
+          if (schedTest && schedTest.timezone) hasScheduler = true;
+        }
+      }
+    } catch(e) {}
+
+    if (hasScheduler) {
+      parts.push(
+        '<div id="sched-panel" class="sched-panel sched-mode-stopped" onclick="schedToggle()">' +
+        '<div class="sched-header">' +
+        '<div class="sched-mode"><span id="sched-dot" class="sched-dot sched-dot-stopped"></span>' +
+        '<span id="sched-mode-text">Stopped</span></div>' +
+        '<div id="sched-countdown" class="sched-countdown">--:--</div>' +
+        '<div id="sched-countdown-label" class="sched-runs" style="font-size:10px;color:var(--text-muted);"></div>' +
+        '<div id="sched-rapid-timer" class="sched-rapid-timer" style="display:none;">' +
+        '<span class="rapid-label"></span>' +
+        '<span class="rapid-bar-wrap"><span class="rapid-bar" style="width:100%"></span></span></div>' +
+        '<div id="sched-stat-runs" class="sched-runs">0 runs</div>' +
+        '<div class="sched-btns" onclick="event.stopPropagation()">' +
+        '<button id="sched-start-btn" class="sched-btn sched-btn-primary" onclick="schedStart()">Start</button>' +
+        '<button id="sched-pause-btn" class="sched-btn" onclick="schedPause(event)" disabled>Pause</button>' +
+        '<button id="sched-run-btn" class="sched-btn" onclick="schedRunNow(event)" disabled>Run now</button></div>' +
+        '<span class="sched-toggle">\u25ba</span></div>' +
+        '<div class="sched-body" onclick="event.stopPropagation()">' +
+        '<div class="sched-settings">' +
+        '<label>TZ</label> <select id="sched-tz">' +
+        '<option value="America/New_York">ET</option>' +
+        '<option value="America/Chicago">CT</option>' +
+        '<option value="America/Denver">MT</option>' +
+        '<option value="America/Los_Angeles">PT</option>' +
+        '<option value="Europe/London">London</option>' +
+        '<option value="Europe/Amsterdam">Amsterdam</option>' +
+        '<option value="UTC">UTC</option></select>' +
+        ' <label>Hours</label> <select id="sched-biz-start">' +
+        '<option value="6">6a</option><option value="7">7a</option>' +
+        '<option value="8">8a</option><option value="9" selected>9a</option>' +
+        '<option value="10">10a</option></select>' +
+        ' <span style="color:var(--text-muted);">\u2013</span> ' +
+        '<select id="sched-biz-end">' +
+        '<option value="15">3p</option><option value="16">4p</option>' +
+        '<option value="17" selected>5p</option><option value="18">6p</option>' +
+        '<option value="19">7p</option><option value="20">8p</option></select>' +
+        '</div>' +
+        '<div class="sched-hint">Biz \u2192 15 min \u00b7 Off-hours \u2192 60 min \u00b7 Rapid \u2192 5 min for 30 min after drafts</div>' +
+        '<div id="sched-log" class="sched-log"><div class="sched-log-line">Scheduler not started.</div></div>' +
+        '</div></div>'
+      );
+    }
+
     // ── Header ───────────────────────────────────────────────────────
     if (theme === 'terminal') {
       parts.push(
@@ -1281,11 +1591,41 @@ function downloadPage(){
     var dataEl = document.getElementById('results-data');
     if (!dataEl) return;
     var raw = dataEl.textContent;
-    if (!raw || raw.trim().charAt(0) !== '{') {
+    var hasResults = raw && raw.trim().charAt(0) === '{';
+
+    // Check if scheduler is present (for scheduler-only mode)
+    var schedActive = false;
+    try {
+      var schedEl2 = document.getElementById('scheduler-settings');
+      if (schedEl2) {
+        var sr = schedEl2.textContent;
+        if (sr && sr.indexOf('__') !== 0) { var st = JSON.parse(sr); if (st && st.timezone) schedActive = true; }
+      }
+    } catch(e) {}
+
+    if (!hasResults && !schedActive) {
       document.getElementById('app').innerHTML =
         '<div style="padding:40px;text-align:center;color:#8b949e;">' +
         '<h2>No data loaded</h2>' +
         '<p>The results data placeholder has not been replaced with valid JSON.</p></div>';
+      return;
+    }
+
+    if (!hasResults && schedActive) {
+      // Scheduler-only mode: show scheduler panel + waiting message
+      var waitData = {
+        run_date: new Date().toISOString().substring(0, 10),
+        profile_name: 'Job Search', mode: 'dry-run', lookback_days: 1,
+        results: [], pending_results: [], actions: []
+      };
+      try {
+        renderPage(waitData);
+        initLightDark();
+      } catch(re) {
+        document.getElementById('app').innerHTML =
+          '<div style="padding:40px;color:#f85149;font-family:monospace;">' +
+          '<h2>Render error</h2><pre>' + escapeHtml(re.message) + '</pre></div>';
+      }
       return;
     }
     try {

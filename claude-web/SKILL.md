@@ -813,18 +813,19 @@ log entry format.
 
 ## Auto-scheduler (optional)
 
-The scheduler runs jerbs automatically on a variable cadence using an interactive artifact
-that renders in the side panel. It uses `sendPrompt()` to trigger screening runs
-autonomously — no user interaction required between runs.
+The scheduler is built into the results template as a collapsible panel at the top of
+the page. It uses `sendPrompt()` to trigger screening runs autonomously — no user
+interaction required between runs. The scheduler and results share a single artifact,
+so the scheduler never replaces or hides results.
 
-### Displaying the scheduler
+### Starting the scheduler
 
-When the user asks to start, automate, or set up the scheduler, render the scheduler
-artifact. The template is bundled at `templates/scheduler-template.html`.
+When the user asks to start, automate, or set up the scheduler, render the **results
+template** (`templates/results-template.html`) with BOTH placeholders replaced:
 
-**Your only job is:**
-1. Read the template file from the .skill package
-2. Build a settings JSON object from the user's criteria:
+1. Replace `__RESULTS_DATA__` with an empty results wrapper (if no screening has
+   happened yet) or with actual results JSON
+2. Replace `__SCHEDULER_SETTINGS__` with a settings JSON object from the user's criteria:
    ```json
    {
      "timezone": "America/New_York",
@@ -833,37 +834,30 @@ artifact. The template is bundled at `templates/scheduler-template.html`.
      "autoStart": true
    }
    ```
-3. Replace the literal placeholder `__SCHEDULER_SETTINGS__` in the template with
-   the serialized JSON string
-4. Output the resulting HTML inside `<antArtifact>` tags
 
-**Example output structure:**
-
-```
-Here's your scheduler — it will check automatically based on your business hours.
-
-<antArtifact identifier="jerbs-scheduler" type="text/html" title="Jerbs Scheduler">
-<!DOCTYPE html>
-... [full self-contained HTML page with settings injected] ...
-</html>
-</antArtifact>
+For the initial scheduler start with no results yet, use this empty wrapper:
+```json
+{
+  "run_date": "YYYY-MM-DD",
+  "profile_name": "Job Search",
+  "mode": "dry-run",
+  "lookback_days": 1,
+  "results": [],
+  "pending_results": [],
+  "actions": []
+}
 ```
 
-The `<antArtifact>` tag MUST have:
-- `identifier="jerbs-scheduler"` (reuse this identifier if re-rendering)
-- `type="text/html"`
-- `title="Jerbs Scheduler"`
+The artifact tag MUST use `identifier="jerbs-results"` — the same identifier as
+normal results. This ensures the scheduler and results coexist in one artifact.
 
-**Do NOT modify the template HTML in any way.** The **only** change you make is
-replacing `__SCHEDULER_SETTINGS__` with the settings JSON.
-
-Set `autoStart` to `true` so the scheduler begins running immediately when the
-artifact renders. If the user says "pause" or "stop", you do not need to re-render —
-the artifact has its own pause/resume buttons.
+When the scheduler's timer fires `sendPrompt()`, the subsequent screening run should
+re-render the same artifact with updated results data AND scheduler settings (preserving
+`runCount` and any active `rapidModeEnd`).
 
 ### Interval state machine
 
-The scheduler artifact contains a three-tier state machine:
+The scheduler panel contains a three-tier state machine:
 
 | State | Interval | Condition |
 |---|---|---|
@@ -871,13 +865,13 @@ The scheduler artifact contains a three-tier state machine:
 | Business hours | 15 min | Within business hours |
 | Rapid response | 5 min | For 30 min after draft replies are generated |
 
-The artifact handles all timing, mode transitions, and countdown display. When the
+The panel handles all timing, mode transitions, and countdown display. When the
 countdown expires, it calls `sendPrompt()` to trigger the next screening run.
 
 ### Rapid mode trigger
 
 When the scheduler is active and you generate draft replies during a screening run,
-you MUST re-render the scheduler artifact with `rapidModeEnd` set in the settings:
+re-render the artifact with `rapidModeEnd` set in the scheduler settings:
 
 ```json
 {
@@ -891,26 +885,25 @@ you MUST re-render the scheduler artifact with `rapidModeEnd` set in the setting
 ```
 
 Set `rapidModeEnd` to `Date.now() + 30 * 60 * 1000` (30 minutes from now) and
-preserve the current `runCount`. The artifact will enter rapid mode (5-min checks)
+preserve the current `runCount`. The panel will enter rapid mode (5-min checks)
 and automatically revert when the timer expires.
 
-**Never set `rapidModeEnd` when no drafts were generated** — only trigger rapid mode
-when there are actual draft replies for the user to review and send.
+**Never set `rapidModeEnd` when no drafts were generated.**
 
 ### How it works
 
-1. The artifact renders in the side panel with a live countdown timer
-2. When the timer fires, the artifact calls `sendPrompt()` which sends a screening
-   prompt to Claude as if the user typed it
-3. Claude runs the full screening pass and outputs results
-4. If draft replies were generated, Claude re-renders the artifact with rapid mode
-   active — otherwise the artifact continues with its current timer
-5. The cycle repeats until the user pauses the scheduler or ends the session
+1. The artifact renders with the scheduler panel at the top and results below
+2. The scheduler panel shows mode, countdown timer, and controls (start/pause/run now)
+3. Clicking the panel expands it to show timezone settings and activity log
+4. When the timer fires, `sendPrompt()` sends a screening prompt to Claude
+5. Claude runs the screening pass and re-renders the artifact with new results
+   plus updated scheduler settings
+6. The cycle repeats until the user pauses or ends the session
 
 ### Important notes
 - The scheduler only runs while the browser tab is open — it is not a background service.
-- The artifact persists in the side panel and does not scroll away with the conversation.
-- Settings changes (timezone, business hours) made in the artifact UI take effect
+- The scheduler panel is hidden when `__SCHEDULER_SETTINGS__` is not replaced (e.g.,
+  in Claude Code / daemon mode where `export_html.py` only replaces `__RESULTS_DATA__`).
+- Settings changes (timezone, business hours) made in the panel take effect
   immediately — no re-render needed.
-- When re-rendering for rapid mode, always preserve `runCount` so the session counter
-  is not reset.
+- When re-rendering, always preserve `runCount` so the session counter is not reset.
