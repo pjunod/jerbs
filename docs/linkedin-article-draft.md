@@ -12,21 +12,19 @@ What it found was a perfect case study of a problem every team using AI for deve
 
 The app generates interactive HTML report pages from screening results. When I built the browser version, it needed to deliver HTML as an inline artifact — so the AI created a client-side template: a self-contained single-page app that reads embedded JSON data and renders everything at runtime using JavaScript. 1,289 lines. Theme switcher, filter bar, expandable cards, the works.
 
-The CLI and daemon modes had been built earlier using a different approach — a Python script that generates HTML server-side via string concatenation. 1,364 lines. Same themes, same cards, same filters. Built with the same care, same test coverage, same attention to detail.
+The CLI and daemon modes had been built earlier using a different approach — a Python script that generates HTML server-side via string concatenation. 1,364 lines. Same themes, same cards, same filters.
 
 Two rendering engines. 2,653 lines of code. Producing identical output.
 
-You can see the whole progression in the public commit history. [PR #54](https://github.com/pjunod/jerbs/pull/54) introduced the first HTML output with dual themes, built in Python. [PR #74](https://github.com/pjunod/jerbs/pull/74) expanded it with source grouping, responsive layout, and interactive cards — all server-side string concatenation. Then [PR #86](https://github.com/pjunod/jerbs/pull/86) introduced the JavaScript template as a second rendering engine for the browser mode. Each PR was well-crafted. Each one passed review. And the system quietly doubled in complexity.
+You can see the whole progression in the public commit history. [PR #54](https://github.com/pjunod/jerbs/pull/54) introduced the first HTML output with dual themes, built in Python. [PR #74](https://github.com/pjunod/jerbs/pull/74) expanded it with source grouping, responsive layout, and interactive cards — all server-side string concatenation. Then [PR #86](https://github.com/pjunod/jerbs/pull/86) introduced the JavaScript template as a second rendering engine for the browser mode. Each PR shipped working code. And the system quietly doubled in complexity.
 
 ## How It Happened
 
-Here's the thing: neither piece of code was *broken*. They both worked.
+Neither piece of code was *broken*. They both worked. But "it works" isn't the same as "it's good."
 
-But "it works" isn't the same as "it's good." The Python generator was a 1,364-line monolith that built HTML through string concatenation, with hundreds of lines of CSS and JavaScript stored as inline Python constants. It was overengineered from the start — the kind of solution an AI produces when you ask it to solve a problem without constraints. It got us past the immediate need and on to other things, which is all it needed to do at the time.
+The Python generator was a 1,364-line monolith that built HTML through string concatenation, with hundreds of lines of CSS and JavaScript stored as inline Python constants. It was overengineered from the start — the kind of solution an AI produces when you ask it to solve a problem without constraints. It got us past the immediate need and on to other things, which is all it needed to do at the time.
 
-The JavaScript template was the cleaner design — a self-contained SPA that reads JSON and renders client-side. But it was built alongside the Python generator, not as a replacement for it.
-
-The problem is that AI assistants build incrementally, within the context of the current conversation. When the browser mode was built weeks after the CLI mode, the AI didn't "remember" the existing Python renderer. It solved the problem in front of it — using the approach that made sense for the browser delivery mechanism — and produced a second rendering engine without recognizing the first one should have been retired.
+Then the browser mode came along. AI assistants build incrementally, within the context of the current conversation. When the browser mode was built weeks after the CLI mode, the AI didn't "remember" the existing Python renderer. It solved the problem in front of it — using the approach that made sense for the browser delivery mechanism — and produced a second rendering engine without recognizing the first one should have been retired. The JavaScript template was the cleaner design — a self-contained SPA that reads JSON and renders client-side — but it was built alongside the Python generator, not as a replacement for it.
 
 Nobody told it to look at the system as a whole. It was never asked "hey, is there already something that does this?"
 
