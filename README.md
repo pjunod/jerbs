@@ -78,8 +78,8 @@ Connect Gmail first in Settings → MCP Servers → Gmail, then say **"/jerbs"**
 ### Claude.ai (browser)
 
 1. Download **[`claude-web/jerbs.skill`](claude-web/jerbs.skill)**
-2. Claude.ai → **Settings → Connectors → Gmail → Connect**
-3. Claude.ai → **Settings → Skills → Install from file** → upload `jerbs.skill`
+2. Claude.ai → **Customize → Connectors → Gmail → Connect**
+3. Claude.ai → **Customize → Skills → + → Create skill → Upload a skill** → upload `jerbs.skill`
 4. New conversation → say **"set up jerbs"**
 
 ### Local daemon
@@ -179,7 +179,7 @@ jerbs runs in three modes. Pick the one that fits your setup.
 Best for: casual use, no local setup required.
 
 - Runs entirely in your browser via Claude's MCP connector system
-- Gmail is connected via Settings → Connectors — no API keys needed
+- Gmail is connected via Customize → Connectors — no API keys needed
 - Auto-scheduler runs via `/loop` during active sessions, remote trigger for off-hours
 - Criteria and correspondence log are stored as project files; Claude outputs updated JSON at the end of any run where something changed, and prompts you to re-upload
 
@@ -205,7 +205,7 @@ Best for: always-on background screening with no browser required.
 - Supports `--once`, `--send`, `--export` flags
 - Runtime files live at `~/.jerbs/`
 
-See [docs/setup.md](docs/setup.md) for full setup including Gmail API credentials and system service configuration.
+See [docs/setup.md](docs/setup.md) for full setup including Gmail API credentials.
 
 ---
 

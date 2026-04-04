@@ -6,14 +6,13 @@ The Claude.ai version requires no local installation. Everything runs in your br
 
 ### Requirements
 - Claude.ai account (Pro or above recommended for higher message limits)
-- Gmail connected in Claude.ai Settings → Connectors
+- Gmail connected in Claude.ai Customize → Connectors
 
 ### Install
 1. Download `claude-web/jerbs.skill`
-2. In Claude.ai, go to Settings → Skills → Install from file
-3. Upload the `.skill` file
-4. Go to Settings → Connectors → Gmail → Connect
-5. Start a new conversation and say: "set up jerbs"
+2. In Claude.ai, go to Customize → Skills → + → Create skill → Upload a skill → select `jerbs.skill`
+3. Go to Customize → Connectors → Gmail → Connect
+4. Start a new conversation and say: "set up jerbs"
 
 ### First run
 The wizard will walk you through configuring your criteria. After setup, say "run jerbs" or "check my job emails" to start screening. Say "start the scheduler" to automate.
@@ -104,7 +103,7 @@ The daemon runs continuously, logging to stdout and `~/.jerbs/jerbs.log`. Stop i
 
 ## Running as a system service
 
-See the README for launchd (macOS) and systemd (Linux) configuration.
+> **Coming soon** — launchd (macOS) and systemd (Linux) service configurations are not yet documented.
 
 ---
 
