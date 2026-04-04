@@ -20,11 +20,13 @@ You can see the whole progression in the public commit history. [PR #54](https:/
 
 ## How It Happened
 
-Here's the thing that's hard to accept: neither piece of code was wrong.
+Here's the thing: neither piece of code was *broken*. They both worked.
 
-The Python generator was well-structured and thoroughly tested. The JavaScript template was well-structured and thoroughly tested. If you reviewed either one in isolation, you'd approve the PR.
+But "it works" isn't the same as "it's good." The Python generator was a 1,364-line monolith that built HTML through string concatenation, with hundreds of lines of CSS and JavaScript stored as inline Python constants. It was overengineered from the start — the kind of solution an AI produces when you ask it to solve a problem without constraints. It got us past the immediate need and on to other things, which is all it needed to do at the time.
 
-The problem is that AI assistants build incrementally, within the context of the current conversation. When the browser mode was built weeks after the CLI mode, the AI didn't "remember" the existing Python renderer. It solved the problem in front of it — and solved it well — using the approach that made sense for the browser delivery mechanism.
+The JavaScript template was the cleaner design — a self-contained SPA that reads JSON and renders client-side. But it was built alongside the Python generator, not as a replacement for it.
+
+The problem is that AI assistants build incrementally, within the context of the current conversation. When the browser mode was built weeks after the CLI mode, the AI didn't "remember" the existing Python renderer. It solved the problem in front of it — using the approach that made sense for the browser delivery mechanism — and produced a second rendering engine without recognizing the first one should have been retired.
 
 Nobody told it to look at the system as a whole. It was never asked "hey, is there already something that does this?"
 
@@ -74,7 +76,7 @@ This is the new version of an old problem. Junior developers do the same thing �
 
 **1. Schedule periodic architecture reviews.** Not code reviews — architecture reviews. Ask the AI (or a human) to look at the system holistically, across modules, across deployment modes, across languages. The kind of analysis that asks "are we solving the same problem in two places?"
 
-**2. Treat AI output as a first draft, even when it's good.** The quality of individual outputs creates a false sense of completeness. A function can be well-written and still be unnecessary.
+**2. Treat AI output as a first draft, even when it works.** Working code creates a false sense of completeness. A module can pass every test and still be overengineered, or unnecessary, or a duplicate of something that already exists.
 
 **3. Maintain living architecture documentation.** If the AI had access to a diagram showing "here's how rendering works across all modes," it would have recognized the duplication when building the browser version. Context is everything — give it context.
 
