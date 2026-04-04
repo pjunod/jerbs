@@ -16,6 +16,8 @@ The CLI and daemon modes had been built earlier using a different approach — a
 
 Two rendering engines. 2,653 lines of code. Producing identical output.
 
+You can see the whole progression in the public commit history. [PR #54](https://github.com/pjunod/jerbs/pull/54) introduced the first HTML output with dual themes, built in Python. [PR #74](https://github.com/pjunod/jerbs/pull/74) expanded it with source grouping, responsive layout, and interactive cards — all server-side string concatenation. Then [PR #86](https://github.com/pjunod/jerbs/pull/86) introduced the JavaScript template as a second rendering engine for the browser mode. Each PR was well-crafted. Each one passed review. And the system quietly doubled in complexity.
+
 ## How It Happened
 
 Here's the thing that's hard to accept: neither piece of code was wrong.
@@ -37,7 +39,7 @@ Every function in the Python engine had a character-for-character equivalent in 
 
 A bug fix or feature addition to one engine required a manual port to the other. And because they were in different languages, no linter or static analysis tool would catch the drift.
 
-The demo page made it worse. Even though the template already had a runtime theme switcher, the Python generator was producing two separate 90KB HTML files — one per theme. Three files to show the same data.
+The demo page made it worse. Even though the template already had a runtime theme switcher, the Python generator was producing two separate HTML files — one per theme (95KB and 77KB). Two files to show the same data, with the theme baked in at generation time.
 
 ## The Fix Was Embarrassingly Simple
 
@@ -49,14 +51,14 @@ The Python generator just needed to become a thin wrapper:
 2. Inject the results JSON
 3. Write the file
 
-That's it. 1,364 lines of Python became 108. The demo collapsed from three files to one. Every output — browser, CLI, daemon, demo — now uses the same rendering pipeline. The only difference is how the file is delivered.
+That's it. 1,364 lines of Python became 108. The two demo files collapsed into one. Every output — browser, CLI, daemon, demo — now uses the same rendering pipeline. The only difference is how the file is delivered.
 
 | Metric | Before | After |
 |---|---|---|
 | Python rendering code | 1,364 lines | 108 lines |
 | Rendering engines to maintain | 2 | 1 |
 | Cross-language function duplication | 21 functions | 0 |
-| Demo files | 2 (166KB) | 1 (93KB) |
+| Demo data files | 2 (172KB) | 1 (96KB) |
 | Places to fix a rendering bug | 2 | 1 |
 | Theme support per file | 1 (locked at generation) | 2 (runtime switchable) |
 
