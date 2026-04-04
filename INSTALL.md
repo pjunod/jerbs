@@ -4,8 +4,11 @@
 
 **Requirements:** Claude Code CLI or desktop app · Gmail connected
 
+> **Marketplace listing coming soon.** For now, install manually:
+
 ```bash
-/plugin marketplace add pjunod/jerbs
+git clone https://github.com/pjunod/jerbs.git
+# Add the repo path as a skill in Claude Code settings
 ```
 
 Then say **"set up jerbs"** or **"/jerbs"** to get started. The setup wizard handles the rest.
