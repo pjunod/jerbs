@@ -879,8 +879,10 @@ class TestAgeBadgeHtml:
         assert "2d ago" in html
         assert "hsl(" in html
 
-    def test_empty_date_returns_empty(self):
-        assert _age_badge_html("", "2026-04-03") == ""
+    def test_empty_date_shows_no_date_badge(self):
+        html = _age_badge_html("", "2026-04-03")
+        assert "no date" in html
+        assert "58px" in html
 
     def test_fixed_width(self):
         html = _age_badge_html("2026-04-03", "2026-04-03", is_new=True)
