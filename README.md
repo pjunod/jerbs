@@ -9,7 +9,7 @@ A Claude skill that screens your job-related emails against your personal criter
 follow-up replies, and tracks your recruiter correspondence — so you only spend time on
 opportunities worth pursuing.
 
-**[Live demo →](https://pjunod.github.io/jerbs/)**
+**[Live interface demo →](https://pjunod.github.io/jerbs/)** — interactive sample results page with filters, expandable cards, and theme switching
 
 ---
 
