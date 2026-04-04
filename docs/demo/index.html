@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jerbs — Live Demo</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.6;
+  padding: 3rem 2rem; max-width: 720px; margin: 0 auto;
+}
+h1 { font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; }
+.subtitle { color: var(--muted); margin-bottom: 2.5rem; }
+.themes { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 3rem; }
+.theme-card {
+  flex: 1; min-width: 280px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 0.75rem;
+  padding: 1.5rem; text-decoration: none; color: var(--text);
+  transition: border-color 0.2s;
+}
+.theme-card:hover { border-color: var(--accent); }
+.theme-card h2 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+.theme-card p { color: var(--muted); font-size: 0.9rem; }
+.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+.back:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <h1>jerbs — Live Demo</h1>
+  <p class="subtitle">Interactive sample screening reports with realistic (fake) data.<br>
+  Click a theme to explore the full results page.</p>
+
+  <div class="themes">
+    <a href="terminal.html" class="theme-card">
+      <h2>Terminal</h2>
+      <p>IBM Plex Mono, CRT scanlines, dark background. Expandable cards with filter bar and verdict grouping.</p>
+    </a>
+    <a href="cards.html" class="theme-card">
+      <h2>Cards</h2>
+      <p>Clean card layout with light/dark toggle. Color-coded verdict borders, inline draft replies, action badges.</p>
+    </a>
+  </div>
+
+  <a href="https://github.com/pjunod/jerbs" class="back">&larr; Back to repository</a>
+</body>
+</html>
