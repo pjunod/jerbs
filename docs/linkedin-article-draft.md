@@ -113,3 +113,5 @@ The discipline can't live in one person's head. It has to be in the process. Bec
 ---
 
 *The project referenced is open source: [github.com/pjunod/jerbs](https://github.com/pjunod/jerbs). The PR with the full analysis, architecture diagrams, and implementation is [#88](https://github.com/pjunod/jerbs/pull/88).*
+
+*Full transparency: this article was drafted by the same AI that wrote the code and the fix. I directed the process from the start — identifying the problem, guiding the architectural analysis, planning the refactor, and deciding what the article should say. The AI did the writing. I did the editing, the judgment calls, and the "what's the point of all this?" The whole thing was built with the article in mind from the moment the issue was identified. Meta? Sure. But it felt like the honest way to demonstrate the collaboration model I'm describing.*
