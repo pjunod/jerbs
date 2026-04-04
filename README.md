@@ -65,11 +65,15 @@ opportunities worth pursuing.
 
 ### Claude Code (recommended)
 
+> **Coming soon** — marketplace listing is not live yet. For now, install manually from the repo.
+
 ```bash
-/plugin marketplace add pjunod/jerbs
+# Manual install (until marketplace listing is live):
+git clone https://github.com/pjunod/jerbs.git
+# Then add the repo path as a skill in Claude Code settings
 ```
 
-Then say **"/jerbs"** to get started. Connect Gmail first in Settings → MCP Servers → Gmail.
+Connect Gmail first in Settings → MCP Servers → Gmail, then say **"/jerbs"** to get started.
 
 ### Claude.ai (browser)
 
@@ -185,12 +189,7 @@ See [INSTALL.md](INSTALL.md) for setup steps.
 
 Best for: power users who want zero-friction local file management.
 
-**Install from marketplace:**
-```
-/plugin marketplace add pjunod/jerbs
-```
-
-Or install manually — see [INSTALL.md](INSTALL.md).
+**Marketplace listing coming soon.** For now, install manually — see [INSTALL.md](INSTALL.md).
 
 - Runs inside the Claude Code CLI with Gmail connected via Claude.ai connectors
 - Reads and writes `~/.claude/jerbs/criteria.json` and `~/.claude/jerbs/correspondence.json` directly — no re-uploading
