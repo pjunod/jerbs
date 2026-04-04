@@ -35,14 +35,15 @@ Jerbs is a multi-deployment job email screening tool that:
 | Category | Files | Lines |
 |---|---|---|
 | Core modules (`claude-code/`) | 6 | 1,578 |
-| Shared scripts (`shared/scripts/`) | 2 | 1,721 |
+| Shared scripts (`shared/scripts/`) | 2 | 475 |
+| Shared templates (`shared/templates/`) | 1 | 1,297 |
 | LinkedIn MCP server | 1 | 236 |
 | Utility scripts (`scripts/`) | 2 | ~195 |
-| Unit tests (`tests/unit/`) | 14 | 6,320 |
+| Unit tests (`tests/unit/`) | 14 | 5,489 |
 | Red team harness (`tests/redteam/`) | 1 | 274 |
 | Skill definitions | 2 | 1,592 |
 | CI workflows | 5 | ~120 |
-| **Total** | **~33** | **~12,036** |
+| **Total** | **~33** | **~10,790** |
 
 Test-to-source ratio: ~2.5:1 (healthy).
 Coverage: 100% enforced in CI.
@@ -131,7 +132,8 @@ graph TB
     subgraph "shared/"
         template["criteria_template.json<br/><i>Full criteria schema</i>"]
         export_xlsx["export_results.py<br/><i>XLSX pipeline export</i><br/>367 lines"]
-        export_html["export_html.py<br/><i>HTML results page</i><br/>1,354 lines"]
+        export_html["export_html.py<br/><i>Template injection wrapper</i><br/>108 lines"]
+        results_tpl["results-template.html<br/><i>Client-side SPA</i><br/>1,297 lines"]
     end
 
     subgraph "External APIs"
@@ -148,6 +150,7 @@ graph TB
     jerbs -.-> export_xlsx
 
     wizard --> template
+    export_html --> results_tpl
 
     screener --> anthropic_api
     gmail --> gmail_api
@@ -161,6 +164,7 @@ graph TB
     style wizard fill:#6b7280,color:#fff
     style export_html fill:#dc2626,color:#fff
     style export_xlsx fill:#dc2626,color:#fff
+    style results_tpl fill:#059669,color:#fff
 ```
 
 ### 4. Data Flow — Screening Pipeline
@@ -238,7 +242,7 @@ flowchart TB
     end
 
     save --> output{Export?}
-    output -->|HTML| html[export_html.py<br/>Terminal or Cards theme]
+    output -->|HTML| html[export_html.py<br/>Template injection]
     output -->|XLSX| xlsx[export_results.py<br/>Pipeline tracker]
     output -->|None| fin([Done])
     html --> fin
@@ -447,6 +451,7 @@ graph LR
     subgraph "Shared"
         ER[export_results.py]
         EH[export_html.py]
+        TPL[results-template.html]
         CT[criteria_template.json]
     end
 
@@ -483,6 +488,7 @@ graph LR
     W -.-> PW
     W -.-> BC
     W --> CT
+    EH --> TPL
     ER --> OP
     LM --> LI
 
@@ -492,11 +498,65 @@ graph LR
     style L fill:#0077b5,color:#fff
     style UR fill:#f59e0b,color:#000
     style LM fill:#0077b5,color:#fff
+    style TPL fill:#059669,color:#fff
 
     linkStyle 10 stroke:#f00,stroke-dasharray:5
 ```
 
 Note: The dashed red line from `jerbs.py` → `export_results.py` uses a runtime `sys.path.insert()` hack, not a proper import.
+
+### 9. Rendering Pipeline
+
+All deployment modes share a single rendering pipeline. The Python wrapper (`export_html.py`)
+handles data preparation (pending resolution from disk), then injects the results JSON into
+the client-side template. The template is a self-contained SPA that renders both themes at
+runtime with light/dark mode support.
+
+```mermaid
+flowchart TB
+    subgraph data ["Data Layer"]
+        JSON["results JSON<br/><i>screening output</i>"]
+        CRITERIA["criteria.json<br/><i>pending fallback</i>"]
+    end
+
+    subgraph wrapper ["Data Preparation — Python<br/><code>export_html.py</code> — ~108 lines"]
+        PENDING["_resolve_pending()<br/><i>merge pending from disk<br/>if not in JSON</i>"]
+        INJECT["Template injection<br/><i>read template,<br/>replace __RESULTS_DATA__<br/>with JSON string</i>"]
+    end
+
+    subgraph template ["Single Source of Truth<br/><code>results-template.html</code> — 1,297 lines"]
+        direction TB
+        CSS["Both theme CSS<br/><i>css-terminal + css-cards<br/>one active at a time</i>"]
+        THEME_RES["Theme resolution<br/><i>1. URL ?theme= param<br/>2. localStorage<br/>3. default 'terminal'</i>"]
+        LIGHT_RES["Light/dark resolution<br/><i>1. localStorage<br/>2. system prefers-color-scheme<br/>3. default dark</i>"]
+        RENDER["renderPage(data)<br/><i>Full client-side rendering<br/>from embedded JSON</i>"]
+        SWITCH["switchTheme()<br/><i>Runtime toggle between<br/>terminal ↔ cards</i>"]
+
+        CSS --> RENDER
+        THEME_RES --> RENDER
+        LIGHT_RES --> RENDER
+        RENDER <--> SWITCH
+    end
+
+    JSON --> PENDING
+    CRITERIA -.->|"fallback<br/>(daemon only)"| PENDING
+    PENDING --> INJECT
+    INJECT -->|"self-contained HTML<br/>(template + JSON)"| DELIVER
+
+    subgraph DELIVER ["Delivery — same file, different wrappers"]
+        direction LR
+        D_CODE["Claude Code<br/><i>write to disk,<br/>open in browser</i>"]
+        D_WEB["Claude Web<br/><i>wrap in<br/>&lt;antArtifact&gt; tag</i>"]
+        D_DAEMON["Daemon<br/><i>write to<br/>~/.jerbs/</i>"]
+        D_DEMO["Demo<br/><i>single results.html<br/>deep-link via ?theme=</i>"]
+    end
+
+    template --> RENDER
+
+    style wrapper fill:#1e40af,color:#fff,stroke:#1e3a8a,stroke-width:2px
+    style template fill:#059669,color:#fff,stroke:#047857,stroke-width:2px
+    style DELIVER fill:#6b21a8,color:#fff,stroke:#581c87,stroke-width:2px
+```
 
 ---
 
@@ -630,16 +690,14 @@ class JerbsConfig:
 
 ---
 
-### Issue 4: `export_html.py` is a 1,354-line monolith (MEDIUM)
+### Issue 4: ~~`export_html.py` is a 1,354-line monolith~~ RESOLVED
 
-**Current state:** One file contains HTML helpers, date math, two complete CSS themes (terminal + cards) as inline strings, card builders, stats builders, pending resolution, and the main export function.
-
-**Why it matters:** The file is at the edge of maintainability. The two themes are ~400 lines of inline CSS/JS each. Adding a third theme or modifying one is error-prone.
-
-**Recommendation:**
-1. Extract theme CSS/JS into separate template files (`templates/terminal.css`, `templates/cards.css`)
-2. Split the file into `export_html_core.py` (helpers, logic) and theme-specific card builders
-3. Alternatively, use a lightweight template engine (Jinja2 is already common in Python) to separate markup from logic
+**Resolved:** The Python HTML generator was replaced with a thin ~108-line wrapper that
+injects results JSON into the client-side SPA template (`results-template.html`). All
+rendering logic — CSS, JS, card builders, theme switching — now lives in the template
+as the single source of truth. The old approach had two complete rendering engines (Python
+server-side + JS client-side) that had to be kept in sync. See the Rendering Pipeline
+diagram below for the new architecture.
 
 ---
 
@@ -776,7 +834,7 @@ except Exception as e:
 | 5 | Add daemon error recovery (Issue 10) | Trivial | Prevents crashes from transient failures |
 | 6 | Type the criteria dict (Issue 7) | Medium | Catches bugs at dev time, better IDE support |
 | 7 | MessageSource Protocol (Issue 6) | Small | Contract for message source implementations |
-| 8 | Split `export_html.py` (Issue 4) | Medium | Maintainability for theme development |
+| ~~8~~ | ~~Split `export_html.py` (Issue 4)~~ | ~~Medium~~ | **RESOLVED** — unified on template |
 | 9 | Replace `log()` with logging (Issue 8) | Small | Standard logging with levels and rotation |
 | 10 | Remove stale template (Issue 11) | Trivial | Housekeeping |
 
