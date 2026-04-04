@@ -9,8 +9,6 @@ Usage:
     python3 update_run.py --add-ids id1 id2 ...
     python3 update_run.py --enable-scheduler job_id_biz job_id_offhours
     python3 update_run.py --disable-scheduler
-    python3 update_run.py --set-rapid-mode job_id rapid_mode_until_iso
-    python3 update_run.py --clear-rapid-mode job_id_biz job_id_offhours
 """
 
 import argparse
@@ -91,26 +89,6 @@ def disable_scheduler():
     print("Scheduler disabled.")
 
 
-def set_rapid_mode(cron_job_ids, rapid_mode_until):
-    """Switch to rapid mode: store single job ID and expiry timestamp."""
-    data = _load()
-    sched = data.setdefault("scheduler", {})
-    sched["cron_jobs"] = cron_job_ids
-    sched["rapid_mode_until"] = rapid_mode_until
-    _save(data)
-    print(f"Rapid mode set. expires: {rapid_mode_until}")
-
-
-def clear_rapid_mode(cron_job_ids):
-    """Revert from rapid mode: store standard job IDs and clear expiry."""
-    data = _load()
-    sched = data.setdefault("scheduler", {})
-    sched["cron_jobs"] = cron_job_ids
-    sched["rapid_mode_until"] = None
-    _save(data)
-    print(f"Rapid mode cleared. cron_jobs: {cron_job_ids}")
-
-
 def main():
     parser = argparse.ArgumentParser(description="jerbs criteria updater and lock guard")
     group = parser.add_mutually_exclusive_group(required=True)
@@ -129,18 +107,6 @@ def main():
         action="store_true",
         help="Set scheduler enabled=false and clear cron_jobs",
     )
-    group.add_argument(
-        "--set-rapid-mode",
-        nargs=2,
-        metavar=("JOB_ID", "UNTIL_ISO"),
-        help="Store rapid-mode cron job ID and expiry timestamp",
-    )
-    group.add_argument(
-        "--clear-rapid-mode",
-        nargs="+",
-        metavar="JOB_ID",
-        help="Revert to standard schedule with given cron job IDs",
-    )
     args = parser.parse_args()
 
     if args.check_lock:
@@ -155,10 +121,6 @@ def main():
         enable_scheduler(args.enable_scheduler)
     elif args.disable_scheduler:
         disable_scheduler()
-    elif args.set_rapid_mode:
-        set_rapid_mode([args.set_rapid_mode[0]], args.set_rapid_mode[1])
-    elif args.clear_rapid_mode:
-        clear_rapid_mode(args.clear_rapid_mode)
 
 
 if __name__ == "__main__":

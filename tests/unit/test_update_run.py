@@ -149,32 +149,3 @@ class TestSchedulerEnableDisable:
         update_run.disable_scheduler()
         data = _read_criteria(tmp_path)
         assert data["scheduler"]["enabled"] is False
-
-
-# ---------------------------------------------------------------------------
-# set_rapid_mode / clear_rapid_mode
-# ---------------------------------------------------------------------------
-
-
-class TestRapidMode:
-    def test_set_rapid_mode(self, tmp_path):
-        _write_criteria(tmp_path, {"scheduler": {"cron_jobs": [], "rapid_mode_until": None}})
-        update_run.set_rapid_mode(["rapid1"], "2026-03-31T15:30:00+00:00")
-        data = _read_criteria(tmp_path)
-        assert data["scheduler"]["cron_jobs"] == ["rapid1"]
-        assert data["scheduler"]["rapid_mode_until"] == "2026-03-31T15:30:00+00:00"
-
-    def test_clear_rapid_mode(self, tmp_path):
-        _write_criteria(
-            tmp_path,
-            {
-                "scheduler": {
-                    "cron_jobs": ["rapid1"],
-                    "rapid_mode_until": "2026-03-31T15:30:00+00:00",
-                }
-            },
-        )
-        update_run.clear_rapid_mode(["biz1", "off2"])
-        data = _read_criteria(tmp_path)
-        assert data["scheduler"]["cron_jobs"] == ["biz1", "off2"]
-        assert data["scheduler"]["rapid_mode_until"] is None
