@@ -1,448 +1,52 @@
 <!DOCTYPE html>
-<html lang="en"><head>
+<html lang="en">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>jerbs — Screening Report · 2026-04-03</title>
-<style>@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+<title>jerbs — Live Demo</title>
+<style>
 :root {
-  --bg:#0b0d0f; --bg2:#111418; --bg3:#181c22;
-  --border:#1e2530; --border2:#252d38;
-  --green:#2dff9b; --green-dim:#1a9960; --green-bg:rgba(45,255,155,0.06);
-  --amber:#ffb340; --amber-dim:#9a6a1a; --amber-bg:rgba(255,179,64,0.06);
-  --red:#ff4d4d; --red-dim:#7a2020; --red-bg:rgba(255,77,77,0.06);
-  --blue:#3d9eff; --blue-bg:rgba(61,158,255,0.08);
-  --purple:#bc8cff; --purple-bg:rgba(188,140,255,0.08);
-  --text:#d4dae4; --text-dim:#8b95a5; --text-muted:#5a6577;
-  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
 }
-body.light{
-  --bg:#f5f6f8; --bg2:#ffffff; --bg3:#ebedf0;
-  --border:#d0d4dc; --border2:#bcc2cc;
-  --green:#0e8a4f; --green-dim:#0e8a4f; --green-bg:rgba(14,138,79,0.08);
-  --amber:#a06800; --amber-dim:#a06800; --amber-bg:rgba(160,104,0,0.08);
-  --red:#cc3333; --red-dim:#cc3333; --red-bg:rgba(204,51,51,0.06);
-  --blue:#1a6dd4; --blue-bg:rgba(26,109,212,0.08);
-  --purple:#7c3aed; --purple-bg:rgba(124,58,237,0.08);
-  --text:#1a1d23; --text-dim:#4a5568; --text-muted:#6b7280;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.6;
+  padding: 3rem 2rem; max-width: 720px; margin: 0 auto;
 }
-body.light::before{display:none;}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);
-  font-size:14px;line-height:1.6;min-height:100vh;}
-body::before{content:'';position:fixed;inset:0;
-  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
-  pointer-events:none;z-index:1000;}
-.header{border-bottom:1px solid var(--border);padding:28px 40px 24px;
-  display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;}
-.logo{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.18em;
-  text-transform:uppercase;color:var(--green);margin-bottom:4px;display:flex;align-items:center;gap:8px;}
-.logo::before{content:'>';color:var(--green-dim);}
-.run-title{font-family:var(--mono);font-size:22px;font-weight:500;letter-spacing:-0.02em;}
-.run-meta{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:6px;
-  display:flex;gap:20px;flex-wrap:wrap;}
-.run-meta span{display:flex;align-items:center;gap:5px;}
-.run-meta span::before{content:'\b7';color:var(--text-muted);}
-.run-meta span:first-child::before{display:none;}
-.stats-pills{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-.pill{font-family:var(--mono);font-size:11px;font-weight:600;padding:6px 14px;
-  border-radius:4px;letter-spacing:0.05em;display:flex;align-items:center;gap:6px;}
-.pill-green{background:var(--green-bg);color:var(--green);border:1px solid rgba(45,255,155,0.2);}
-.pill-amber{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,179,64,0.2);}
-.pill-red{background:var(--red-bg);color:var(--red);border:1px solid rgba(255,77,77,0.15);}
-.pill-num{font-size:16px;font-weight:300;}
-.filter-bar{padding:14px 40px;border-bottom:1px solid var(--border);
-  display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
-.filter-label{font-family:var(--mono);font-size:10px;color:var(--text-muted);
-  letter-spacing:0.1em;text-transform:uppercase;margin-right:4px;}
-.filter-btn{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:3px;
-  border:1px solid var(--border2);background:transparent;color:var(--text-dim);
-  cursor:pointer;transition:all 0.15s;letter-spacing:0.04em;}
-.filter-btn:hover{border-color:var(--blue);color:var(--blue);}
-.filter-btn.active-all{border-color:var(--text-dim);color:var(--text);background:var(--bg3);}
-.filter-btn.active-blue{border-color:var(--blue);color:var(--blue);background:var(--blue-bg,rgba(88,166,255,0.08));}
-.filter-btn.active-green{border-color:var(--green);color:var(--green);background:var(--green-bg);}
-.filter-btn.active-amber{border-color:var(--amber);color:var(--amber);background:var(--amber-bg);}
-.filter-btn.active-red{border-color:var(--red);color:var(--red);background:var(--red-bg);}
-.theme-select{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:3px;
-  border:1px solid var(--border2);background:var(--bg3);color:var(--text-dim);cursor:pointer;}
-.main{padding:32px 40px 60px;max-width:1100px;}
-.section-label{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.1em;
-  text-transform:uppercase;margin:28px 0 12px;display:flex;align-items:center;gap:8px;}
-.section-toggle{font-family:var(--mono);font-size:10px;color:var(--text-dim);
-  background:none;border:1px solid var(--border2);padding:2px 8px;border-radius:3px;
-  cursor:pointer;letter-spacing:0.04em;margin-left:auto;text-transform:lowercase;}
-.section-toggle:hover{color:var(--text);border-color:var(--text-dim);}
-.section-label.interested{color:var(--green);}
-.section-label.maybe{color:var(--amber);}
-.section-label.filtered{color:var(--red-dim);}
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;
-  margin-bottom:10px;overflow:hidden;transition:border-color 0.15s;}
-.card:hover{border-color:var(--border2);}
-.card.pass{border-left:3px solid var(--green-dim);}
-.card.maybe{border-left:3px solid var(--amber-dim);}
-.card.fail{border-left:3px solid var(--red-dim);opacity:0.7;}
-.card-header{padding:14px 18px 12px;display:flex;align-items:flex-start;gap:14px;
-  cursor:pointer;user-select:none;}
-.verdict-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;
-  transition:opacity 0.4s,box-shadow 0.4s;}
-.pass .verdict-dot{background:var(--green);box-shadow:0 0 6px var(--green);}
-.maybe .verdict-dot{background:var(--amber);box-shadow:0 0 6px var(--amber);}
-.fail .verdict-dot{background:var(--red-dim);}
-.card.viewed .verdict-dot{opacity:0.2;box-shadow:none;}
-.card-main{flex:1;min-width:0;}
-.card-title-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
-.company{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text-dim);
-  letter-spacing:0.04em;text-transform:uppercase;}
-.role{font-weight:500;font-size:14px;}
-.card-meta{font-family:var(--mono);font-size:11px;color:var(--text-dim);display:flex;gap:16px;flex-wrap:wrap;}
-.card-right{display:flex;flex-direction:column;align-items:center;
-  justify-content:space-between;flex-shrink:0;gap:6px;}
-.card-toggle{font-family:var(--mono);font-size:16px;color:var(--text-muted);flex-shrink:0;
-  transition:transform 0.2s;}
-.card.open .card-toggle{transform:rotate(90deg);}
-.card-body{display:none;padding:0 18px 16px 40px;border-top:1px solid var(--border);}
-.card.open .card-body{display:block;}
-.body-row{margin-top:12px;font-size:13px;line-height:1.65;}
-.body-label{font-family:var(--mono);font-size:10px;letter-spacing:0.12em;
-  text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;}
-.body-verdict{background:rgba(255,255,255,0.04);border-left:3px solid var(--border2);
-  padding:10px 14px;border-radius:0 4px 4px 0;font-size:13px;line-height:1.6;color:var(--text);}
-.pass .body-verdict{border-left-color:var(--green);background:rgba(45,255,155,0.05);}
-.maybe .body-verdict{border-left-color:var(--amber);background:rgba(255,179,64,0.05);}
-.missing-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
-.missing-tag{font-family:var(--mono);font-size:10px;background:rgba(255,179,64,0.08);
-  border:1px solid rgba(255,179,64,0.2);color:var(--amber);border-radius:3px;
-  padding:2px 8px;letter-spacing:0.04em;}
-.links-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
-.link-btn{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:3px;
-  border:1px solid var(--border2);background:var(--bg3);color:var(--blue);
-  text-decoration:none;transition:all 0.15s;letter-spacing:0.04em;}
-.link-btn:hover{border-color:var(--blue);background:var(--blue-bg);}
-.filtered-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:24px;}
-.filtered-item{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--red-dim);
-  border-radius:4px;padding:9px 14px;display:flex;align-items:flex-start;gap:10px;opacity:0.65;}
-.fi-dot{width:6px;height:6px;border-radius:50%;background:var(--red-dim);flex-shrink:0;margin-top:5px;}
-.fi-name{font-size:12.5px;font-weight:500;opacity:0.8;}
-.fi-reason{font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:2px;}
-.callout{background:var(--amber-bg);border:1px solid rgba(255,179,64,0.25);
-  border-radius:6px;padding:16px 20px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;}
-.callout-title{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--amber);
-  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;}
-.callout-body{font-size:13px;line-height:1.6;}
-.callout-body a{color:var(--blue);text-decoration:none;}
-.callout-body a:hover{text-decoration:underline;}
-.action-banner{background:var(--purple-bg);border:1px solid var(--purple);
-  border-radius:6px;padding:16px 20px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;}
-.action-banner h3{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--purple);
-  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;}
-.action-banner p{font-size:13px;line-height:1.6;}
-.action-banner a{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:3px;
-  border:1px solid var(--border2);background:var(--bg3);color:var(--blue);
-  text-decoration:none;transition:all 0.15s;letter-spacing:0.04em;
-  display:inline-flex;align-items:center;white-space:nowrap;}
-.action-banner a:hover{border-color:var(--blue);background:var(--blue-bg);}
-.draft-block{margin-top:10px;background:var(--bg3);border-left:2px solid var(--blue);
-  padding:10px 14px;border-radius:0 4px 4px 0;font-size:12px;}
-.draft-block .draft-label{font-family:var(--mono);font-size:10px;color:var(--blue);
-  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;}
-.draft-block .draft-text{color:var(--text);opacity:0.85;white-space:pre-wrap;font-family:var(--mono);font-size:12px;}
-.draft-send-btn{display:inline-block;margin-top:10px;padding:7px 16px;font-family:var(--mono);
-  font-size:11px;font-weight:600;letter-spacing:0.04em;color:#fff;background:var(--blue);
-  border:none;border-radius:4px;text-decoration:none;cursor:pointer;transition:background 0.15s;}
-.draft-send-btn:hover{background:#2b88e6;}
-.sent-label{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:0.08em;
-  text-transform:uppercase;margin-top:10px;margin-bottom:4px;}
-.age-badge{font-family:var(--mono);font-size:10px;
-  background:transparent;border:1px solid;padding:1px 0;
-  border-radius:8px;white-space:nowrap;flex-shrink:0;align-self:center;
-  text-align:center;box-sizing:border-box;}
-.persistence-summary{background:var(--bg2);border:1px solid var(--border);
-  border-radius:6px;padding:14px 20px;margin-bottom:20px;
-  font-family:var(--mono);font-size:11px;}
-.persistence-summary .persistence-label{font-size:10px;font-weight:600;
-  letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);
-  margin-bottom:6px;}
-.persistence-summary ul{list-style:none;padding:0;margin:0;color:var(--text-dim);}
-.persistence-summary li{padding:2px 0;}
-.persistence-summary li::before{content:'\b7 ';color:var(--text-muted);}
-footer{border-top:1px solid var(--border);padding:20px 40px;font-family:var(--mono);
-  font-size:11px;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap;
-  justify-content:space-between;}
-.card.hidden,.filtered-item.hidden,.callout.hidden{display:none;}
-.source-group{background:transparent;border:none;margin-bottom:24px;}
-.source-group>summary{font-family:var(--mono);font-size:13px;font-weight:600;
-  color:var(--text);padding:10px 0;border-bottom:1px solid var(--border);
-  margin-bottom:10px;letter-spacing:0.04em;list-style:none;display:flex;
-  align-items:center;gap:8px;cursor:pointer;}
-.source-group>summary::before{content:'\25b6';font-size:9px;color:var(--text-dim);
-  transition:transform 0.2s;}
-.source-group[open]>summary::before{transform:rotate(90deg);}
-.source-group>summary::-webkit-details-marker{display:none;}
-.verdict-group{background:transparent;border:none;margin-bottom:12px;margin-left:8px;}
-.verdict-group>summary{font-family:var(--mono);font-size:11px;font-weight:600;
-  padding:6px 10px;border-radius:3px;letter-spacing:0.06em;
-  list-style:none;display:flex;align-items:center;gap:6px;cursor:pointer;
-  text-transform:uppercase;}
-.verdict-group>summary::before{content:'\25b6';font-size:7px;transition:transform 0.2s;}
-.verdict-group[open]>summary::before{transform:rotate(90deg);}
-.verdict-group>summary::-webkit-details-marker{display:none;}
-.verdict-group.interested>summary{color:var(--green);}
-.verdict-group.maybe>summary{color:var(--amber);}
-.verdict-toggle{font-family:var(--mono);font-size:10px;color:var(--text-dim);
-  background:none;border:1px solid var(--border2);padding:2px 8px;border-radius:3px;
-  cursor:pointer;letter-spacing:0.04em;margin-left:auto;text-transform:lowercase;}
-.verdict-toggle:hover{color:var(--text);border-color:var(--text-dim);}
-.filtered-group{background:transparent;border:none;margin-bottom:24px;}
-.filtered-group>summary{font-family:var(--mono);font-size:11px;font-weight:600;
-  color:var(--red-dim);padding:8px 0;list-style:none;display:flex;
-  align-items:center;gap:8px;cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;}
-.filtered-group>summary::before{content:'\25b6';font-size:7px;color:var(--red-dim);
-  transition:transform 0.2s;}
-.filtered-group[open]>summary::before{transform:rotate(90deg);}
-.filtered-group>summary::-webkit-details-marker{display:none;}
-.dl-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text-dim);
-  font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:4px;
-  cursor:pointer;letter-spacing:0.04em;transition:color 0.15s,border-color 0.15s;}
-.dl-btn:hover{color:var(--green);border-color:var(--green-dim);}
-@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
-.card,.filtered-item,.callout,.action-banner{animation:fadein 0.4s ease both;}
-@media(max-width:700px){
-  .header,.filter-bar,.main,footer{padding-left:16px;padding-right:16px;}
-  .header{flex-direction:column;padding:20px 16px 16px;gap:12px;}
-  .run-title{font-size:18px;}
-  .run-meta{font-size:10px;gap:10px;}
-  .stats-pills{width:100%;gap:6px;}
-  .pill{padding:8px 12px;font-size:10px;min-height:44px;align-items:center;}
-  .pill-num{font-size:14px;}
-  .filter-bar{gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
-    flex-wrap:nowrap;padding:10px 16px;}
-  .filter-btn{min-height:44px;padding:10px 14px;font-size:12px;white-space:nowrap;}
-  .main{padding:20px 16px 40px;}
-  .section-label{font-size:12px;flex-wrap:wrap;gap:6px;}
-  .section-toggle{min-height:36px;padding:6px 10px;font-size:11px;}
-  .card-header{padding:16px 14px 14px;min-height:56px;}
-  .card-toggle{font-size:20px;padding:4px;min-width:32px;text-align:center;}
-  .verdict-dot{width:10px;height:10px;margin-top:4px;}
-  .company{font-size:11px;}
-  .role{font-size:13px;}
-  .card-meta{font-size:10px;gap:8px;}
-  .card-body{padding:0 14px 14px 28px;}
-  .body-row{margin-top:10px;}
-  .body-verdict{padding:8px 12px;font-size:12.5px;}
-  .filtered-list{grid-template-columns:1fr;}
-  .filtered-item{padding:12px 14px;min-height:44px;}
-  .fi-name{font-size:13px;}
-  .fi-reason{font-size:11px;}
-  .links-row{gap:6px;}
-  .link-btn{min-height:44px;padding:10px 14px;font-size:12px;
-    display:inline-flex;align-items:center;}
-  .draft-send-btn{min-height:44px;padding:10px 18px;font-size:12px;}
-  .dl-btn{min-height:44px;padding:10px 14px;font-size:12px;}
-  .draft-block{padding:10px 12px;}
-  .draft-block .draft-text{font-size:11.5px;}
-  .action-banner,.callout{flex-direction:column;gap:8px;padding:14px 16px;}
-  footer{padding:16px;flex-direction:column;gap:8px;text-align:center;}
+h1 { font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; }
+.subtitle { color: var(--muted); margin-bottom: 2.5rem; }
+.themes { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 3rem; }
+.theme-card {
+  flex: 1; min-width: 280px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 0.75rem;
+  padding: 1.5rem; text-decoration: none; color: var(--text);
+  transition: border-color 0.2s;
 }
-@media(max-width:400px){
-  .header{padding:16px 12px 12px;}
-  .filter-bar{padding:8px 12px;}
-  .main{padding:16px 12px 32px;}
-  .card-header{padding:14px 12px 12px;}
-  .card-body{padding:0 12px 12px 20px;}
-  .stats-pills{flex-direction:column;align-items:stretch;}
-  .pill{justify-content:center;}
-  footer{padding:12px;font-size:10px;}
-}</style>
-<script>var _viewedKey='jerbs-viewed';
-function _getViewed(){
-  try{var s=localStorage.getItem(_viewedKey);return s?JSON.parse(s):[];}
-  catch(e){return [];}
-}
-function _saveViewed(ids){
-  try{localStorage.setItem(_viewedKey,JSON.stringify(ids));}catch(e){}
-}
-function _markViewed(el){
-  if(el.classList.contains('viewed'))return;
-  el.classList.add('viewed');
-  var id=el.dataset.id;
-  if(id){var v=_getViewed();if(v.indexOf(id)<0){v.push(id);_saveViewed(v);}}
-}
-function toggleCard(el){el.classList.toggle('open');_markViewed(el);}
-function setFilter(type,btn){
-  document.querySelectorAll('.filter-btn').forEach(function(b){b.className='filter-btn';});
-  if(type==='all')btn.classList.add('active-all');
-  else if(type==='new')btn.classList.add('active-blue');
-  else if(type==='unread')btn.classList.add('active-all');
-  else if(type==='interested')btn.classList.add('active-green');
-  else if(type==='maybe')btn.classList.add('active-amber');
-  else if(type==='filtered')btn.classList.add('active-red');
-  document.querySelectorAll('[data-verdict]').forEach(function(el){
-    if(type==='all')el.classList.remove('hidden');
-    else if(type==='new'){
-      if(el.dataset.isnew==='true')el.classList.remove('hidden');
-      else el.classList.add('hidden');
-    }
-    else if(type==='unread'){
-      if(!el.classList.contains('viewed'))el.classList.remove('hidden');
-      else el.classList.add('hidden');
-    }
-    else if(el.dataset.verdict===type)el.classList.remove('hidden');
-    else el.classList.add('hidden');
-  });
-}
-function toggleLight(){
-  document.body.classList.toggle('light');
-  var btn=document.getElementById('theme-btn');
-  if(btn)btn.textContent=document.body.classList.contains('light')?'Dark':'Light';
-}
-function toggleSection(btn){
-  var group=btn.closest('.section-label').nextElementSibling;
-  if(!group)return;
-  var cards=group.querySelectorAll('.card');
-  var allOpen=Array.from(cards).every(function(c){return c.classList.contains('open');});
-  cards.forEach(function(c){
-    if(allOpen)c.classList.remove('open');
-    else{c.classList.add('open');_markViewed(c);}
-  });
-  btn.textContent=allOpen?'expand all':'collapse all';
-}
-function toggleAllCards(btn){
-  var det=btn.closest('.verdict-group');
-  if(!det)return;
-  var cards=det.querySelectorAll('.card');
-  var allOpen=Array.from(cards).every(function(c){return c.classList.contains('open');});
-  cards.forEach(function(c){
-    if(allOpen)c.classList.remove('open');
-    else{c.classList.add('open');_markViewed(c);}
-  });
-  btn.textContent=allOpen?'expand all':'collapse all';
-  if(btn.event)btn.event.stopPropagation();
-}
-document.addEventListener('DOMContentLoaded',function(){
-  var viewed=_getViewed();
-  if(viewed.length){
-    document.querySelectorAll('.card[data-id]').forEach(function(el){
-      if(viewed.indexOf(el.dataset.id)>=0)el.classList.add('viewed');
-    });
-  }
-});
-function downloadPage(){
-  var html=document.documentElement.outerHTML;
-  var blob=new Blob(['<!DOCTYPE html>\n'+html],{type:'text/html'});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  var d=document.querySelector('title').textContent.match(/\d{4}-\d{2}-\d{2}/);
-  a.download='jerbs-results-'+(d?d[0]:'report')+'.html';
-  a.click();URL.revokeObjectURL(a.href);
-}
-document.addEventListener('DOMContentLoaded',function(){
-  document.querySelectorAll('.card,.filtered-item,.callout,.action-banner').forEach(
-    function(el,i){el.style.animationDelay=(0.03+i*0.02)+'s';});
-});</script>
-</head><body>
+.theme-card:hover { border-color: var(--accent); }
+.theme-card h2 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+.theme-card p { color: var(--muted); font-size: 0.9rem; }
+.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+.back:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <h1>jerbs — Live Demo</h1>
+  <p class="subtitle">Interactive sample screening reports with realistic (fake) data.<br>
+  Click a theme to explore the full results page.</p>
 
-<div class="header"><div><div class="logo">jerbs</div><div class="run-title">Screening Report</div><div class="run-meta"><span>2026-04-03</span><span>65 results</span><span>Dry-run</span></div></div><div class="stats-pills"><div class="pill pill-green"><span class="pill-num">24</span> Interested</div><div class="pill pill-amber"><span class="pill-num">19</span> Maybe</div><div class="pill pill-red"><span class="pill-num">22</span> Filtered</div> <button class="dl-btn" id="theme-btn" onclick="toggleLight()">Light</button> <button class="dl-btn" onclick="downloadPage()">⤓ Save</button></div></div>
+  <div class="themes">
+    <a href="terminal.html" class="theme-card">
+      <h2>Terminal</h2>
+      <p>IBM Plex Mono, CRT scanlines, dark background. Expandable cards with filter bar and verdict grouping.</p>
+    </a>
+    <a href="cards.html" class="theme-card">
+      <h2>Cards</h2>
+      <p>Clean card layout with light/dark toggle. Color-coded verdict borders, inline draft replies, action badges.</p>
+    </a>
+  </div>
 
-<div class="filter-bar"><span class="filter-label">Show</span><button class="filter-btn active-all" onclick="setFilter('all', this)">All</button><button class="filter-btn" onclick="setFilter('new', this)">🔹 New</button><button class="filter-btn" onclick="setFilter('unread', this)">● Unread</button><button class="filter-btn" onclick="setFilter('pass', this)">🟢 Interested</button><button class="filter-btn" onclick="setFilter('maybe', this)">🟡 Maybe</button><button class="filter-btn" onclick="setFilter('filtered', this)">🔴 Filtered</button></div>
-
-<div class="main">
-
-<div class="persistence-summary"><div class="persistence-label">Session activity</div><ul><li>Merged 8 pending results from previous runs</li></ul></div>
-<details class="source-group" open>
-<summary>Direct Outreach (9)</summary>
-<details class="verdict-group interested" open>
-<summary>🟢 Interested (6) <button class="verdict-toggle" onclick="event.stopPropagation();toggleAllCards(this)">expand all</button></summary>
-<div class="section-group">
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-d-000"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Anthropic</span><span class="role">Infrastructure Engineer, Sandboxing</span></div><div class="card-meta"><span>SF — Hybrid</span><span>Direct Outreach · Anthropic comp competitive with FAANG. Strong equity in rapidly appreciating AI company.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Top AI lab, infra role, direct background fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Anthropic comp competitive with FAANG. Strong equity in rapidly appreciating AI company.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">hybrid days</span><span class="missing-tag">interview process</span></div></div><div class="draft-block"><div class="draft-label">Draft reply</div><div class="draft-text">Thanks for reaching out. A few questions before we schedule a call...</div><a class="draft-send-btn" href="https://mail.google.com/mail/u/0/#drafts?compose=demo-0" target="_blank">📨 Review &amp; Send</a></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-d-000" target="_blank">📧 Email</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-d-001"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Google</span><span class="role">Senior Staff SRE, Cloud Observability</span></div><div class="card-meta"><span>NYC or Remote</span><span>Direct Outreach · Google L6 SRE comp very strong — base above floor, RSUs+bonus push TC well above target.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Senior Staff SRE at Google, Cloud Observability. Direct match.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Google L6 SRE comp very strong — base above floor, RSUs+bonus push TC well above target.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">remote policy</span><span class="missing-tag">nature of work</span></div></div><div class="draft-block"><div class="draft-label">Draft reply</div><div class="draft-text">Thanks for reaching out. A few questions before we schedule a call...</div><a class="draft-send-btn" href="https://mail.google.com/mail/u/0/#drafts?compose=demo-1" target="_blank">📨 Review &amp; Send</a></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-d-001" target="_blank">📧 Email</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-d-002"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Netflix</span><span class="role">Senior SRE 5, CORE Resilience Operations</span></div><div class="card-meta"><span>Remote US</span><span>Direct Outreach · Netflix all-cash comp model, TC typically well above target. No RSU complexity.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">FAANG, senior SRE, resilience operations. Direct fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Netflix all-cash comp model, TC typically well above target. No RSU complexity.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">interview process</span></div></div><div class="draft-block"><div class="draft-label">Draft reply</div><div class="draft-text">Thanks for reaching out. A few questions before we schedule a call...</div><a class="draft-send-btn" href="https://mail.google.com/mail/u/0/#drafts?compose=demo-2" target="_blank">📨 Review &amp; Send</a></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-d-002" target="_blank">📧 Email</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-d-003"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Stripe</span><span class="role">Staff Site Reliability Engineer</span></div><div class="card-meta"><span>Remote US</span><span>Direct Outreach · Stripe staff-level comp strong — competitive base + meaningful RSUs.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Top fintech, staff SRE, remote. Strong comp signal.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Stripe staff-level comp strong — competitive base + meaningful RSUs.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">equity details</span><span class="missing-tag">interview process</span></div></div><div class="draft-block"><div class="draft-label">Draft reply</div><div class="draft-text">Thanks for reaching out. A few questions before we schedule a call...</div><a class="draft-send-btn" href="https://mail.google.com/mail/u/0/#drafts?compose=demo-3" target="_blank">📨 Review &amp; Send</a></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-d-003" target="_blank">📧 Email</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-id="pend-000"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Jane Street</span><span class="role">Systems Engineer</span></div><div class="card-meta"><span>NYC</span><span>Direct Outreach · Jane Street comp elite — typically 2x FAANG.</span></div></div><div class="card-right"> <span class="age-badge" style="color:hsl(103, 70%, 42%);border-color:hsl(103, 70%, 42%);min-width:58px;width:58px">2d ago</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Top quant firm, systems eng. Direct fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Jane Street comp elite — typically 2x FAANG.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/pend-000" target="_blank">📧 Email</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-id="pend-001"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Cloudflare</span><span class="role">Staff SRE</span></div><div class="card-meta"><span>Remote US</span><span>Direct Outreach · Cloudflare staff comp competitive. RSUs solid.</span></div></div><div class="card-right"> <span class="age-badge" style="color:hsl(94, 70%, 42%);border-color:hsl(94, 70%, 42%);min-width:58px;width:58px">3d ago</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Strong infra company, staff SRE, remote.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Cloudflare staff comp competitive. RSUs solid.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">equity details</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/pend-001" target="_blank">📧 Email</a></div></div></div>
-</div></details>
-<details class="verdict-group maybe" open>
-<summary>🟡 Maybe (3) <button class="verdict-toggle" onclick="event.stopPropagation();toggleAllCards(this)">expand all</button></summary>
-<div class="section-group">
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-d-000"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Ciara Browne / GQR</span><span class="role">NYC Startup — Founding Engineer</span></div><div class="card-meta"><span>NYC</span><span>Direct Outreach · Claims competitive big tech salaries + meaningful equity. Need specifics.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Series A privacy tech startup, founding team. Big tech comp + equity. Company name not disclosed.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Claims competitive big tech salaries + meaningful equity. Need specifics.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">company name</span><span class="missing-tag">role title</span><span class="missing-tag">comp range</span><span class="missing-tag">equity details</span><span class="missing-tag">remote policy</span></div></div><div class="draft-block"><div class="draft-label">Draft reply</div><div class="draft-text">Appreciate the outreach. Could you share more details...</div><a class="draft-send-btn" href="https://mail.google.com/mail/u/0/#drafts?compose=demo-m-0" target="_blank">📨 Review &amp; Send</a></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-d-000" target="_blank">📧 Email</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-d-001"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">RediRecruit</span><span class="role">Staff SWE Platform $225-285K</span></div><div class="card-meta"><span>NYC</span><span>Direct Outreach · K-K base. At floor but within range. Need to confirm TC includes equity.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Staff level, comp at floor. Unknown company behind Indeed listing.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">K-K base. At floor but within range. Need to confirm TC includes equity.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">company name</span><span class="missing-tag">equity details</span><span class="missing-tag">nature of work</span></div></div><div class="draft-block"><div class="draft-label">Draft reply</div><div class="draft-text">Appreciate the outreach. Could you share more details...</div><a class="draft-send-btn" href="https://mail.google.com/mail/u/0/#drafts?compose=demo-m-1" target="_blank">📨 Review &amp; Send</a></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-d-001" target="_blank">📧 Email</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-id="pend-002"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Datadog</span><span class="role">Senior SRE</span></div><div class="card-meta"><span>NYC — Hybrid</span><span>Direct Outreach · Datadog comp competitive. Stock has been volatile.</span></div></div><div class="card-right"> <span class="age-badge" style="color:hsl(86, 70%, 42%);border-color:hsl(86, 70%, 42%);min-width:58px;width:58px">4d ago</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Major observability company. SRE role, hybrid NYC.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Datadog comp competitive. Stock has been volatile.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">hybrid days</span><span class="missing-tag">comp range</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/pend-002" target="_blank">📧 Email</a></div></div></div>
-</div></details>
-</details>
-
-<details class="source-group" open>
-<summary>Job Digest Postings (34)</summary>
-<details class="verdict-group interested" open>
-<summary>🟢 Interested (18) <button class="verdict-toggle" onclick="event.stopPropagation();toggleAllCards(this)">expand all</button></summary>
-<div class="section-group">
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-000"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Google</span><span class="role">Senior Software Engineer, SRE Core</span></div><div class="card-meta"><span>Multiple US</span><span>Job Digest Postings · Google L5 SRE comp strong, RSUs and bonus push TC well above target.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">FAANG SRE, senior level, direct background fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Google L5 SRE comp strong, RSUs and bonus push TC well above target.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">remote policy</span><span class="missing-tag">hybrid days</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-000" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400000/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-002"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">OpenAI</span><span class="role">Platform Engineer, Forward Deployed</span></div><div class="card-meta"><span>SF</span><span>Job Digest Postings · OpenAI comp extremely competitive.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">OpenAI platform eng, customer-facing infra.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">OpenAI comp extremely competitive.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">nature of work</span><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-002" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400002/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-003"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Anthropic</span><span class="role">Senior Software Engineer, Systems</span></div><div class="card-meta"><span>SF</span><span>Job Digest Postings · Anthropic comp competitive with FAANG, strong equity.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Top AI lab, systems eng. Strong technical fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Anthropic comp competitive with FAANG, strong equity.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">remote policy</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-003" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400003/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-007"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Spotify</span><span class="role">SRE, Backstage</span></div><div class="card-meta"><span>Remote US</span><span>Job Digest Postings · Spotify comp solid, remote-friendly. Smaller RSU grants but good WLB.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">SRE role on Backstage team. Remote, interesting open-source work.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Spotify comp solid, remote-friendly. Smaller RSU grants but good WLB.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-007" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400007/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-008"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">NVIDIA</span><span class="role">Principal Systems At-Scale Engineer</span></div><div class="card-meta"><span>Santa Clara, CA</span><span>Job Digest Postings · NVIDIA principal comp very strong. RSU appreciation has been significant.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Principal level at NVIDIA. AI infrastructure at massive scale.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">NVIDIA principal comp very strong. RSU appreciation has been significant.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">remote policy</span><span class="missing-tag">nature of work</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-008" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400008/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-009"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">D.E. Shaw</span><span class="role">Trading Systems Ops Engineer</span></div><div class="card-meta"><span>NYC</span><span>Job Digest Postings · D.E. Shaw comp elite — typically well above FAANG at equivalent levels.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Elite quant fund, ops/SRE adjacent. NYC.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">D.E. Shaw comp elite — typically well above FAANG at equivalent levels.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-009" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400009/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-010"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Optiver</span><span class="role">Systems Engineer</span></div><div class="card-meta"><span>Chicago</span><span>Job Digest Postings · Optiver comp typically well above market — elite trading firm pay.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Elite trading firm. Systems engineering, low-latency focus.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Optiver comp typically well above market — elite trading firm pay.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">remote policy</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-010" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400010/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-012"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Federal Reserve Bank of Boston</span><span class="role">FedNow Senior SRE</span></div><div class="card-meta"><span>Boston</span><span>Job Digest Postings · Fed comp below big tech but strong benefits, pension, stability. Fed background is an asset.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">FedNow payment system SRE. Paul has Fed background — culture fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Fed comp below big tech but strong benefits, pension, stability. Fed background is an asset.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">remote policy</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-012" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400012/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-014"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Voleon Group</span><span class="role">Senior Linux Infrastructure Engineer</span></div><div class="card-meta"><span>US</span><span>Job Digest Postings · Quant fund comp strong. Smaller team, potentially more equity upside.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Top quant fund, Linux infra. Direct background match.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Quant fund comp strong. Smaller team, potentially more equity upside.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">remote policy</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-014" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400014/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-001"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">OpenAI</span><span class="role">Software Engineer, Reliability</span></div><div class="card-meta"><span>SF</span><span>Job Digest Postings · OpenAI comp extremely competitive. Equity upside significant given growth trajectory.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Top AI company, reliability eng. Direct SRE fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">OpenAI comp extremely competitive. Equity upside significant given growth trajectory.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">equity details</span><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-001" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400001/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-004"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Figma</span><span class="role">Software Engineer, Production Engineering</span></div><div class="card-meta"><span>SF — Hybrid</span><span>Job Digest Postings · Figma comp strong post-Adobe acquisition.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Strong product company, production eng. SRE-adjacent.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Figma comp strong post-Adobe acquisition.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">hybrid days</span><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-004" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400004/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-005"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Snowflake</span><span class="role">Senior Production Engineer</span></div><div class="card-meta"><span>Remote US</span><span>Job Digest Postings · Snowflake comp strong, good RSU grants.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Major data company, production eng. Remote is a plus.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Snowflake comp strong, good RSU grants.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">equity details</span><span class="missing-tag">nature of work</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-005" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400005/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-006"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">LinkedIn</span><span class="role">Staff Engineer, Site Reliability</span></div><div class="card-meta"><span>Sunnyvale or Remote</span><span>Job Digest Postings · LinkedIn/Microsoft comp competitive at staff level. Stable RSU grants.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">LinkedIn (Microsoft) staff SRE. Direct fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">LinkedIn/Microsoft comp competitive at staff level. Stable RSU grants.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">remote policy</span><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-006" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400006/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-011"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Optiver</span><span class="role">Linux Systems Engineer</span></div><div class="card-meta"><span>Amsterdam or Chicago</span><span>Job Digest Postings · Optiver comp elite. Amsterdam relocation package typically strong.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Elite trading firm. Deep Linux systems work.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Optiver comp elite. Amsterdam relocation package typically strong.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">relocation package</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-011" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400011/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-isnew="true" data-id="new-pass-j-013"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">TikTok</span><span class="role">SRE, Edge Services USDS</span></div><div class="card-meta"><span>NYC</span><span>Job Digest Postings · Floor well within range — negotiate toward top. TC with equity could exceed target.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Major tech, direct SRE. Listed $136,800-$359,720.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Floor well within range — negotiate toward top. TC with equity could exceed target.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">equity details</span><span class="missing-tag">hybrid days</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-pass-j-013" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4400013/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-id="pend-003"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Google</span><span class="role">Senior SRE, Google Cloud</span></div><div class="card-meta"><span>Multiple US</span><span>Job Digest Postings · Google L5 SRE comp strong.</span></div></div><div class="card-right"> <span class="age-badge" style="color:hsl(77, 70%, 42%);border-color:hsl(77, 70%, 42%);min-width:58px;width:58px">5d ago</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">FAANG SRE, Google Cloud. Direct fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Google L5 SRE comp strong.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">remote policy</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/pend-003" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4600003/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-id="pend-004"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Anthropic</span><span class="role">Infrastructure Engineer, Sandboxing</span></div><div class="card-meta"><span>SF</span><span>Job Digest Postings · Anthropic comp competitive with FAANG.</span></div></div><div class="card-right"> <span class="age-badge" style="color:hsl(69, 70%, 42%);border-color:hsl(69, 70%, 42%);min-width:58px;width:58px">6d ago</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Top AI lab, infra sandboxing. Technical depth.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Anthropic comp competitive with FAANG.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/pend-004" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4600004/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card pass" data-verdict="pass" data-id="pend-007"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Meta</span><span class="role">Production Engineer, Infrastructure</span></div><div class="card-meta"><span>Menlo Park</span><span>Job Digest Postings · Meta IC5 comp strong. RSU grants substantial.</span></div></div><div class="card-right"> <span class="age-badge" style="color:hsl(43, 70%, 42%);border-color:hsl(43, 70%, 42%);min-width:58px;width:58px">9d ago</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">FAANG production eng. Direct background fit.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Meta IC5 comp strong. RSU grants substantial.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">hybrid days</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/pend-007" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4600007/" target="_blank">🔗 Posting</a></div></div></div>
-</div></details>
-<details class="verdict-group maybe" open>
-<summary>🟡 Maybe (16) <button class="verdict-toggle" onclick="event.stopPropagation();toggleAllCards(this)">expand all</button></summary>
-<div class="section-group">
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-004"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Capital One</span><span class="role">Senior Platform Engineer</span></div><div class="card-meta"><span>US</span><span>Job Digest Postings · Capital One platform eng comp solid but likely below FAANG.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Platform eng at major fintech. Comp may not match top tech.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Capital One platform eng comp solid but likely below FAANG.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">remote policy</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-004" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500004/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-013"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Cloudera</span><span class="role">Staff Software Engineer</span></div><div class="card-meta"><span>Remote US</span><span>Job Digest Postings · Cloudera comp decent at staff level. Company trajectory unclear.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Staff level at data infra company. Cloudera relevance fading.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Cloudera comp decent at staff level. Company trajectory unclear.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">nature of work</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-013" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500013/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-001"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">OpenAI</span><span class="role">Software Engineer, Fleet Management</span></div><div class="card-meta"><span>SF</span><span>Job Digest Postings · OpenAI comp extremely competitive.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Fleet management could be infra-adjacent. Need details.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">OpenAI comp extremely competitive.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">nature of work</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-001" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500001/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-003"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Capital One</span><span class="role">Distinguished Engineer</span></div><div class="card-meta"><span>US</span><span>Job Digest Postings · Capital One DE comp varies widely. Could be $300k-$450k+ TC. Fintech, cash-heavy.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Distinguished level is very senior. Financial services, not top tech.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Capital One DE comp varies widely. Could be $300k-$450k+ TC. Fintech, cash-heavy.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">nature of work</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-003" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500003/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-005"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Snap</span><span class="role">Systems Engineer, Level 4</span></div><div class="card-meta"><span>US</span><span>Job Digest Postings · Snap L4 comp competitive but company stability uncertain.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Major tech, systems eng. Level 4 seniority unclear — could be senior.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Snap L4 comp competitive but company stability uncertain.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">level mapping</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-005" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500005/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-006"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Kraken</span><span class="role">SRE / DevOps Engineer</span></div><div class="card-meta"><span>Remote US</span><span>Job Digest Postings · Kraken comp competitive in crypto. Token-based comp adds risk/reward.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Major crypto exchange, direct SRE. Crypto industry volatility.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Kraken comp competitive in crypto. Token-based comp adds risk/reward.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">equity details</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-006" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500006/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-007"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Dex</span><span class="role">Production Software Engineer, HFT</span></div><div class="card-meta"><span>London</span><span>Job Digest Postings · £400k TC is strong. London cost-of-living offsets somewhat.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">HFT firm, excellent comp (£400k). London relocation required.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">£400k TC is strong. London cost-of-living offsets somewhat.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">relocation package</span><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-007" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500007/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-008"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Barclays</span><span class="role">Principal SRE</span></div><div class="card-meta"><span>US or UK</span><span>Job Digest Postings · Bank principal SRE: $250k-$400k TC likely. Heavy cash bonus.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Major bank, principal SRE. Comp may be below tech.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Bank principal SRE: $250k-$400k TC likely. Heavy cash bonus.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">location</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-008" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500008/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-009"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">AMD</span><span class="role">AI Infrastructure / Platform Engineer</span></div><div class="card-meta"><span>US</span><span>Job Digest Postings · AMD comp improved significantly with AI boom. RSUs appreciating.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Major chip company, AI infra. Not exactly SRE but adjacent.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">AMD comp improved significantly with AI boom. RSUs appreciating.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">nature of work</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-009" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500009/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-000"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">OpenAI</span><span class="role">Software Engineer, Delivery/CD</span></div><div class="card-meta"><span>SF</span><span>Job Digest Postings · OpenAI comp extremely competitive.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Top AI company but Delivery/CD may not be SRE-adjacent.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">OpenAI comp extremely competitive.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">nature of work</span><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-000" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500000/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-002"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">OpenAI</span><span class="role">Operating Systems Engineer, Consumer Devices</span></div><div class="card-meta"><span>SF</span><span>Job Digest Postings · OpenAI comp extremely competitive.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">OpenAI but consumer devices is a different domain entirely.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">OpenAI comp extremely competitive.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">nature of work</span><span class="missing-tag">remote policy</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-002" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500002/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-010"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Yelp</span><span class="role">Senior SRE</span></div><div class="card-meta"><span>Remote US</span><span>Job Digest Postings · Yelp comp decent, remote is a plus. Below FAANG but livable.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Direct SRE, remote. Yelp may not meet top-tier prestige bar.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Yelp comp decent, remote is a plus. Below FAANG but livable.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">interview process</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-010" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500010/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-011"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">SpaceX</span><span class="role">Sr IT Linux SRE</span></div><div class="card-meta"><span>Hawthorne, CA</span><span>Job Digest Postings · SpaceX comp below market but prestige and mission are real. Equity illiquid.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Prestigious company, SRE role. SpaceX comp historically below market.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">SpaceX comp below market but prestige and mission are real. Equity illiquid.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">equity details</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-011" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500011/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-isnew="true" data-id="new-maybe-j-012"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Bumble</span><span class="role">Senior SRE</span></div><div class="card-meta"><span>Remote US</span><span>Job Digest Postings · Bumble comp mid-tier. Remote is a plus.</span></div></div><div class="card-right"> <span class="age-badge" style="color:#58a6ff;border-color:#58a6ff;min-width:58px;width:58px">new</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Direct SRE, remote. Bumble is public but smaller tech company.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Bumble comp mid-tier. Remote is a plus.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">equity details</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/new-maybe-j-012" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4500012/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-id="pend-005"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">AMD</span><span class="role">AI Infrastructure / Platform Engineer</span></div><div class="card-meta"><span>Austin, TX</span><span>Job Digest Postings · AMD comp improved with AI boom.</span></div></div><div class="card-right"> <span class="age-badge" style="color:hsl(60, 70%, 42%);border-color:hsl(60, 70%, 42%);min-width:58px;width:58px">7d ago</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Major chip company, AI infra hot domain.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">AMD comp improved with AI boom.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">comp range</span><span class="missing-tag">nature of work</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/pend-005" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4600005/" target="_blank">🔗 Posting</a></div></div></div>
-<div class="card maybe" data-verdict="maybe" data-id="pend-006"><div class="card-header" onclick="toggleCard(this.parentElement)"><div class="verdict-dot"></div><div class="card-main"><div class="card-title-row"><span class="company">Palantir</span><span class="role">Infrastructure Engineer</span></div><div class="card-meta"><span>NYC</span><span>Job Digest Postings · Palantir comp decent, RSUs have appreciated.</span></div></div><div class="card-right"> <span class="age-badge" style="color:hsl(51, 70%, 42%);border-color:hsl(51, 70%, 42%);min-width:58px;width:58px">8d ago</span><div class="card-toggle">►</div></div></div><div class="card-body"><div class="body-row"><div class="body-label">Verdict</div><div class="body-verdict">Defense/enterprise tech, infra eng. Controversial but prestigious.</div></div><div class="body-row"><div class="body-label">Comp</div><div class="body-verdict">Palantir comp decent, RSUs have appreciated.</div></div><div class="body-row"><div class="body-label">Missing info</div><div class="missing-tags"><span class="missing-tag">nature of work</span><span class="missing-tag">remote policy</span></div></div><div class="links-row"><a class="link-btn" href="https://mail.google.com/mail/u/0/#inbox/pend-006" target="_blank">📧 Email</a><a class="link-btn" href="https://www.linkedin.com/jobs/view/4600006/" target="_blank">🔗 Posting</a></div></div></div>
-</div></details>
-</details>
-
-<details class="filtered-group">
-<summary>🔴 Filtered (22)</summary>
-<div class="filtered-list">
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Carlin Steincke — Senior Python Platform Engineer</div><div class="fi-reason">Comp $170-200K, below floor. Top of range &lt; $225K.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Centraprise Corp — C++ with PERL Developer</div><div class="fi-reason">Staffing agency, wrong role entirely.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Fisec Global — Oracle GTM Consultant</div><div class="fi-reason">Staffing agency, wrong role.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Lumen Solutions — AWS Cloud Engineer (EKS SME)</div><div class="fi-reason">Staffing agency.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Zapnix Inc — Sr. Reliability Engineer</div><div class="fi-reason">Staffing agency.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">AppTad Inc — Reliability Engineer</div><div class="fi-reason">Staffing agency.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Matthew Kalinowski — SWE Low Latency Trading $115/hr W2</div><div class="fi-reason">Contract/W2, not full-time. $115/hr W2 ≈ $240k but not FTE.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">GQR — (LinkedIn connection invite)</div><div class="fi-reason">LinkedIn connection invite, not a job opportunity.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Hema Kallepalli — (LinkedIn connection reminder)</div><div class="fi-reason">Connection invite reminder. No job details.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Keatan Forrest / Autonomai — (LinkedIn message notification)</div><div class="fi-reason">HFT recruiter notification. Staffing agency, no role details.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">MatchedJobs — Server, Delivery, Nursing roles</div><div class="fi-reason">Non-tech digest: restaurant servers, Uber Eats, nursing.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">MatchedJobs — Catering, Admin, RN roles</div><div class="fi-reason">Non-tech digest: catering, admin, registered nurse.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Deloitte — HPC Solution Architect — AI Infrastructure</div><div class="fi-reason">Blacklisted company.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">BlackRock — Production Support Engineer — Associate</div><div class="fi-reason">Associate level. Seniority too low.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">ITC Federal — Senior Linux Administrator — DHS</div><div class="fi-reason">Government contractor role.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">NYC OTI — Lead Unix/Linux Systems Engineer</div><div class="fi-reason">City government role.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Crossing Hurdles — Production Systems Engineer</div><div class="fi-reason">Unknown company with no recognizable name or funding signal.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Ambition — Team Lead — Linux Infrastructure</div><div class="fi-reason">Unknown company with no recognizable name.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Dice — DevSecOps / Cloud Engineer (Sr)</div><div class="fi-reason">Job board aggregator, generic listing.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Open Systems — Senior IT Systems Engineer</div><div class="fi-reason">Unknown company.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Capital Markets Recruitment — Lead Linux Engineer — Quant Trading</div><div class="fi-reason">Recruiting firm placing for undisclosed quant firm.</div></div></div>
-<div class="filtered-item" data-verdict="filtered"><div class="fi-dot"></div><div class="fi-main"><div class="fi-name">Bonhill Partners — SRE — Front Office Trading</div><div class="fi-reason">Recruiting firm, undisclosed trading firm.</div></div></div>
-</div></details>
-</div>
-
-<footer><span>jerbs · 2026-04-03</span><span>65 results · Dry-run mode</span></footer>
-
-</body></html>
+  <a href="https://github.com/pjunod/jerbs" class="back">&larr; Back to repository</a>
+</body>
+</html>
