@@ -731,28 +731,33 @@ log entry format.
 
 ## Auto-scheduler (optional)
 
-The scheduler runs jerbs automatically on a two-tier cadence — frequent checks during
-active sessions and hourly background runs when no session is open.
+The scheduler runs jerbs automatically on a variable cadence. In Claude Code, this uses
+the local daemon loop with the `scheduler.py` state machine. On the web (claude.ai),
+it uses an interactive artifact with `sendPrompt()`.
 
-### Tier 1 — Active session (every 15 min)
+### Interval state machine
 
-When the user asks to start, automate, or set up the scheduler, use the `/loop` command
-to run the screener every 15 minutes:
+| State | Interval | Condition |
+|---|---|---|
+| Off-hours | 60 min | Outside user-defined business hours |
+| Business hours | 15 min | Within business hours |
+| Rapid response | 5 min | For 30 min after draft replies are generated |
 
-```
-/loop 15m /jerbs
-```
+Business hours: user-defined timezone, start/end hour. Defaults to 9 AM–5 PM Eastern.
+Rapid mode activates when `run_screen()` returns `had_drafts=True` and reverts
+automatically after 30 minutes with no new replies.
 
-This runs inline in the conversation with no widget or UI to manage. Each run's results
-appear naturally in the chat. The user can stop it by saying "stop" or ending the session.
+### Claude Code (daemon mode)
 
-### Tier 2 — Off-hours background (every 60 min)
+When running as a daemon (`jerbs --daemon`), the scheduler state machine in
+`scheduler.py` handles all interval logic. After each screening pass, if draft replies
+were generated, the daemon calls `scheduler.trigger_rapid()` to enter rapid mode.
 
-A remote trigger (scheduled agent) runs the screener hourly when the user has no active
-session. This is set up once via `/schedule` and runs autonomously in Anthropic's cloud
-with Gmail MCP connected. No browser tab required.
+Use `/loop` or `/schedule` for session-based or background automation:
+- `/loop 15m /jerbs` — runs every 15 min while the session is open
+- `/schedule` — sets up a remote trigger for hourly background runs
 
 ### Important notes
-- Tier 1 (`/loop`) only runs while the session is open — it is not a background service.
-- Tier 2 (remote trigger) runs independently in the cloud on a cron schedule.
-- There is no rapid mode — the two-tier model replaces the old three-tier state machine.
+- The daemon and `/loop` only run while the session is open.
+- Remote triggers run independently in the cloud on a cron schedule.
+- Rapid mode is automatic — no user action needed to trigger or cancel it.
