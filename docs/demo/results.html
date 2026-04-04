@@ -751,15 +751,16 @@ function downloadPage(){
 
   function sortByDateDesc(items, runDateStr) {
     return items.slice().sort(function(a, b) {
+      // New items (current run) always sort before pending
+      var isNewA = (a.status !== 'pending') ? 1 : 0;
+      var isNewB = (b.status !== 'pending') ? 1 : 0;
+      if (isNewA !== isNewB) return isNewB - isNewA;
+      // Within each group, sort newest first by date
       var dateA = a.email_date || a.added_at || '';
       var dateB = b.email_date || b.added_at || '';
       var dtA = parseDate(dateA) || new Date(0);
       var dtB = parseDate(dateB) || new Date(0);
-      if (dtB.getTime() !== dtA.getTime()) return dtB - dtA;
-      // New items (not pending) sort first
-      var isNewA = (a.status !== 'pending') ? 1 : 0;
-      var isNewB = (b.status !== 'pending') ? 1 : 0;
-      return isNewB - isNewA;
+      return dtB - dtA;
     });
   }
 
