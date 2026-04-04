@@ -144,8 +144,8 @@ class TestAskBool:
 # ---------------------------------------------------------------------------
 
 # Input values for a full wizard run accepting all defaults (empty string = accept default).
-# The wizard makes exactly 32 input() calls (31 original + 1 LinkedIn opt-in).
-_ALL_DEFAULTS = [""] * 32
+# The wizard makes exactly 36 input() calls (35 original + 1 LinkedIn opt-in).
+_ALL_DEFAULTS = [""] * 36
 
 
 class TestRunSetupWizard:
@@ -173,7 +173,7 @@ class TestRunSetupWizard:
     def test_custom_name_saved(self, tmp_path):
         out = tmp_path / "criteria.json"
         # Provide "Alice" as name (first input), rest default
-        inputs = ["Alice"] + [""] * 31
+        inputs = ["Alice"] + [""] * 35
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         data = json.loads(out.read_text())
@@ -182,7 +182,7 @@ class TestRunSetupWizard:
     def test_cancel_does_not_save(self, tmp_path):
         out = tmp_path / "criteria.json"
         # Return "n" on the last prompt ("Save this profile?")
-        inputs = [""] * 31 + ["n"]
+        inputs = [""] * 35 + ["n"]
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         assert not out.exists()
@@ -191,7 +191,7 @@ class TestRunSetupWizard:
         out = tmp_path / "criteria.json"
         # 4th input() call is ask_list("Target roles"), return something non-empty
         # Calls: name, title, background, seniority, target_roles(4th)
-        inputs = ["", "", "", "", "Staff Eng, Principal Eng"] + [""] * 27
+        inputs = ["", "", "", "", "Staff Eng, Principal Eng"] + [""] * 31
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         data = json.loads(out.read_text())
@@ -199,17 +199,47 @@ class TestRunSetupWizard:
 
     def test_full_time_only_false_includes_contract(self, tmp_path):
         out = tmp_path / "criteria.json"
-        # The "Full-time only?" ask_bool is input call #11 (index 10)
-        inputs = [""] * 10 + ["n"] + [""] * 21
+        # The "Full-time only?" ask_bool is input call #15 (index 14)
+        # (shifted +4 from original index 10 due to location section)
+        inputs = [""] * 14 + ["n"] + [""] * 21
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         data = json.loads(out.read_text())
         assert "contract" in data["role_requirements"]["employment_type"]
 
+    def test_location_saved(self, tmp_path):
+        out = tmp_path / "criteria.json"
+        # Location fields start at index 10: current_location, target_locations,
+        # open_to_relocation (bool), location_notes
+        inputs = [""] * 10 + ["Austin, TX", "SF, NYC, Austin", "n", "Remote preferred"] + [""] * 22
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
+            run_setup_wizard(out)
+        data = json.loads(out.read_text())
+        assert data["location"]["current_location"] == "Austin, TX"
+        assert "SF" in data["location"]["target_locations"]
+        assert data["location"]["open_to_relocation"] is False
+        assert data["location"]["location_notes"] == "Remote preferred"
+
+    def test_location_with_relocation(self, tmp_path):
+        out = tmp_path / "criteria.json"
+        # When open_to_relocation=True, an extra input for conditions is asked (5 location inputs)
+        inputs = (
+            [""] * 10
+            + ["Boston", "NYC, SF", "y", "Only if they cover relo", "EU citizen"]
+            + [""] * 22
+        )
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
+            run_setup_wizard(out)
+        data = json.loads(out.read_text())
+        assert data["location"]["open_to_relocation"] is True
+        assert data["location"]["relocation_conditions"] == "Only if they cover relo"
+        assert data["location"]["location_notes"] == "EU citizen"
+
     def test_decline_default_dealbreakers_results_in_empty_list(self, tmp_path):
         out = tmp_path / "criteria.json"
-        # "Use these defaults?" for dealbreakers is input call #21 (index 20)
-        inputs = [""] * 20 + ["n"] + [""] * 11
+        # "Use these defaults?" for dealbreakers is input call #25 (index 24)
+        # (shifted +4 from original index 20 due to location section)
+        inputs = [""] * 24 + ["n"] + [""] * 11
         with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
             run_setup_wizard(out)
         data = json.loads(out.read_text())
@@ -217,10 +247,10 @@ class TestRunSetupWizard:
 
     def test_linkedin_enabled_saves_enabled_true(self, tmp_path):
         out = tmp_path / "criteria.json"
-        # Input #30 (index 29) is the LinkedIn ask_bool. Say "y".
+        # Input #34 (index 33) is the LinkedIn ask_bool. Say "y".
         # _setup_linkedin is mocked so no extra inputs needed.
-        # Remaining: profile_name (#31) + confirm (#32) = 2 more.
-        inputs = [""] * 29 + ["y"] + [""] * 2
+        # Remaining: profile_name (#35) + confirm (#36) = 2 more.
+        inputs = [""] * 33 + ["y"] + [""] * 2
         with (
             patch("builtins.input", side_effect=inputs),
             patch("builtins.print"),
@@ -232,7 +262,7 @@ class TestRunSetupWizard:
 
     def test_linkedin_enabled_but_setup_fails(self, tmp_path):
         out = tmp_path / "criteria.json"
-        inputs = [""] * 29 + ["y"] + [""] * 2
+        inputs = [""] * 33 + ["y"] + [""] * 2
         with (
             patch("builtins.input", side_effect=inputs),
             patch("builtins.print"),

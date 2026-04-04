@@ -170,6 +170,19 @@ only that section — never make them redo everything.
 Read and follow `docs/setup_wizard.md` for the full setup flow with all sections, example
 questions, suggested defaults, and probing guidance for extracting nuanced preferences.
 
+Sections covered:
+1. **Identity** — name, title, background, target roles, seniority
+2. **Target companies** — industries, prestige, whitelist/blacklist
+3. **Location** — current location, target locations, relocation preferences, location notes
+4. **Role requirements** — employment type, remote preference, travel, visa
+5. **Compensation** — base floor, TC target, equity, sliding scale notes
+6. **Tech stack** — required, preferred, dealbreaker technologies
+7. **Dealbreakers** — hard-fail conditions
+8. **Required info** — fields to always request if missing
+9. **Reply settings** — tone, signature
+10. **Business hours** — timezone and working hours for the scheduler
+11. **LinkedIn** — optional DM screening setup
+
 ---
 
 ## Step 2 — Print criteria summary
