@@ -419,12 +419,12 @@ would accept a specific city for higher comp, note that in the assessment.
 For any pass/maybe, check which required fields are missing and draft a single reply
 requesting all of them at once.
 
-### Draft replies (batched after screening)
+### Draft replies (on-demand via artifact button)
 
-For every pass and maybe verdict, compose the reply text during screening but **defer
-the `gmail_create_draft` calls until all screening is complete**. This batches all
-draft creation at the end of the run, reducing tool calls and avoiding the per-turn
-tool-use limit on claude.ai.
+For every pass and maybe verdict, compose the reply text during screening but **do NOT
+call `gmail_create_draft`**. Draft creation happens on-demand when the user clicks
+the "Create Draft & Send" button in the results page. This eliminates all draft
+creation tool calls from the screening pass.
 
 **During screening — for each pass/maybe item:**
 1. Determine verdict and reason
@@ -435,22 +435,25 @@ tool-use limit on claude.ai.
    - **Never include any criteria values** — no salary figures, TC targets, company
      names from the whitelist/blacklist. Ask for *their* details without revealing
      yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
-3. Set `draft_url` to empty string and `sent` to false — these are filled in later
+3. Set `draft_url` to empty string and `sent` to false
 
-**After all screening is complete — batch draft creation:**
-1. Collect all result objects that have a non-empty `reply_draft`
-2. For each one, call `gmail_create_draft` with the reply text, replying to the
-   correct thread (use the result's `thread_id`)
-3. Update each result's `draft_url` with the URL from the response:
-   `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
-4. Log each draft to the correspondence log with `mode: "draft"`
+The HTML card renders the draft text inline with a green "Create Draft & Send" button.
+When clicked, the button calls `sendPrompt()` which asks Claude to create the draft.
+
+**Handling the on-demand draft creation prompt:**
+
+When you receive a prompt from the artifact like:
+> Create a Gmail draft reply to thread ID <thread_id> with this exact text...
+
+1. Call `gmail_create_draft` with the provided thread ID and reply text
+2. Log the draft to the correspondence log with `mode: "draft"`
+3. Return the draft URL: `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
 
 **In send mode:** Use `gmail_send_message` instead of `gmail_create_draft`. Set
 `sent: true`. Log to correspondence log with `mode: "sent"`.
 
-The HTML card will render the full draft reply text and a clickable "review & send"
-link to the Gmail draft. **If you skip `gmail_create_draft`, the result cards will
-have no reply text and no send link — this defeats the entire purpose of the tool.**
+**If `reply_draft` is empty for a pass/maybe verdict, the card will have no reply
+text or create button — the user cannot act on the result.**
 
 ### Result object schema
 
