@@ -5,6 +5,7 @@
 #   jerbs/criteria_template.json <- shared/criteria_template.json
 #   jerbs/scripts/export_results.py <- shared/scripts/export_results.py
 #   jerbs/scripts/export_html.py    <- shared/scripts/export_html.py
+#   jerbs/templates/results-template.html <- shared/templates/results-template.html
 #   jerbs/docs/setup_wizard.md  <- docs/setup_wizard.md
 
 set -euo pipefail
@@ -15,11 +16,12 @@ TMP="$(mktemp -d)"
 
 trap 'rm -rf "$TMP"' EXIT
 
-mkdir -p "$TMP/jerbs/scripts" "$TMP/jerbs/docs"
+mkdir -p "$TMP/jerbs/scripts" "$TMP/jerbs/templates" "$TMP/jerbs/docs"
 cp "$REPO_ROOT/claude-web/SKILL.md"              "$TMP/jerbs/SKILL.md"
 cp "$REPO_ROOT/shared/criteria_template.json"    "$TMP/jerbs/criteria_template.json"
 cp "$REPO_ROOT/shared/scripts/export_results.py" "$TMP/jerbs/scripts/export_results.py"
 cp "$REPO_ROOT/shared/scripts/export_html.py"    "$TMP/jerbs/scripts/export_html.py"
+cp "$REPO_ROOT/shared/templates/results-template.html" "$TMP/jerbs/templates/results-template.html"
 cp "$REPO_ROOT/docs/setup_wizard.md"             "$TMP/jerbs/docs/setup_wizard.md"
 
 cd "$TMP"

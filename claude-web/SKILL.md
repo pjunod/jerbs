@@ -692,48 +692,38 @@ The `<antArtifact>` tag MUST have:
 - `type="text/html"`
 - `title="Jerbs screening report YYYY-MM-DD"` (with the actual run date)
 
-The HTML page uses the design from `shared/scripts/export_html.py` with two themes:
-- **Terminal** (default) — IBM Plex Mono, CRT scanlines, expandable cards, filter bar
-- **Cards** — clean card-based layout with light/dark toggle
+The HTML report uses a **pre-built template** bundled in the .skill package at
+`templates/results-template.html`. This template contains ALL CSS, JS, and
+client-side rendering logic — you never write any CSS, JS, or HTML structure.
 
-Both include action banners at top, integrated results, collapsible filtered items,
-clickable links throughout, and a **Save button** in the header for downloading.
-The HTML must be completely self-contained (all CSS and JS inline, no external
-dependencies).
+**Your only job is:**
+1. Read the template file from the .skill package
+2. Build the results JSON wrapper (the same schema documented in Step 4)
+3. Serialize the JSON wrapper to a string using `JSON.stringify` or equivalent
+4. Replace the literal placeholder `__RESULTS_DATA__` in the template with
+   the serialized JSON string
+5. Output the resulting HTML inside `<antArtifact>` tags
 
-**CRITICAL — use the CSS and JS from the bundled `shared/scripts/export_html.py`.**
-The .skill package includes `export_html.py` which contains the exact CSS (two theme
-stylesheets: `CSS_CARDS` and `CSS_TERMINAL`), JS, and card-building functions. You
-MUST copy the CSS and JS from that file verbatim into the HTML you generate. Do NOT
-write your own CSS or JS. The bundled file is the source of truth for styling.
+**Example:**
+```
+template_html.replace('__RESULTS_DATA__', json.dumps(results_wrapper))
+```
 
-Specifically, copy these from `export_html.py` into your HTML:
-- `CSS_CARDS` → `<style id="css-cards">` (disabled if terminal is default)
-- `CSS_TERMINAL` → `<style id="css-terminal">` (disabled if cards is default)
-- `JS` → `<script>` block
+The template handles everything:
+- Both terminal and cards themes with a runtime theme switcher
+- Light/dark mode toggle
+- Filter bar (All / New / Unread / Interested / Maybe / Filtered)
+- Expandable cards with verdict, comp, missing info, draft reply, links
+- Persistence summary, action banners
+- Age badges with date-based color gradients (green→red over 14 days)
+- Blue "new" badges for current-run items
+- localStorage viewed-state tracking (dim dot on expand)
+- Save/download button
+- Responsive mobile layout
 
-Then use the exact HTML structure from the card-builder functions in that file:
-- `build_terminal_card()` → expandable card for pass/maybe
-- `build_terminal_fail()` → compact filtered item
-- `build_cards_card()` → cards theme card
-- `build_cards_fail_row()` → cards theme filtered row
-
-**Every pass/maybe card MUST include all of these elements** (when data is available):
-1. Company name, role title, location
-2. Source badge (Job Alert, Direct, LinkedIn)
-3. Verdict reason (1-sentence explanation)
-4. Comp assessment (sliding-scale note from user's criteria)
-5. Missing info tags (each missing required field as a tag/pill)
-6. Draft reply block — full reply text with a "Review & Send" button linking to the Gmail draft
-7. Link buttons: **Email** (Gmail thread), **Posting** (job URL)
-
-**Filtered items** show: company, role, location, source, and reason in a compact row.
-
-Do NOT omit the draft reply or link buttons — these are the primary actions the user
-takes from the results page. A card with only "View listing" is incomplete.
-
-Do NOT write your own CSS. The bundled stylesheet handles all styling including
-dark/light modes, themes, responsive layout, and animations.
+**Do NOT modify the template HTML in any way.** Do NOT write custom CSS or JS.
+Do NOT add classes, change styles, or alter the template structure.
+The **only** change you make is replacing `__RESULTS_DATA__` with the JSON.
 
 ---
 
