@@ -733,7 +733,8 @@ log entry format.
 
 The scheduler runs jerbs automatically on a variable cadence. In Claude Code, this uses
 the local daemon loop with the `scheduler.py` state machine. On the web (claude.ai),
-it uses an interactive artifact with `sendPrompt()`.
+the scheduler is built into the results template as a collapsible panel — both share a
+single artifact so the scheduler never replaces or hides results.
 
 ### Interval state machine
 
@@ -761,3 +762,6 @@ Use `/loop` or `/schedule` for session-based or background automation:
 - The daemon and `/loop` only run while the session is open.
 - Remote triggers run independently in the cloud on a cron schedule.
 - Rapid mode is automatic — no user action needed to trigger or cancel it.
+- The scheduler panel in the results template is only visible when `__SCHEDULER_SETTINGS__`
+  is replaced with valid JSON. In Claude Code, `export_html.py` only replaces
+  `__RESULTS_DATA__`, so the scheduler panel is automatically hidden.
