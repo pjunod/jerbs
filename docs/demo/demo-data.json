@@ -3,11 +3,36 @@
   "profile_name": "Paul's Job Search",
   "mode": "dry-run",
   "lookback_days": 7,
-  "actions": [],
+  "actions": [
+    {
+      "title": "Recruiter replied \u2014 Stripe",
+      "body": "Jane from Stripe responded to your outreach 2 hours ago. She's asking about your availability for a call next week.",
+      "links": [
+        {
+          "label": "View thread",
+          "url": "https://mail.google.com/mail/u/0/#inbox/demo-stripe-thread"
+        },
+        {
+          "label": "Reply",
+          "url": "https://mail.google.com/mail/u/0/#drafts?compose=demo-stripe-reply"
+        }
+      ]
+    },
+    {
+      "title": "Missing draft \u2014 Netflix Senior SRE",
+      "body": "This pass result has no draft reply. Create one to request comp and equity details.",
+      "links": [
+        {
+          "label": "View email",
+          "url": "https://mail.google.com/mail/u/0/#inbox/demo-netflix"
+        }
+      ]
+    }
+  ],
   "persistence_stats": {
     "pending_merged": 8,
     "pending_total": 8,
-    "responses_found": 0,
+    "responses_found": 1,
     "screened_ids_pruned": 0,
     "correspondence_pruned": 0
   },
@@ -16,7 +41,7 @@
       "source": "Direct Outreach",
       "message_id": "pend-000",
       "thread_id": "pend-000",
-      "email_date": "2026-04-01",
+      "email_date": "2026-04-02",
       "company": "Jane Street",
       "role": "Systems Engineer",
       "location": "NYC",
@@ -28,14 +53,14 @@
       ],
       "posting_url": "",
       "email_url": "https://mail.google.com/mail/u/0/#inbox/pend-000",
-      "added_at": "2026-04-01",
+      "added_at": "2026-04-02",
       "status": "pending"
     },
     {
       "source": "Direct Outreach",
       "message_id": "pend-001",
       "thread_id": "pend-001",
-      "email_date": "2026-03-31",
+      "email_date": "2026-04-01",
       "company": "Cloudflare",
       "role": "Staff SRE",
       "location": "Remote US",
@@ -47,14 +72,14 @@
       ],
       "posting_url": "",
       "email_url": "https://mail.google.com/mail/u/0/#inbox/pend-001",
-      "added_at": "2026-03-31",
+      "added_at": "2026-04-01",
       "status": "pending"
     },
     {
       "source": "Direct Outreach",
       "message_id": "pend-002",
       "thread_id": "pend-002",
-      "email_date": "2026-03-30",
+      "email_date": "2026-03-31",
       "company": "Datadog",
       "role": "Senior SRE",
       "location": "NYC \u2014 Hybrid",
@@ -67,14 +92,14 @@
       ],
       "posting_url": "",
       "email_url": "https://mail.google.com/mail/u/0/#inbox/pend-002",
-      "added_at": "2026-03-30",
+      "added_at": "2026-03-31",
       "status": "pending"
     },
     {
       "source": "Job Alert Listings",
       "message_id": "pend-003",
       "thread_id": "pend-003",
-      "email_date": "2026-03-29",
+      "email_date": "2026-03-30",
       "company": "Google",
       "role": "Senior SRE, Google Cloud",
       "location": "Multiple US",
@@ -86,14 +111,14 @@
       ],
       "posting_url": "https://www.linkedin.com/jobs/view/4600003/",
       "email_url": "https://mail.google.com/mail/u/0/#inbox/pend-003",
-      "added_at": "2026-03-29",
+      "added_at": "2026-03-30",
       "status": "pending"
     },
     {
       "source": "Job Alert Listings",
       "message_id": "pend-004",
       "thread_id": "pend-004",
-      "email_date": "2026-03-28",
+      "email_date": "2026-03-29",
       "company": "Anthropic",
       "role": "Infrastructure Engineer, Sandboxing",
       "location": "SF",
@@ -105,7 +130,7 @@
       ],
       "posting_url": "https://www.linkedin.com/jobs/view/4600004/",
       "email_url": "https://mail.google.com/mail/u/0/#inbox/pend-004",
-      "added_at": "2026-03-28",
+      "added_at": "2026-03-29",
       "status": "pending"
     },
     {
@@ -132,7 +157,7 @@
       "source": "Job Alert Listings",
       "message_id": "pend-006",
       "thread_id": "pend-006",
-      "email_date": "2026-03-26",
+      "email_date": "2026-03-24",
       "company": "Palantir",
       "role": "Infrastructure Engineer",
       "location": "NYC",
@@ -145,14 +170,14 @@
       ],
       "posting_url": "https://www.linkedin.com/jobs/view/4600006/",
       "email_url": "https://mail.google.com/mail/u/0/#inbox/pend-006",
-      "added_at": "2026-03-26",
+      "added_at": "2026-03-24",
       "status": "pending"
     },
     {
       "source": "Job Alert Listings",
       "message_id": "pend-007",
       "thread_id": "pend-007",
-      "email_date": "2026-03-25",
+      "email_date": "2026-03-21",
       "company": "Meta",
       "role": "Production Engineer, Infrastructure",
       "location": "Menlo Park",
@@ -164,7 +189,7 @@
       ],
       "posting_url": "https://www.linkedin.com/jobs/view/4600007/",
       "email_url": "https://mail.google.com/mail/u/0/#inbox/pend-007",
-      "added_at": "2026-03-25",
+      "added_at": "2026-03-21",
       "status": "pending"
     }
   ],
