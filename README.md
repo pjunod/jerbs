@@ -241,6 +241,7 @@ Key sections:
 |---|---|
 | `identity` | Your name, title, target roles, seniority level |
 | `target_companies` | Industries, company types, whitelist, blacklist |
+| `location` | Current location, target locations, relocation preferences |
 | `role_requirements` | Employment type, remote preference, visa sponsorship |
 | `compensation` | Base salary floor, TC target, sliding scale notes |
 | `tech_stack` | Required, dealbreaker, and preferred tech |

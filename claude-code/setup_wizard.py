@@ -193,6 +193,22 @@ def run_setup_wizard(output_path: Path):
         "Industries to block entirely (optional)", "defense, tobacco, gambling, MLM"
     )
 
+    print("\n── Location ──────────────────────────────────────────")
+    criteria["location"]["current_location"] = ask(
+        "Where are you currently based? (city / metro area)", ""
+    )
+    criteria["location"]["target_locations"] = ask_list(
+        "What locations are you targeting for work?",
+        "SF Bay Area, NYC, Seattle, fully remote",
+    )
+    criteria["location"]["open_to_relocation"] = ask_bool("Open to relocating?", False)
+    if criteria["location"]["open_to_relocation"]:
+        criteria["location"]["relocation_conditions"] = ask(
+            "Under what conditions?",
+            "Only if they cover relo costs",
+        )
+    criteria["location"]["location_notes"] = ask("Any other location nuances? (optional)", "")
+
     print("\n── Role requirements ─────────────────────────────────")
     ft_only = ask_bool("Full-time only?", True)
     criteria["role_requirements"]["employment_type"] = (
@@ -286,6 +302,9 @@ def run_setup_wizard(output_path: Path):
     print("  Summary")
     print("─" * 55)
     print(f"  Name:       {criteria['identity']['name']}")
+    loc = criteria["location"]["current_location"] or "not set"
+    targets = ", ".join(criteria["location"]["target_locations"]) or "anywhere"
+    print(f"  Location:   {loc} · Targeting: {targets}")
     print(f"  Base floor: ${criteria['compensation']['base_salary_floor']:,}")
     print(f"  TC target:  ${criteria['compensation']['total_comp_target']:,}+")
     print(
