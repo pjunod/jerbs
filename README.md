@@ -61,6 +61,40 @@ opportunities worth pursuing.
 
 ---
 
+## Installation
+
+### Claude Code (recommended)
+
+> **Coming soon** — marketplace listing is not live yet. For now, install manually from the repo.
+
+```bash
+# Manual install (until marketplace listing is live):
+git clone https://github.com/pjunod/jerbs.git
+# Then add the repo path as a skill in Claude Code settings
+```
+
+Connect Gmail first in Settings → MCP Servers → Gmail, then say **"/jerbs"** to get started.
+
+### Claude.ai (browser)
+
+1. Download **[`claude-web/jerbs.skill`](claude-web/jerbs.skill)**
+2. Claude.ai → **Settings → Connectors → Gmail → Connect**
+3. Claude.ai → **Settings → Skills → Install from file** → upload `jerbs.skill`
+4. New conversation → say **"set up jerbs"**
+
+### Local daemon
+
+```bash
+git clone https://github.com/pjunod/jerbs.git
+cd jerbs/claude-code
+pip install -r requirements.txt
+python jerbs.py --setup
+```
+
+See [INSTALL.md](INSTALL.md) for full details and [docs/setup.md](docs/setup.md) for Gmail API credentials.
+
+---
+
 ## Repository structure
 
 ```
@@ -155,12 +189,7 @@ See [INSTALL.md](INSTALL.md) for setup steps.
 
 Best for: power users who want zero-friction local file management.
 
-**Install from marketplace:**
-```
-/plugin marketplace add pjunod/jerbs
-```
-
-Or install manually — see [INSTALL.md](INSTALL.md).
+**Marketplace listing coming soon.** For now, install manually — see [INSTALL.md](INSTALL.md).
 
 - Runs inside the Claude Code CLI with Gmail connected via Claude.ai connectors
 - Reads and writes `~/.claude/jerbs/criteria.json` and `~/.claude/jerbs/correspondence.json` directly — no re-uploading
