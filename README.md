@@ -61,6 +61,36 @@ opportunities worth pursuing.
 
 ---
 
+## Installation
+
+### Claude Code (recommended)
+
+```bash
+/plugin marketplace add pjunod/jerbs
+```
+
+Then say **"/jerbs"** to get started. Connect Gmail first in Settings → MCP Servers → Gmail.
+
+### Claude.ai (browser)
+
+1. Download **[`claude-web/jerbs.skill`](claude-web/jerbs.skill)**
+2. Claude.ai → **Settings → Connectors → Gmail → Connect**
+3. Claude.ai → **Settings → Skills → Install from file** → upload `jerbs.skill`
+4. New conversation → say **"set up jerbs"**
+
+### Local daemon
+
+```bash
+git clone https://github.com/pjunod/jerbs.git
+cd jerbs/claude-code
+pip install -r requirements.txt
+python jerbs.py --setup
+```
+
+See [INSTALL.md](INSTALL.md) for full details and [docs/setup.md](docs/setup.md) for Gmail API credentials.
+
+---
+
 ## Repository structure
 
 ```
