@@ -24,7 +24,7 @@ Jerbs is a multi-deployment job email screening tool that:
 - Scans Gmail in 2 passes (job digests + direct outreach) plus optional LinkedIn DMs
 - Screens each email against user-defined criteria using the Anthropic API
 - Uses a two-tier model strategy (Haiku fast-path for clear fails, Sonnet + extended thinking for ambiguous cases)
-- Generates draft replies for pass/maybe verdicts
+- Composes draft replies for pass/maybe verdicts (created on-demand via artifact button)
 - Exports results to interactive HTML and/or pipeline-tracking XLSX
 - Supports three deployment modes: Claude.ai browser, Claude Code CLI, and standalone local daemon
 
@@ -251,8 +251,13 @@ flowchart TB
 
 ### 5. Sequence Diagram — Single Email Screening (Real-time)
 
+Draft creation is deferred — reply text is composed during screening but
+`gmail_create_draft` is only called on-demand when the user clicks
+"Create Draft & Send" in the results artifact.
+
 ```mermaid
 sequenceDiagram
+    participant U as User / Artifact
     participant J as jerbs.py
     participant S as Screener
     participant H as Haiku (fast)
@@ -279,7 +284,7 @@ sequenceDiagram
         else verdict == "pass" or "maybe"
             S->>So: messages.create(sonnet, email_content, thinking=5000)
             So-->>S: tool_use{verdict, reason, reply_draft, ...}
-            S-->>J: result{verdict, reply_draft, ...}
+            S-->>J: result{verdict, reply_draft, draft_url: ""}
         end
 
         J->>J: _log_result(result)
@@ -288,9 +293,17 @@ sequenceDiagram
     J->>J: _update_screened_ids()
     J->>J: _update_pending_results()
     J->>J: save_criteria()
+    J->>U: Render results artifact (with draft text, no draft URLs)
+
+    Note over U,G: Draft creation is on-demand — user clicks button in artifact
+
+    U->>J: sendPrompt("Create draft for thread <id>...")
+    J->>G: gmail_create_draft(thread_id, reply_text)
+    G-->>J: draft_message_id
+    J-->>U: Draft URL (user reviews & sends in Gmail)
 ```
 
-### 6. State Diagram — Daemon Scheduler
+### 6. State Diagram — Scheduler (Three-Tier)
 
 ```mermaid
 stateDiagram-v2
@@ -302,20 +315,31 @@ stateDiagram-v2
     state BizHours {
         [*] --> Waiting15m
         Waiting15m --> Screening: 15 min elapsed
-        Screening --> Waiting15m: run complete
+        Screening --> Waiting15m: no drafts
+        Screening --> Rapid: drafts generated
     }
 
     state OffHours {
         [*] --> Waiting60m
         Waiting60m --> Screening2: 60 min elapsed
-        Screening2 --> Waiting60m: run complete
+        Screening2 --> Waiting60m: no drafts
+        Screening2 --> Rapid: drafts generated
+    }
+
+    state Rapid {
+        [*] --> Waiting5m
+        Waiting5m --> Screening3: 5 min elapsed
+        Screening3 --> Waiting5m: run complete
     }
 
     BizHours --> OffHours: hour >= biz_end
     OffHours --> BizHours: hour >= biz_start
+    Rapid --> BizHours: 30 min expired + in biz hours
+    Rapid --> OffHours: 30 min expired + off hours
 
     BizHours --> [*]: SIGINT / SIGTERM
     OffHours --> [*]: SIGINT / SIGTERM
+    Rapid --> [*]: SIGINT / SIGTERM
 ```
 
 ### 7. Entity Relationship — Data Model
@@ -510,35 +534,40 @@ Note: The dashed red line from `jerbs.py` → `export_results.py` uses a runtime
 All deployment modes share a single rendering pipeline. The Python wrapper (`export_html.py`)
 handles data preparation (pending resolution from disk), then injects the results JSON into
 the client-side template. The template is a self-contained SPA that renders both themes at
-runtime with light/dark mode support.
+runtime with light/dark mode support, an optional scheduler panel, and on-demand draft
+creation via `sendPrompt()`.
 
 ```mermaid
 flowchart TB
     subgraph data ["Data Layer"]
         JSON["results JSON<br/><i>screening output</i>"]
+        SCHED["scheduler settings JSON<br/><i>(web only, optional)</i>"]
         CRITERIA["criteria.json<br/><i>pending fallback</i>"]
     end
 
     subgraph wrapper ["Data Preparation — Python<br/><code>export_html.py</code> — ~108 lines"]
         PENDING["_resolve_pending()<br/><i>merge pending from disk<br/>if not in JSON</i>"]
-        INJECT["Template injection<br/><i>read template,<br/>replace __RESULTS_DATA__<br/>with JSON string</i>"]
+        INJECT["Template injection<br/><i>replace __RESULTS_DATA__<br/>replace __SCHEDULER_SETTINGS__</i>"]
     end
 
-    subgraph template ["Single Source of Truth<br/><code>results-template.html</code> — 1,297 lines"]
+    subgraph template ["Single Source of Truth<br/><code>results-template.html</code>"]
         direction TB
-        CSS["Both theme CSS<br/><i>css-terminal + css-cards<br/>one active at a time</i>"]
+        CSS["Both theme CSS<br/><i>css-terminal + css-cards<br/>+ scheduler panel CSS</i>"]
         THEME_RES["Theme resolution<br/><i>1. URL ?theme= param<br/>2. localStorage<br/>3. default 'terminal'</i>"]
-        LIGHT_RES["Light/dark resolution<br/><i>1. localStorage<br/>2. system prefers-color-scheme<br/>3. default dark</i>"]
-        RENDER["renderPage(data)<br/><i>Full client-side rendering<br/>from embedded JSON</i>"]
+        RENDER["renderPage(data)<br/><i>Scheduler panel (if settings)<br/>+ full results rendering</i>"]
         SWITCH["switchTheme()<br/><i>Runtime toggle between<br/>terminal ↔ cards</i>"]
+        DRAFTS["createDraft()<br/><i>On-demand: sendPrompt()<br/>→ gmail_create_draft<br/>→ open in Gmail</i>"]
+        SCHED_JS["Scheduler JS<br/><i>Three-tier state machine<br/>sendPrompt() auto-rerun</i>"]
 
         CSS --> RENDER
         THEME_RES --> RENDER
-        LIGHT_RES --> RENDER
         RENDER <--> SWITCH
+        RENDER --> DRAFTS
+        RENDER --> SCHED_JS
     end
 
     JSON --> PENDING
+    SCHED --> INJECT
     CRITERIA -.->|"fallback<br/>(daemon only)"| PENDING
     PENDING --> INJECT
     INJECT -->|"self-contained HTML<br/>(template + JSON)"| DELIVER

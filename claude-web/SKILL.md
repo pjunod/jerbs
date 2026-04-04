@@ -515,11 +515,12 @@ would accept a specific city for higher comp, note that in the assessment.
 For any pass/maybe, check which required fields are missing and draft a single reply
 requesting all of them at once.
 
-### Draft replies (batched after screening)
+### Draft replies (on-demand via artifact button)
 
-For every pass and maybe verdict, compose the reply text during screening but **defer
-the `gmail_create_draft` calls until all screening is complete**. This batches all
-draft creation at the end of the run, reducing tool calls and avoiding the per-turn
+For every pass and maybe verdict, compose the reply text during screening but **do NOT
+call `gmail_create_draft`**. Draft creation happens on-demand when the user clicks
+the "Create Draft & Send" button in the results artifact. This eliminates all draft
+creation tool calls from the screening pass, keeping it well within the per-turn
 tool-use limit on claude.ai.
 
 **During screening — for each pass/maybe item:**
@@ -531,25 +532,25 @@ tool-use limit on claude.ai.
    - **Never include any criteria values** — no salary figures, TC targets, company
      names from the whitelist/blacklist. Ask for *their* details without revealing
      yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
-3. Set `draft_url` to empty string and `sent` to false — these are filled in later
+3. Set `draft_url` to empty string and `sent` to false
 
-**After all screening is complete — batch draft creation:**
-1. Collect all result objects that have a non-empty `reply_draft`
-2. For each one, call `gmail_create_draft` with the reply text, replying to the
-   correct thread (use the result's `thread_id`)
-3. Update each result's `draft_url` with the URL from the response:
-   `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
+The HTML card renders the draft text inline with a green "Create Draft & Send" button.
+When clicked, the button calls `sendPrompt()` which asks Claude to create the draft
+in Gmail. After creating the draft, respond with the Gmail draft URL so the user can
+review and send it.
 
-**In send mode:** Use `gmail_send_message` instead of `gmail_create_draft`. Set
-`sent: true` in each result object.
+**Handling the on-demand draft creation prompt:**
 
-The HTML card will then render:
-- The full draft reply text (so the user can read it inline)
-- A clickable "review & send" link that opens the Gmail draft
-- The user clicks the link, reviews the draft in Gmail, and sends with one click
+When you receive a prompt from the artifact like:
+> Create a Gmail draft reply to thread ID <thread_id> with this exact text...
 
-**If you skip `gmail_create_draft`, the result cards will have no reply text and no
-send link — this defeats the entire purpose of the tool.**
+1. Call `gmail_create_draft` with the provided thread ID and reply text
+2. Return the draft URL: `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
+3. Keep the response short — the user just wants the link
+
+**In send mode:** The screening pass still only composes text. When the user clicks
+the button, use `gmail_send_message` instead of `gmail_create_draft` and set
+`sent: true`.
 
 ### Result object schema
 
@@ -584,8 +585,8 @@ drive the HTML card rendering — missing fields mean missing UI elements.
 **Key rules:**
 - `email_url` is ALWAYS set — construct from message_id: `https://mail.google.com/mail/u/0/#inbox/<message_id>`
 - `reply_draft` MUST be set for every pass/maybe verdict during screening. `draft_url`
-  is filled in after screening when drafts are batch-created via `gmail_create_draft`.
-  If these fields are empty, the card will have no reply and no send link.
+  starts empty — it is filled in on-demand when the user clicks "Create Draft & Send"
+  in the artifact. If `reply_draft` is empty, the card will have no reply text or button.
 - `posting_url` is set when the email contains a link to a job posting
 - `comp_assessment` uses the user's sliding_scale_notes to give an honest assessment
 - `missing_fields` lists fields from the user's required_info that weren't in the email
