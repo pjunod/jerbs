@@ -139,7 +139,14 @@ def _age_badge_html(date_str, run_date_str=None, is_new=False):
     days = _age_days(date_str, run_date_str)
     label = _age_label(days)
     if not label:
-        return ""
+        # Pending item with no date — show a neutral badge
+        color = _age_color(_PRUNE_DAYS // 2)
+        return (
+            f' <span class="age-badge"'
+            f' style="color:{color};border-color:{color};'
+            f'min-width:{w};width:{w}">'
+            f"no date</span>"
+        )
     color = _age_color(days)
     color_style = f"color:{color};border-color:{color};" if color else ""
     return (
@@ -148,14 +155,17 @@ def _age_badge_html(date_str, run_date_str=None, is_new=False):
 
 
 def _sort_by_date_desc(items, run_date_str=None):
-    """Sort items by email_date (or added_at) descending — newest first."""
+    """Sort items by date descending, new (current-run) items before pending at same date."""
 
     def sort_key(item):
         date_str = item.get("email_date") or item.get("added_at") or ""
         dt = _parse_date(date_str)
         if dt is None:
-            return datetime.min
-        return dt
+            dt = datetime.min
+        # With reverse=True, higher values sort first.
+        # New items (not pending) get 1, pending get 0 — so new sorts first.
+        is_new = 1 if item.get("status") != "pending" else 0
+        return (dt, is_new)
 
     return sorted(items, key=sort_key, reverse=True)
 
