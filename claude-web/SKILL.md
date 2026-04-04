@@ -813,28 +813,104 @@ log entry format.
 
 ## Auto-scheduler (optional)
 
-The scheduler runs jerbs automatically on a two-tier cadence — frequent checks during
-active sessions and hourly background runs when no session is open.
+The scheduler runs jerbs automatically on a variable cadence using an interactive artifact
+that renders in the side panel. It uses `sendPrompt()` to trigger screening runs
+autonomously — no user interaction required between runs.
 
-### Tier 1 — Active session (every 15 min)
+### Displaying the scheduler
 
-When the user asks to start, automate, or set up the scheduler, use the `/loop` command
-to run the screener every 15 minutes:
+When the user asks to start, automate, or set up the scheduler, render the scheduler
+artifact. The template is bundled at `templates/scheduler-template.html`.
+
+**Your only job is:**
+1. Read the template file from the .skill package
+2. Build a settings JSON object from the user's criteria:
+   ```json
+   {
+     "timezone": "America/New_York",
+     "bizStart": 9,
+     "bizEnd": 17,
+     "autoStart": true
+   }
+   ```
+3. Replace the literal placeholder `__SCHEDULER_SETTINGS__` in the template with
+   the serialized JSON string
+4. Output the resulting HTML inside `<antArtifact>` tags
+
+**Example output structure:**
 
 ```
-/loop 15m /jerbs
+Here's your scheduler — it will check automatically based on your business hours.
+
+<antArtifact identifier="jerbs-scheduler" type="text/html" title="Jerbs Scheduler">
+<!DOCTYPE html>
+... [full self-contained HTML page with settings injected] ...
+</html>
+</antArtifact>
 ```
 
-This runs inline in the conversation with no widget or UI to manage. Each run's results
-appear naturally in the chat. The user can stop it by saying "stop" or ending the session.
+The `<antArtifact>` tag MUST have:
+- `identifier="jerbs-scheduler"` (reuse this identifier if re-rendering)
+- `type="text/html"`
+- `title="Jerbs Scheduler"`
 
-### Tier 2 — Off-hours background (every 60 min)
+**Do NOT modify the template HTML in any way.** The **only** change you make is
+replacing `__SCHEDULER_SETTINGS__` with the settings JSON.
 
-A remote trigger (scheduled agent) runs the screener hourly when the user has no active
-session. This is set up once via `/schedule` and runs autonomously in Anthropic's cloud
-with Gmail MCP connected. No browser tab required.
+Set `autoStart` to `true` so the scheduler begins running immediately when the
+artifact renders. If the user says "pause" or "stop", you do not need to re-render —
+the artifact has its own pause/resume buttons.
+
+### Interval state machine
+
+The scheduler artifact contains a three-tier state machine:
+
+| State | Interval | Condition |
+|---|---|---|
+| Off-hours | 60 min | Outside user-defined business hours |
+| Business hours | 15 min | Within business hours |
+| Rapid response | 5 min | For 30 min after draft replies are generated |
+
+The artifact handles all timing, mode transitions, and countdown display. When the
+countdown expires, it calls `sendPrompt()` to trigger the next screening run.
+
+### Rapid mode trigger
+
+When the scheduler is active and you generate draft replies during a screening run,
+you MUST re-render the scheduler artifact with `rapidModeEnd` set in the settings:
+
+```json
+{
+  "timezone": "America/New_York",
+  "bizStart": 9,
+  "bizEnd": 17,
+  "autoStart": true,
+  "rapidModeEnd": 1743800000000,
+  "runCount": 3
+}
+```
+
+Set `rapidModeEnd` to `Date.now() + 30 * 60 * 1000` (30 minutes from now) and
+preserve the current `runCount`. The artifact will enter rapid mode (5-min checks)
+and automatically revert when the timer expires.
+
+**Never set `rapidModeEnd` when no drafts were generated** — only trigger rapid mode
+when there are actual draft replies for the user to review and send.
+
+### How it works
+
+1. The artifact renders in the side panel with a live countdown timer
+2. When the timer fires, the artifact calls `sendPrompt()` which sends a screening
+   prompt to Claude as if the user typed it
+3. Claude runs the full screening pass and outputs results
+4. If draft replies were generated, Claude re-renders the artifact with rapid mode
+   active — otherwise the artifact continues with its current timer
+5. The cycle repeats until the user pauses the scheduler or ends the session
 
 ### Important notes
-- Tier 1 (`/loop`) only runs while the session is open — it is not a background service.
-- Tier 2 (remote trigger) runs independently in the cloud on a cron schedule.
-- There is no rapid mode — the two-tier model replaces the old three-tier state machine.
+- The scheduler only runs while the browser tab is open — it is not a background service.
+- The artifact persists in the side panel and does not scroll away with the conversation.
+- Settings changes (timezone, business hours) made in the artifact UI take effect
+  immediately — no re-render needed.
+- When re-rendering for rapid mode, always preserve `runCount` so the session counter
+  is not reset.
