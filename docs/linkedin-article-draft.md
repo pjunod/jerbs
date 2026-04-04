@@ -62,15 +62,17 @@ That's it. 1,364 lines of Python became 108. The two demo files collapsed into o
 | Places to fix a rendering bug | 2 | 1 |
 | Theme support per file | 1 (locked at generation) | 2 (runtime switchable) |
 
-## The Lesson for Teams Adopting AI
+## What I'm Learning
 
-This isn't a story about AI writing bad code. It's about what happens when AI writes *good* code without system-level context.
+I'm not writing this from the mountaintop. I'm writing it from the middle of figuring this out — same as everyone else. This duplication happened in *my* project, on *my* watch, and I didn't catch it until the friction got annoying enough to investigate.
 
-AI assistants are phenomenal at solving the problem in front of them. Give them a well-scoped task with clear requirements and they'll produce clean, tested, production-ready code. But they don't carry architectural awareness between sessions. They don't ask "does something like this already exist?" They don't look at the system diagram before writing a new module.
+But that's kind of the point. This isn't a story about AI writing bad code. It's about what happens when AI writes *working* code without system-level context — and about how the person directing it (me, in this case) didn't think to ask the right question until after the complexity had already accumulated.
 
-This is the new version of an old problem. Junior developers do the same thing — they build from scratch instead of discovering existing solutions. The difference is that AI does it faster, with higher confidence, and produces code that looks so polished it sails through review.
+AI assistants are phenomenal at solving the problem in front of them. Give them a well-scoped task and they'll produce clean, tested code. But they don't carry architectural awareness between sessions. They don't ask "does something like this already exist?" They don't look at the system diagram before writing a new module. And honestly, I didn't either — not until the symptoms got loud enough.
 
-**Here's what I think teams need to build into their AI-assisted workflows:**
+This is the new version of an old problem. Junior developers do the same thing — they build from scratch instead of discovering existing solutions. The difference is that AI does it faster, with higher confidence, and produces code that looks so polished it sails through review. I'm still calibrating my instincts for when to trust that polish and when to push back.
+
+**Here's what I'm starting to build into my workflow — and what I think is worth considering:**
 
 **1. Schedule periodic architecture reviews.** Not code reviews — architecture reviews. Ask the AI (or a human) to look at the system holistically, across modules, across deployment modes, across languages. The kind of analysis that asks "are we solving the same problem in two places?"
 
