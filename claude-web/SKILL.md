@@ -1,5 +1,6 @@
 ---
 name: jerbs
+version: "1.0.0"
 description: >
   Screens job-related emails in Gmail and LinkedIn DMs against a candidate's personal
   criteria and drafts follow-up replies for anything worth pursuing. Use this skill whenever
@@ -75,6 +76,27 @@ On first run, Claude creates criteria interactively via the setup wizard.
 On subsequent runs, Claude loads them and prints a summary before screening.
 
 The bundled `criteria_template.json` shows the full schema with all fields and defaults.
+
+---
+
+## Version banner (testing mode only)
+
+At the very start of every run, before anything else, check `state.mode`:
+
+- If `state.mode === "testing"`: print the following banner in chat, then proceed normally:
+
+  ```
+  🧪 jerbs v{version} [TESTING]
+  {latest changelog entry — one line from CHANGELOG.md}
+  ```
+
+  Where `{version}` comes from this file's frontmatter and the changelog entry is the
+  first bullet under the most recent version heading in `CHANGELOG.md`.
+
+- If `state.mode` is `"production"`, absent, or anything else: print nothing. No banner,
+  no mention of version, no debug output. Silence.
+
+The banner is purely informational — it does not affect screening behavior.
 
 ---
 
@@ -734,6 +756,9 @@ The **only** change you make is replacing `__RESULTS_DATA__` with the JSON.
 
 Users can update any section at any time without re-doing the full wizard:
 
+- "switch to testing mode" / "enable testing mode" → set `mode: "testing"` in state, save, confirm
+- "switch to production mode" / "disable testing mode" → set `mode: "production"` in state, save, confirm
+- "what mode am I in?" / "what version is this?" → print current mode and skill version regardless of mode
 - "Update my location preferences" → re-run only section 1c
 - "Update my salary expectations" → re-run only section 1e
 - "Add [company] to my blacklist" → append to blacklist, save
