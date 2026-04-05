@@ -294,22 +294,26 @@ metadata, check for blacklisted companies/senders before reading the full messag
 message from a blacklisted sender can be marked as a fail result without calling
 `gmail_read_message` — this saves a tool call per blacklisted match.
 
-### Batch read ALL messages in one parallel call
+### Read ALL messages before analyzing ANY
 
-Issue `gmail_read_message` for **every** remaining message as **parallel tool calls in
-a single turn**. Do NOT read one, analyze it, then read the next.
+Issue `gmail_read_message` for **every** remaining message as parallel tool calls.
+Read them ALL before doing any analysis, classification, or verdict work.
 
-**Correct (1 turn, N parallel calls):**
+**If you can fit all reads in one turn, do it:**
 ```
-Turn 1: gmail_read_message(id1) + gmail_read_message(id2) + ... + gmail_read_message(idN)
-```
-
-**Wrong (N turns, 1 call each):**
-```
-Turn 1: gmail_read_message(id1) → analyze → Turn 2: gmail_read_message(id2) → ...
+Turn 1: gmail_read_message(id1) + ... + gmail_read_message(idN)
+→ All content loaded. Proceed to filtering.
 ```
 
-You now have the full content of all messages. Proceed to filtering.
+**If the platform limits parallel calls per turn, batch in groups but do NOT analyze
+between batches — just keep reading:**
+```
+Turn 1: gmail_read_message(id1) + ... + gmail_read_message(id8)   ← read only
+Turn 2: gmail_read_message(id9) + ... + gmail_read_message(id16)  ← read only
+→ All content loaded. NOW proceed to filtering.
+```
+
+Do NOT evaluate, classify, filter, or produce verdicts during reads. Just read.
 
 ### Drop noise
 

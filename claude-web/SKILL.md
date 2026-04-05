@@ -484,24 +484,29 @@ This stage reads all messages and tags them. **ALL reading happens here — Stag
 NOT read any messages.** By the time you reach Stage 4, you must already have the full
 content of every message.
 
-## Step 3a — Batch read ALL messages in one parallel call
+## Step 3a — Read ALL messages before analyzing ANY
 
-Issue `gmail_read_message` for **every** message from the search results as **parallel
-tool calls in a single turn**. Do NOT read one, analyze it, then read the next — that
-is the failure mode we are avoiding.
+Issue `gmail_read_message` for **every** message as parallel tool calls. Read them
+ALL before doing any analysis, classification, or verdict work.
 
-**Correct (1 turn, N parallel calls):**
+**If you can fit all reads in one turn, do it:**
 ```
 Turn 1: gmail_read_message(id1) + gmail_read_message(id2) + ... + gmail_read_message(idN)
+→ All content loaded. Proceed to Step 3b.
 ```
 
-**Wrong (N turns, 1 call each):**
+**If the platform limits parallel calls per turn, batch in groups but do NOT analyze
+between batches — just keep reading:**
 ```
-Turn 1: gmail_read_message(id1) → analyze → 
-Turn 2: gmail_read_message(id2) → analyze → ...
+Turn 1: gmail_read_message(id1) + ... + gmail_read_message(id8)   ← read only
+Turn 2: gmail_read_message(id9) + ... + gmail_read_message(id16)  ← read only
+Turn 3: gmail_read_message(id17) + ... + gmail_read_message(idN)  ← read only
+→ All content loaded. NOW proceed to Step 3b.
 ```
 
-You now have the full content of all messages. Proceed to filtering.
+**The failure mode to avoid:** reading a message, analyzing/classifying it, then
+reading the next. This turns N reads into N sequential turns instead of 2-3 batch turns.
+Do NOT evaluate, classify, filter, or produce verdicts during Step 3a. Just read.
 
 ## Step 3b — Drop noise
 
