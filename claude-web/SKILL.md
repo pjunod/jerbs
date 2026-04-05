@@ -758,7 +758,7 @@ Users can update any section at any time without re-doing the full wizard:
 
 - "switch to testing mode" / "enable testing mode" → set `mode: "testing"` in state, save, confirm
 - "switch to production mode" / "disable testing mode" → set `mode: "production"` in state, save, confirm
-- "run jerbs test" / "jerbs test" → set `mode: "testing"` in state (if not already), save, then run screening normally (banner will print because mode is now testing)
+- "run jerbs test" / "jerbs test" → set `mode: "testing"` in state (if not already), save, then execute the **full screening flow** (Steps 0–5) including the HTML artifact output. This is a normal screening run with testing mode enabled — the banner prints, then everything proceeds exactly as if the user said "run jerbs"
 - "what mode am I in?" / "what version is this?" → print current mode and skill version regardless of mode
 - "Update my location preferences" → re-run only section 1c
 - "Update my salary expectations" → re-run only section 1e
