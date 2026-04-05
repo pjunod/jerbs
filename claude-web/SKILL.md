@@ -818,18 +818,22 @@ the data there, then output the template unchanged.
 
 **Steps — follow exactly:**
 1. Build the results JSON wrapper (from Stage 5 — MERGE)
-2. Serialize the JSON to a string
+2. Serialize the JSON to a string, then **base64-encode** it (use `btoa()` equivalent)
 3. Read `templates/results-template.html` from the .skill package
 4. Output this inside `<antArtifact>` tags:
-   - A `<script>` tag that writes the JSON to localStorage
+   - A `<script>` tag that base64-decodes the data and writes it to localStorage
    - The **entire template file, byte-for-byte, with ZERO modifications**
 
 ```
 <antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
-<script>localStorage.setItem('jerbs-results-data', '...serialized JSON...');</script>
+<script>localStorage.setItem('jerbs-results-data', atob('...base64 encoded JSON...'));</script>
 [paste the ENTIRE template file here — do not modify a single character]
 </antArtifact>
 ```
+
+**Why base64:** The JSON contains quotes, newlines, and special characters that break
+JavaScript string literals. Base64 encoding produces a safe ASCII string with no escaping
+issues. The `atob()` call decodes it back to the original JSON at runtime.
 
 **You are NOT writing HTML. You are NOT creating CSS. You are NOT building a page.**
 You are writing one `<script>` tag for the data, then copying a file verbatim.
