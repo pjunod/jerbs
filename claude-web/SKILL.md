@@ -11,16 +11,43 @@ description: >
   job screener", "set up my job screener", "check my LinkedIn messages", or "update my
   screening criteria". Requires Gmail to be connected. Optionally screens LinkedIn DMs if
   the LinkedIn MCP is connected. Screens Gmail in one unified search (job alert digests +
-  direct outreach), plus an optional LinkedIn DM pass, and combines results into one report. Optionally exports
-  results to a formatted .xlsx / Google Sheets file with a built-in pipeline status tracker.
+  direct outreach), plus an optional LinkedIn DM pass, and combines results into one report.
+  Optionally exports results to a formatted .xlsx / Google Sheets file with a built-in
+  pipeline status tracker.
 compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_create_draft). LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_send_message or take any destructive action on emails unless the user has explicitly enabled send mode. gmail_create_draft is called on-demand when the user clicks 'Create Draft & Edit' in the results artifact."
 ---
 
 # Job Email Screener
 
-A fully configurable job email screener that works for any role, industry, and experience
-level. Screens Gmail in one unified search (plus an optional LinkedIn DM pass), applies the user's criteria, surfaces draft replies,
-and optionally exports results to a spreadsheet pipeline tracker.
+A fully configurable job email screener. Screens Gmail in one unified search (plus an
+optional LinkedIn DM pass), applies the user's criteria, surfaces draft replies, and
+optionally exports results to a spreadsheet pipeline tracker.
+
+Supports two modes:
+- **Dry-run (default)** — draft replies composed but not sent; user clicks "Create Draft & Edit" to create Gmail drafts on demand
+- **Send mode** — replies sent via Gmail automatically and logged
+
+---
+
+## Pipeline overview
+
+Every screening run follows this pipeline. **Every stage is mandatory** — do not skip
+or combine stages. Complete each one fully before moving to the next.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. LOAD      Load state + criteria (or run setup wizard)   │
+│  2. SEARCH    Single Gmail query + optional LinkedIn DMs    │
+│  3. CLASSIFY  Tag each message: digest / direct / LinkedIn  │
+│  4. ANALYZE   Apply criteria, verdicts, comp, draft replies │
+│  5. MERGE     Combine new results with pending from prior   │
+│  6. RENDER    Build JSON → inject into template → artifact  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The output of stage 6 is always an HTML artifact rendered via `<antArtifact>` tags.
+**ZERO individual results appear in the chat window** — only a one-line count summary,
+the artifact, and an offer to export.
 
 ---
 
@@ -100,12 +127,16 @@ checking it, do NOT say what you found, do NOT narrate this step at all.
 
 ---
 
-## Step 0 — Load or set up criteria
+# Stage 1 — LOAD
+
+Load state and criteria. If no criteria exist, run the setup wizard.
+
+## Load or set up criteria
 
 **At the start of every interaction**, check whether a criteria file exists:
 
 ```
-Does the user have a criteria file? 
+Does the user have a criteria file?
 → Yes: Load it, print a brief summary, ask if they want to adjust anything before running.
 → No: Run the setup wizard (below).
 ```
@@ -114,9 +145,7 @@ Does the user have a criteria file?
 (compensation / dealbreakers / target companies / stack / reply settings / etc.) and update
 only that section — never make them redo everything.
 
----
-
-## Step 1 — Setup wizard (first-time or full reset)
+## Setup wizard (first-time or full reset)
 
 Walk through these sections conversationally. Ask one section at a time. Offer sensible
 defaults and examples. At the end, confirm the full profile before saving.
@@ -335,9 +364,7 @@ Show the **full** criteria summary — every field, not just the highlights. The
 to see everything they entered to catch mistakes or gaps. Ask: "Does this look right?
 Anything to adjust before I save it?" Then write to the criteria JSON file.
 
----
-
-## Step 2 — Print criteria summary
+## Print criteria summary
 
 At the start of every screening run, print a concise summary so the user can verify:
 
@@ -353,9 +380,7 @@ At the start of every screening run, print a concise summary so the user can ver
 
 Ask: "Run with these settings? (or say 'update [section]' to change something)"
 
----
-
-## Step 2.5 — Check active threads
+## Check active threads
 
 Before screening, check for active threads from prior runs. Search Gmail for replies
 to any threads where you previously created drafts or sent messages:
@@ -384,9 +409,11 @@ any screening results. If there are no active threads, leave the `actions` array
 
 ---
 
-## Step 3 — Run screening passes
+# Stage 2 — SEARCH
 
-### Search window and result limits
+Gather all candidate emails with a single Gmail query.
+
+## Search window and result limits
 
 **First run** (no entries in `screened_message_ids` yet):
 - Lookback: 7 days — cast a wide net to catch everything still in play
@@ -405,7 +432,7 @@ any screening results. If there are no active threads, leave the `actions` array
 The user can always override with explicit instructions ("look back 3 days", "get everything").
 After each run, update `last_run_date` in the criteria file.
 
-### Gmail search — single unified query
+## Gmail search — single unified query
 
 Run **one** `gmail_search_messages` call that captures both digest alerts and direct
 recruiter outreach (customize with user's extra_keywords and extra_exclusions):
@@ -421,41 +448,14 @@ from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
 
-### Classify and screen each message
+## LinkedIn DMs (optional)
 
-For each message returned by the search, read it with `gmail_read_message`, then classify
-it and apply the correct screening rules:
-
-**Job Alert Digest** — sender is `linkedin.com`, `jobalerts.indeed.com`,
-`indeedemail.com`, or another subscription alert sender:
-- Set `source` = `"Job Alert Listings"`
-- Screen the **individual job listings** within the digest, not the email as a whole
-- The "generic mass email" dealbreaker does NOT apply — these are subscription alerts
-
-**Direct Outreach** — everything else that passes noise filtering:
-- Set `source` = `"Direct Outreach"`
-- Filter out non-job noise first (surveys, loyalty emails, newsletters, mailing list
-  patches, government/non-profit announcements)
-- Apply the "generic mass email" dealbreaker: no name, boilerplate, no reference to
-  specific background = hard fail
-
-After classifying and screening all messages, you MUST complete these remaining steps
-(do NOT skip any):
-
-1. **Step 4** — Apply verdict rules, comp logic, draft replies for each result
-2. **Pending results** — Load `pending_results` from state, merge with new results
-3. **Build results JSON** — Create the full results wrapper with `results`, `pending_results`, `actions`, `persistence_stats`
-4. **Step 5** — Read the template from `templates/results-template.html`, replace `__RESULTS_DATA__` with the JSON, output inside `<antArtifact>` tags
-
-### LinkedIn DMs (optional)
-
-If the LinkedIn MCP is connected (`linkedin_search_messages`, `linkedin_read_message` available), run a third pass:
+If the LinkedIn MCP is connected (`linkedin_search_messages`, `linkedin_read_message` available):
 
 1. Use `linkedin_search_messages` with `lookback_days` matching the search window
 2. Skip any message IDs already in `screened_message_ids`
 3. For each new message, use `linkedin_read_message` to get the full content
 4. LinkedIn DMs have no real subject line — the "subject" is synthesized from the sender name and first line of the message
-5. Apply the same screening criteria as Direct Outreach. The "generic mass email" dealbreaker applies — generic InMail templates with no personalization are a hard fail
 
 For replies in LinkedIn:
 - **Dry-run mode:** LinkedIn sends email notifications for DMs, and replying to those
@@ -471,49 +471,46 @@ For replies in LinkedIn:
 
 If the LinkedIn MCP is not connected, skip LinkedIn DMs silently — do not prompt the user to connect it.
 
-After screening, add all newly screened message IDs to `screened_message_ids`, set
-`last_run_date` to today, and save the criteria file.
+---
 
-### Pending results persistence
+# Stage 3 — CLASSIFY
 
-Results with pass or maybe verdicts are saved to `pending_results` in the state file so
-they survive across sessions. This ensures the user can return to previous results that
-they haven't acted on yet.
+Read each message and tag it with a source category. This determines which screening
+rules apply in Stage 4.
 
-**After screening**, merge new pass/maybe results into `pending_results`. Each entry is the
-full result object plus:
-- `added_at` — date when the result was first added (for pruning)
-- `status` — always `"pending"` (dismissed items are removed entirely)
+For each message returned by the Gmail search, read it with `gmail_read_message`, then
+classify:
 
-**Deduplication:** If a message_id already exists in `pending_results`, keep the existing
-entry — do not add a duplicate.
+**Job Alert Digest** — sender is `linkedin.com`, `jobalerts.indeed.com`,
+`indeedemail.com`, or another subscription alert sender:
+- Set `source` = `"Job Alert Listings"`
+- Screen the **individual job listings** within the digest, not the email as a whole
+- The "generic mass email" dealbreaker does NOT apply — these are subscription alerts
 
-**Pruning:** Remove entries older than 14 days (based on `added_at`).
+**Direct Outreach** — everything else that passes noise filtering:
+- Set `source` = `"Direct Outreach"`
+- Filter out non-job noise first (surveys, loyalty emails, newsletters, mailing list
+  patches, government/non-profit announcements)
+- Apply the "generic mass email" dealbreaker: no name, boilerplate, no reference to
+  specific background = hard fail
 
-**On each run**, load `pending_results` before screening. Include them in the results
-display alongside newly screened items — mark them visually as "from previous run" so
-the user can distinguish new results from carried-over ones.
-
-If there are no new emails to screen but pending results exist, still generate the results
-page showing the pending items — the user may have come back specifically to review them.
-
-**Dismissing results:** Users can remove items from pending_results:
-- "Dismiss [company]" → remove matching entries, save
-- "Clear pending results" / "Dismiss all" → empty the array, save
-
-When an item is dismissed, it stays in `screened_message_ids` (so it won't be re-screened)
-but is removed from `pending_results` (so it won't be shown again).
+**LinkedIn DM** (from Stage 2 LinkedIn search):
+- Set `source` = `"LinkedIn DMs"`
+- Apply the same screening criteria as Direct Outreach
+- The "generic mass email" dealbreaker applies — generic InMail templates with no personalization are a hard fail
 
 ---
 
-## Step 4 — Screen each item
+# Stage 4 — ANALYZE
 
-### Verdicts
+Apply the user's criteria to each classified message. Produce a result object for every item.
+
+## Verdicts
 - **pass** (Interested) — clears all dealbreakers, worth pursuing
 - **maybe** — uncertain on something; worth a conversation but needs more info
 - **fail** (Filtered out) — one or more hard dealbreakers triggered
 
-### Comp rule
+## Comp rule
 Apply the user's base floor with range-aware logic:
 
 - **No salary mentioned** → flag as missing, request in reply
@@ -527,7 +524,7 @@ In short: fail only when there is genuinely no path to the floor within what's s
 Then give an honest sliding-scale comp assessment using the user's nuance notes —
 informational only, never changes the verdict.
 
-### Location rule
+## Location rule
 If the user has location preferences set:
 - **Role location matches target_locations or is remote** → passes
 - **Role requires relocation to a non-target location and user is not open to relocation** → hard fail
@@ -538,15 +535,15 @@ If the user has location preferences set:
 Use location_notes for nuanced assessment alongside the verdict — e.g. if the user
 would accept a specific city for higher comp, note that in the assessment.
 
-### Company whitelist / blacklist
+## Company whitelist / blacklist
 - Whitelist match → upgrade to at least "maybe", note it explicitly
 - Blacklist match → instant fail regardless of other criteria
 
-### Required info
+## Required info
 For any pass/maybe, check which required fields are missing and draft a single reply
 requesting all of them at once.
 
-### Draft replies (on-demand via artifact button)
+## Draft replies (on-demand via artifact button)
 
 For every pass and maybe verdict, compose the reply text **during screening** but
 do **NOT** call `gmail_create_draft`. The HTML results artifact renders the draft text
@@ -577,7 +574,7 @@ When you receive this prompt:
 **In send mode:** Use `gmail_send_message` instead of `gmail_create_draft`. Set
 `sent: true` in the result object.
 
-### Result object schema
+## Result object schema
 
 As you screen each item, build a result object with ALL of these fields. Every field
 must be populated (use empty string or empty array if not applicable). These fields
@@ -621,20 +618,56 @@ drive the HTML card rendering — missing fields mean missing UI elements.
   clickable stock ticker link. Dollar amounts like `$200k` are fine (number follows `$`).
   Avoid abbreviations like `$NYC`, `$GQR`, `$TC` — write them without the `$` prefix.
 
-The HTML template renders these fields into cards with:
-- Expandable details showing verdict reason, comp assessment, missing info tags
-- Draft reply block with "review & send" link to the Gmail draft
-- Link buttons: email thread link, job posting link, draft link
-- For filtered items: compact row with company, role, and reason
+After analyzing all messages, add newly screened message IDs to `screened_message_ids`,
+set `last_run_date` to today, and save the criteria file.
 
-**Results wrapper** — when generating the HTML, use this data structure:
+---
+
+# Stage 5 — MERGE
+
+Combine new results with pending results from previous runs.
+
+## Pending results persistence
+
+Results with pass or maybe verdicts are saved to `pending_results` in the state file so
+they survive across sessions. This ensures the user can return to previous results that
+they haven't acted on yet.
+
+**After screening**, merge new pass/maybe results into `pending_results`. Each entry is the
+full result object plus:
+- `added_at` — date when the result was first added (for pruning)
+- `status` — always `"pending"` (dismissed items are removed entirely)
+
+**Deduplication:** If a message_id already exists in `pending_results`, keep the existing
+entry — do not add a duplicate.
+
+**Pruning:** Remove entries older than 14 days (based on `added_at`).
+
+**On each run**, load `pending_results` before screening. Include them in the results
+display alongside newly screened items — mark them visually as "from previous run" so
+the user can distinguish new results from carried-over ones.
+
+If there are no new emails to screen but pending results exist, still generate the results
+page showing the pending items — the user may have come back specifically to review them.
+
+**Dismissing results:** Users can remove items from pending_results:
+- "Dismiss [company]" → remove matching entries, save
+- "Clear pending results" / "Dismiss all" → empty the array, save
+
+When an item is dismissed, it stays in `screened_message_ids` (so it won't be re-screened)
+but is removed from `pending_results` (so it won't be shown again).
+
+## Build the results JSON wrapper
+
+This is the data structure that drives the HTML template. Build it with ALL fields:
+
 ```json
 {
   "run_date": "YYYY-MM-DD",
   "profile_name": "from criteria",
   "mode": "dry-run | send",
   "lookback_days": N,
-  "actions": [ ...action objects from Step 2.5... ],
+  "actions": [ ...action objects from active thread check... ],
   "persistence_stats": {
     "pending_merged": 0,
     "pending_total": 0,
@@ -661,7 +694,7 @@ The `persistence_stats` object tells the HTML page what happened behind the scen
 the run. Populate it with actual counts from the current run:
 - `pending_merged` — number of pending results merged from previous runs into this display
 - `pending_total` — total pending results after merge (shown only if no merge happened)
-- `responses_found` — recruiter responses detected in Step 2.5
+- `responses_found` — recruiter responses detected in active thread check
 - `screened_ids_pruned` — stale screening IDs pruned (>60 days old)
 - `correspondence_pruned` — closed correspondence entries pruned (>90 days old)
 
@@ -672,12 +705,13 @@ user can see what the persistence layer did. Only include non-zero counts.
 `email_date` (or `added_at` for pending results). Each card displays an age badge
 (e.g. "today", "2d ago", "1w ago") derived from `email_date`.
 
-If there are no new emails to screen but pending results exist, still generate the results
-page showing the pending items — the user may have come back specifically to review them.
-
 ---
 
-## Step 5 — Present results
+# Stage 6 — RENDER
+
+Generate the HTML artifact from the results JSON and the pre-built template.
+
+## Chat output rules
 
 **ZERO results in the chat window.** Everything goes in the HTML artifact. This means:
 
@@ -697,6 +731,8 @@ The ONLY thing you output in the chat is:
 1. A one-line summary with counts (e.g. "Here's your results — **2 interested**, **1 maybe**, **4 filtered**.")
 2. The HTML artifact (via `<antArtifact>` tags)
 3. An offer to export to spreadsheet
+
+## Generate the HTML artifact
 
 **CRITICAL — use antArtifact tags, NOT a code block or inline HTML:**
 
@@ -731,13 +767,15 @@ The `<antArtifact>` tag MUST have:
 - `type="text/html"`
 - `title="Jerbs screening report YYYY-MM-DD"` (with the actual run date)
 
+## Using the pre-built template
+
 The HTML report uses a **pre-built template** bundled in the .skill package at
 `templates/results-template.html`. This template contains ALL CSS, JS, and
 client-side rendering logic — you never write any CSS, JS, or HTML structure.
 
 **Your only job is:**
 1. Read the template file from the .skill package
-2. Build the results JSON wrapper (the same schema documented in Step 4)
+2. Build the results JSON wrapper (from Stage 5)
 3. Serialize the JSON wrapper to a string using `JSON.stringify` or equivalent
 4. Replace the literal placeholder `__RESULTS_DATA__` in the template with
    the serialized JSON string
@@ -766,7 +804,9 @@ The **only** change you make is replacing `__RESULTS_DATA__` with the JSON.
 
 ---
 
-## Step 6 — Spreadsheet export (on request)
+## Spreadsheet export (on request)
+
+Only when the user asks. See `scripts/export_results.py` for the export logic.
 
 ---
 
@@ -776,7 +816,7 @@ Users can update any section at any time without re-doing the full wizard:
 
 - "switch to testing mode" / "enable testing mode" → set `mode: "testing"` in state, save, confirm
 - "switch to production mode" / "disable testing mode" → set `mode: "production"` in state, save, confirm
-- "run jerbs test" / "jerbs test" → set `mode: "testing"` in state (if not already), save, then execute the **full screening flow** (Steps 0–5) including the HTML artifact output. This is a normal screening run with testing mode enabled — the banner prints, then everything proceeds exactly as if the user said "run jerbs"
+- "run jerbs test" / "jerbs test" → set `mode: "testing"` in state (if not already), save, then execute the **full screening flow** (Stages 1–6) including the HTML artifact output. This is a normal screening run with testing mode enabled — the banner prints, then everything proceeds exactly as if the user said "run jerbs"
 - "what mode am I in?" / "what version is this?" → print current mode and skill version regardless of mode
 - "Update my location preferences" → re-run only section 1c
 - "Update my salary expectations" → re-run only section 1e
