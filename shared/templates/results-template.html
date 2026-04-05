@@ -643,9 +643,56 @@ footer {
 })();
 </script>
 
-<!-- ── Embedded data (replaced at generation time) ──────────────────────── -->
+<!-- ── Embedded data (replaced at generation time, or loaded externally) ── -->
 <script id="results-data" type="application/json">__RESULTS_DATA__</script>
 <script id="scheduler-settings" type="application/json">__SCHEDULER_SETTINGS__</script>
+
+<!-- ── Data loading: fetch → localStorage → embedded ─────────────────── -->
+<script>
+var _JERBS_LS_KEY = 'jerbs-results-data';
+
+// Save results to localStorage for cross-render persistence
+function _saveResultsToStorage(jsonStr) {
+  try { localStorage.setItem(_JERBS_LS_KEY, jsonStr); } catch(e) {}
+}
+
+// Load results using three-source cascade: fetch → localStorage → embedded
+function _loadResultsData(callback) {
+  // Source 1: try fetch('results.json') for local/Claude Code usage
+  if (typeof fetch === 'function') {
+    fetch('results.json').then(function(r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.text();
+    }).then(function(text) {
+      _saveResultsToStorage(text);
+      callback(text, 'fetch');
+    }).catch(function() {
+      _tryLocalStorageThenEmbedded(callback);
+    });
+  } else {
+    _tryLocalStorageThenEmbedded(callback);
+  }
+}
+
+function _tryLocalStorageThenEmbedded(callback) {
+  // Source 2: localStorage (persisted from a prior run on claude.ai)
+  try {
+    var stored = localStorage.getItem(_JERBS_LS_KEY);
+    if (stored && stored.trim().charAt(0) === '{') {
+      callback(stored, 'localStorage');
+      return;
+    }
+  } catch(e) {}
+
+  // Source 3: embedded <script id="results-data"> (always available)
+  var el = document.getElementById('results-data');
+  var raw = el ? el.textContent : '';
+  if (raw && raw.trim().charAt(0) === '{') {
+    _saveResultsToStorage(raw);
+  }
+  callback(raw, 'embedded');
+}
+</script>
 
 <!-- ── Existing JS (from export_html.py) ─────────────────────────────── -->
 <script>
@@ -1628,11 +1675,13 @@ function downloadPage(){
     setThemeStorage(name);
     // Remove light mode before re-render (initLightDark will re-apply)
     document.body.classList.remove('light');
-    // Re-render
-    var dataEl = document.getElementById('results-data');
-    if (!dataEl) return;
+    // Re-render from cached data (localStorage > embedded)
+    var raw = null;
+    try { raw = localStorage.getItem(_JERBS_LS_KEY); } catch(e) {}
+    if (!raw) { var el = document.getElementById('results-data'); if (el) raw = el.textContent; }
+    if (!raw) return;
     try {
-      var data = JSON.parse(dataEl.textContent);
+      var data = JSON.parse(raw);
       renderPage(data);
       initLightDark();
     } catch(e) {
@@ -1643,11 +1692,6 @@ function downloadPage(){
   // ── Init on DOMContentLoaded ───────────────────────────────────────
 
   document.addEventListener('DOMContentLoaded', function() {
-    var dataEl = document.getElementById('results-data');
-    if (!dataEl) return;
-    var raw = dataEl.textContent;
-    var hasResults = raw && raw.trim().charAt(0) === '{';
-
     // Check if scheduler is present (for scheduler-only mode)
     var schedActive = false;
     try {
@@ -1658,53 +1702,58 @@ function downloadPage(){
       }
     } catch(e) {}
 
-    if (!hasResults && !schedActive) {
-      document.getElementById('app').innerHTML =
-        '<div style="padding:40px;text-align:center;color:#8b949e;">' +
-        '<h2>No data loaded</h2>' +
-        '<p>The results data placeholder has not been replaced with valid JSON.</p></div>';
-      return;
-    }
+    // Load results via three-source cascade: fetch → localStorage → embedded
+    _loadResultsData(function(raw, source) {
+      var hasResults = raw && raw.trim().charAt(0) === '{';
 
-    if (!hasResults && schedActive) {
-      // Scheduler-only mode: show scheduler panel + waiting message
-      var waitData = {
-        run_date: new Date().toISOString().substring(0, 10),
-        profile_name: 'Job Search', mode: 'dry-run', lookback_days: 1,
-        results: [], pending_results: [], actions: []
-      };
-      try {
-        renderPage(waitData);
-        initLightDark();
-      } catch(re) {
+      if (!hasResults && !schedActive) {
         document.getElementById('app').innerHTML =
-          '<div style="padding:40px;color:#f85149;font-family:monospace;">' +
-          '<h2>Render error</h2><pre>' + escapeHtml(re.message) + '</pre></div>';
+          '<div style="padding:40px;text-align:center;color:#8b949e;">' +
+          '<h2>No data loaded</h2>' +
+          '<p>Place a results.json file in the same directory, or load via localStorage.</p></div>';
+        return;
       }
-      return;
-    }
-    try {
-      var data = JSON.parse(raw);
-      try {
-        renderPage(data);
-        initLightDark();
-        // Strip ?theme= so the switcher button can override via localStorage
-        if (window.history.replaceState && window.location.search.indexOf('theme=') !== -1) {
-          var url = window.location.pathname + window.location.hash;
-          window.history.replaceState(null, '', url);
+
+      if (!hasResults && schedActive) {
+        // Scheduler-only mode: show scheduler panel + waiting message
+        var waitData = {
+          run_date: new Date().toISOString().substring(0, 10),
+          profile_name: 'Job Search', mode: 'dry-run', lookback_days: 1,
+          results: [], pending_results: [], actions: []
+        };
+        try {
+          renderPage(waitData);
+          initLightDark();
+        } catch(re) {
+          document.getElementById('app').innerHTML =
+            '<div style="padding:40px;color:#f85149;font-family:monospace;">' +
+            '<h2>Render error</h2><pre>' + escapeHtml(re.message) + '</pre></div>';
         }
-      } catch(re) {
+        return;
+      }
+      try {
+        var data = JSON.parse(raw);
+        try {
+          renderPage(data);
+          initLightDark();
+          // Strip ?theme= so the switcher button can override via localStorage
+          if (window.history.replaceState && window.location.search.indexOf('theme=') !== -1) {
+            var url = window.location.pathname + window.location.hash;
+            window.history.replaceState(null, '', url);
+          }
+        } catch(re) {
+          document.getElementById('app').innerHTML =
+            '<div style="padding:40px;color:#f85149;font-family:monospace;">' +
+            '<h2>Render error</h2>' +
+            '<pre>' + escapeHtml(re.message) + '\n\n' + escapeHtml(re.stack || '') + '</pre></div>';
+        }
+      } catch(e) {
         document.getElementById('app').innerHTML =
           '<div style="padding:40px;color:#f85149;font-family:monospace;">' +
-          '<h2>Render error</h2>' +
-          '<pre>' + escapeHtml(re.message) + '\n\n' + escapeHtml(re.stack || '') + '</pre></div>';
+          '<h2>JSON parse error (' + source + ')</h2>' +
+          '<pre>' + escapeHtml(e.message) + '</pre></div>';
       }
-    } catch(e) {
-      document.getElementById('app').innerHTML =
-        '<div style="padding:40px;color:#f85149;font-family:monospace;">' +
-        '<h2>JSON parse error</h2>' +
-        '<pre>' + escapeHtml(e.message) + '</pre></div>';
-    }
+    });
   });
 
 })();
