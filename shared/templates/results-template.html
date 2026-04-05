@@ -598,11 +598,30 @@ footer {
 .sched-log-auto{color:var(--amber);}
 .sched-hint{font-family:var(--mono);font-size:10px;color:var(--text-muted);
   padding:6px 0;letter-spacing:0.02em;}
+.sp-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--bg2,#161b22);border:1px solid var(--green,#2dff9b);
+  color:var(--text,#d4dae4);font-family:var(--mono,monospace);font-size:12px;
+  padding:10px 20px;border-radius:6px;z-index:9999;opacity:0;
+  transition:opacity 0.3s;pointer-events:none;max-width:90vw;text-align:center;}
+.sp-toast.show{opacity:1;}
 </style>
 
 <!-- ── Embedded data (replaced at generation time) ──────────────────────── -->
 <script id="results-data" type="application/json">__RESULTS_DATA__</script>
 <script id="scheduler-settings" type="application/json">__SCHEDULER_SETTINGS__</script>
+
+<!-- ── sendPrompt fallback (clipboard + toast) ─────────────────────── -->
+<script>
+if(typeof sendPrompt!=='function'){
+  window.sendPrompt=function(prompt){
+    var toast=document.getElementById('sp-toast');
+    if(!toast){toast=document.createElement('div');toast.id='sp-toast';toast.className='sp-toast';document.body.appendChild(toast);}
+    function showToast(msg){toast.textContent=msg;toast.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){toast.classList.remove('show');},4000);}
+    try{navigator.clipboard.writeText(prompt).then(function(){showToast('Prompt copied \u2014 paste into chat to run');},function(){showToast('Could not copy \u2014 check browser permissions');});}
+    catch(e){showToast('Could not copy \u2014 check browser permissions');}
+  };
+}
+</script>
 
 <!-- ── Existing JS (from export_html.py) ─────────────────────────────── -->
 <script>
@@ -707,14 +726,10 @@ function createDraft(btnId, threadId, btn){
   var textEl=block?block.querySelector('.draft-text'):null;
   var replyText=textEl?textEl.textContent:'';
   if(!replyText){btn.textContent='No draft text';return;}
-  if(typeof sendPrompt==='function'){
-    sendPrompt('Create a Gmail draft reply to thread ID '+threadId+
-      ' with this exact text (do not modify it):\n\n'+replyText+
-      '\n\nAfter creating the draft, give me the Gmail draft URL so I can review and send it.');
-  }else{
-    btn.textContent='Not available (open in Claude.ai)';
-    btn.disabled=true;
-  }
+  sendPrompt('Create a Gmail draft reply to thread ID '+threadId+
+    ' with this exact text (do not modify it):\n\n'+replyText+
+    '\n\nAfter creating the draft, give me the Gmail draft URL so I can review and send it.');
+  btn.textContent='Prompt copied';btn.disabled=false;
 }
 </script>
 
@@ -859,7 +874,7 @@ function createDraft(btnId, threadId, btn){
     schedRuns++;
     schedLog('Run #'+schedRuns+' fired ('+schedMode()+').','fire');
     schedScheduleNext(false);
-    if(typeof sendPrompt==='function')sendPrompt(schedBuildPrompt());
+    sendPrompt(schedBuildPrompt());
   }
 
   function schedDoTick(){

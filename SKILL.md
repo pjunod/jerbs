@@ -439,6 +439,8 @@ creation tool calls from the screening pass.
 
 The HTML card renders the draft text inline with a green "Create Draft & Send" button.
 When clicked, the button calls `sendPrompt()` which asks Claude to create the draft.
+If the hosting environment does not provide a native `sendPrompt()`, the template
+falls back to copying the prompt to the clipboard with a toast notification.
 
 **Handling the on-demand draft creation prompt:**
 

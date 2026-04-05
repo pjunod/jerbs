@@ -925,3 +925,7 @@ and automatically revert when the timer expires.
 - Settings changes (timezone, business hours) made in the panel take effect
   immediately — no re-render needed.
 - When re-rendering, always preserve `runCount` so the session counter is not reset.
+- If the hosting environment does not provide a native `sendPrompt()` function, the
+  template defines a clipboard fallback — the prompt is copied and a toast tells the
+  user to paste it into the chat. This keeps the scheduler functional outside the
+  artifact sandbox.
