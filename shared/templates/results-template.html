@@ -154,6 +154,15 @@ body::before{content:'';position:fixed;inset:0;
   font-size:11px;font-weight:600;letter-spacing:0.04em;color:#fff;background:var(--blue);
   border:none;border-radius:4px;text-decoration:none;cursor:pointer;transition:background 0.15s;}
 .draft-send-btn:hover{background:#2b88e6;}
+.draft-create-btn{display:inline-block;margin-top:10px;padding:7px 16px;font-family:var(--mono);
+  font-size:11px;font-weight:600;letter-spacing:0.04em;color:#fff;background:var(--green);
+  border:none;border-radius:4px;text-decoration:none;cursor:pointer;transition:all 0.15s;}
+.draft-create-btn:hover{opacity:0.85;}
+.draft-create-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.sp-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--bg2);color:var(--text);border:1px solid var(--green);
+  border-radius:6px;padding:10px 20px;font-family:var(--mono);font-size:12px;
+  z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;}
 .sent-label{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:0.08em;
   text-transform:uppercase;margin-top:10px;margin-bottom:4px;}
 .age-badge{font-family:var(--mono);font-size:10px;
@@ -240,7 +249,7 @@ footer{border-top:1px solid var(--border);padding:20px 40px;font-family:var(--mo
   .links-row{gap:6px;}
   .link-btn{min-height:44px;padding:10px 14px;font-size:12px;
     display:inline-flex;align-items:center;}
-  .draft-send-btn{min-height:44px;padding:10px 18px;font-size:12px;}
+  .draft-send-btn,.draft-create-btn{min-height:44px;padding:10px 18px;font-size:12px;}
   .dl-btn{min-height:44px;padding:10px 14px;font-size:12px;}
   .draft-block{padding:10px 12px;}
   .draft-block .draft-text{font-size:11.5px;}
@@ -399,6 +408,14 @@ h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
   cursor: pointer; transition: background 0.15s;
 }
 .draft-send-btn:hover { opacity: 0.85; }
+.draft-create-btn {
+  display: inline-block; margin-top: 0.5rem; padding: 0.4rem 1rem;
+  font-size: 0.8rem; font-weight: 600; color: #fff; background: var(--green);
+  border: none; border-radius: 0.375rem; text-decoration: none;
+  cursor: pointer; transition: all 0.15s;
+}
+.draft-create-btn:hover { opacity: 0.85; }
+.draft-create-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .sent-label { color: var(--green); font-weight: 500; margin-top: 0.5rem; }
 .verdict-label { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; }
 .verdict-label.pass { color: var(--green); }
@@ -520,7 +537,7 @@ footer {
   .card-links { flex-direction: column; }
   .card-links a { min-height: 44px; display: inline-flex; align-items: center;
     font-size: 0.9rem; }
-  .draft-send-btn { min-height: 44px; padding: 0.5rem 1.2rem; font-size: 0.85rem; }
+  .draft-send-btn,.draft-create-btn { min-height: 44px; padding: 0.5rem 1.2rem; font-size: 0.85rem; }
   .theme-toggle, .dl-btn { min-height: 44px; padding: 0.4rem 0.8rem;
     display: inline-flex; align-items: center; }
   .fail-table { font-size: 0.8rem; display: block; overflow-x: auto;
@@ -594,6 +611,37 @@ footer {
 .sched-hint{font-family:var(--mono);font-size:10px;color:var(--text-muted);
   padding:6px 0;letter-spacing:0.02em;}
 </style>
+
+<!-- ── sendPrompt fallback + on-demand drafts ─────────────────────────── -->
+<div class="sp-toast" id="sp-toast"></div>
+<script>
+(function(){
+  function showToast(msg){
+    var t=document.getElementById('sp-toast');
+    if(!t)return;t.textContent=msg;t.style.opacity='1';
+    setTimeout(function(){t.style.opacity='0';},3000);
+  }
+  if(typeof sendPrompt!=='function'){
+    window.sendPrompt=function(prompt){
+      navigator.clipboard.writeText(prompt)
+        .then(function(){showToast('Prompt copied \u2014 paste into chat to run');})
+        .catch(function(){showToast('Could not copy \u2014 check browser permissions');});
+    };
+  }
+  window.createDraft=function(btnId,threadId,btn){
+    if(!threadId)return;
+    btn.disabled=true;btn.textContent='Creating\u2026';
+    var block=btn.closest('.draft-block');
+    var textEl=block?block.querySelector('.draft-text'):null;
+    var replyText=textEl?textEl.textContent:'';
+    if(!replyText){btn.textContent='No draft text';return;}
+    sendPrompt('Create a Gmail draft reply to thread ID '+threadId+
+      ' with this exact text (do not modify it):\n\n'+replyText+
+      '\n\nAfter creating the draft, give me the Gmail draft URL so I can review and send it.');
+    btn.textContent='Prompt sent';btn.disabled=false;
+  };
+})();
+</script>
 
 <!-- ── Embedded data (replaced at generation time) ──────────────────────── -->
 <script id="results-data" type="application/json">__RESULTS_DATA__</script>
@@ -838,7 +886,7 @@ function downloadPage(){
     schedRuns++;
     schedLog('Run #'+schedRuns+' fired ('+schedMode()+').','fire');
     schedScheduleNext(false);
-    if(typeof sendPrompt==='function')sendPrompt(schedBuildPrompt());
+    sendPrompt(schedBuildPrompt());
   }
 
   function schedDoTick(){
@@ -1052,13 +1100,20 @@ function downloadPage(){
         '<div class="draft-block">' +
         '<div class="draft-text">' + escapeHtml(replyDraft) + '</div></div>';
     }
-    var sendBtn = draftUrl
-      ? '<a class="draft-send-btn" href="' + escapeHtml(draftUrl) + '" target="_blank">\ud83d\udce8 Review &amp; Send</a>'
-      : '';
+    var actionBtn;
+    if (draftUrl) {
+      actionBtn = '<a class="draft-send-btn" href="' + escapeHtml(draftUrl) + '" target="_blank">\ud83d\udce8 Review &amp; Send</a>';
+    } else {
+      var threadId = escapeHtml(item.thread_id || '');
+      var btnId = 'draft-btn-' + escapeHtml(item.message_id || Math.random().toString(36).slice(2));
+      actionBtn = '<button class="draft-create-btn" id="' + btnId + '" ' +
+        'onclick="createDraft(\'' + btnId + '\', \'' + threadId + '\', this)">' +
+        '\u270f\ufe0f Create Draft &amp; Edit</button>';
+    }
     return '<div class="draft-block">' +
       '<div class="draft-label">Draft reply</div>' +
       '<div class="draft-text">' + escapeHtml(replyDraft) + '</div>' +
-      sendBtn + '</div>';
+      actionBtn + '</div>';
   }
 
   function buildPersistenceSummary(data) {
