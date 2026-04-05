@@ -294,17 +294,27 @@ metadata, check for blacklisted companies/senders before reading the full messag
 message from a blacklisted sender can be marked as a fail result without calling
 `gmail_read_message` — this saves a tool call per blacklisted match.
 
-### Batch read all messages in parallel
+### Batch read ALL messages in one parallel call
 
-Call `gmail_read_message` for **ALL** remaining messages in a **single parallel batch** —
-do NOT read them one at a time. If the search returned 15 messages, issue 15
-`gmail_read_message` calls in one turn.
+Issue `gmail_read_message` for **every** remaining message as **parallel tool calls in
+a single turn**. Do NOT read one, analyze it, then read the next.
 
-### Pre-filter noise
+**Correct (1 turn, N parallel calls):**
+```
+Turn 1: gmail_read_message(id1) + gmail_read_message(id2) + ... + gmail_read_message(idN)
+```
 
-Before classifying, discard obvious non-job messages (surveys, loyalty emails, newsletters,
-mailing list patches, CI notifications, receipts). These get no result object — silently
-drop them.
+**Wrong (N turns, 1 call each):**
+```
+Turn 1: gmail_read_message(id1) → analyze → Turn 2: gmail_read_message(id2) → ...
+```
+
+You now have the full content of all messages. Proceed to filtering.
+
+### Drop noise
+
+Discard non-job messages (surveys, loyalty emails, newsletters, mailing list patches,
+CI notifications, receipts). These get no result object — silently drop them.
 
 ### Classify each message
 
