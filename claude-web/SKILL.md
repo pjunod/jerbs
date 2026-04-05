@@ -670,18 +670,24 @@ page showing the pending items — the user may have come back specifically to r
 
 ## Step 5 — Present results
 
-**CRITICAL: DO NOT list individual job results in the chat.** No per-item text, no
-markdown cards, no verdict details, no company names with descriptions, no comp
-assessments, no missing-info lists in the chat output. ALL of that goes in the HTML
-page only. If you find yourself writing a company name followed by a role description
-in the chat, STOP — you are doing it wrong.
+**ZERO results in the chat window.** Everything goes in the HTML artifact. This means:
 
-The ONLY thing you output in the chat after screening is:
+- NO company names in chat
+- NO role titles in chat
+- NO verdicts, reasons, or explanations in chat
+- NO "here's what I found" summaries listing individual items
+- NO markdown tables, bullet lists, or cards with screening results
+- NO comp assessments, missing-info lists, or draft text in chat
+- NO "I screened N emails and here are the results:" followed by per-item details
 
-1. A one-line summary with counts (include pending count if any)
-2. A brief persistence activity summary (only non-zero items, one line each)
-3. The full HTML report as an **artifact** that opens in the side panel
-4. An offer to export to spreadsheet
+If you are writing ANY individual result details in the chat, you are doing it wrong.
+The HTML artifact is the ONLY place results appear. The user reads them there.
+
+The ONLY thing you output in the chat is:
+
+1. A one-line summary with counts (e.g. "Here's your results — **2 interested**, **1 maybe**, **4 filtered**.")
+2. The HTML artifact (via `<antArtifact>` tags)
+3. An offer to export to spreadsheet
 
 **CRITICAL — use antArtifact tags, NOT a code block or inline HTML:**
 
