@@ -81,9 +81,10 @@ The bundled `criteria_template.json` shows the full schema with all fields and d
 
 ## Version banner (testing mode only)
 
-At the very start of every run, before anything else, check `state.mode`:
+At the very start of every run, check `state.mode` **silently** — do NOT mention
+checking it, do NOT say what you found, do NOT narrate this step at all.
 
-- If `state.mode === "testing"`: print the following banner in chat, then proceed normally:
+- If `state.mode === "testing"`: print this banner, then proceed normally:
 
   ```
   🧪 jerbs v{version} [TESTING]
@@ -93,10 +94,9 @@ At the very start of every run, before anything else, check `state.mode`:
   Where `{version}` comes from this file's frontmatter and the changelog entry is the
   first bullet under the most recent version heading in `CHANGELOG.md`.
 
-- If `state.mode` is `"production"`, absent, or anything else: print nothing. No banner,
-  no mention of version, no debug output. Silence.
-
-The banner is purely informational — it does not affect screening behavior.
+- **Any other value (including `"production"`, absent, or unset): do NOTHING.** No banner,
+  no mention of version, no mention of mode, no "checking state", no "production mode",
+  no debug output. Act as if this section does not exist. Complete silence.
 
 ---
 
@@ -758,6 +758,7 @@ Users can update any section at any time without re-doing the full wizard:
 
 - "switch to testing mode" / "enable testing mode" → set `mode: "testing"` in state, save, confirm
 - "switch to production mode" / "disable testing mode" → set `mode: "production"` in state, save, confirm
+- "run jerbs test" / "jerbs test" → set `mode: "testing"` in state (if not already), save, then run screening normally (banner will print because mode is now testing)
 - "what mode am I in?" / "what version is this?" → print current mode and skill version regardless of mode
 - "Update my location preferences" → re-run only section 1c
 - "Update my salary expectations" → re-run only section 1e
