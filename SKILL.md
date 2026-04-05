@@ -1,5 +1,6 @@
 ---
 name: jerbs
+version: "1.0.0"
 description: >
   Screens job-related emails in Gmail and LinkedIn DMs against a candidate's personal
   criteria and drafts follow-up replies for anything worth pursuing. Use this skill whenever
@@ -133,6 +134,27 @@ detected in a subsequent run.
 
 ---
 
+## Version banner (testing mode only)
+
+At the very start of every run, check `state.mode` **silently** — do NOT mention
+checking it, do NOT say what you found, do NOT narrate this step at all.
+
+- If `state.mode === "testing"`: print this banner, then proceed normally:
+
+  ```
+  🧪 jerbs v{version} [TESTING]
+  {latest changelog entry — one line from CHANGELOG.md}
+  ```
+
+  Where `{version}` comes from this file's frontmatter and the changelog entry is the
+  first bullet under the most recent version heading in `CHANGELOG.md`.
+
+- **Any other value (including `"production"`, absent, or unset): do NOTHING.** No banner,
+  no mention of version, no mention of mode, no "checking state", no "production mode",
+  no debug output. Act as if this section does not exist. Complete silence.
+
+---
+
 ## Step 0 — Load or set up criteria + correspondence log
 
 **At the start of every interaction** (Claude Code only), check for files at the default
@@ -259,9 +281,9 @@ Base query (customize with user's extra_keywords and extra_exclusions):
 from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com)) newer_than:[N]d
 ```
 
-These are subscription digest emails containing multiple listings. Screen the **individual
-job listings** within each digest. The "generic mass email" dealbreaker does NOT apply to
-digest emails — they're subscription alerts, not personal outreach.
+These are subscription digest emails containing multiple listings. Set `source` to
+`"Job Alert Listings"`. Screen the **individual job listings** within each digest.
+The "generic mass email" dealbreaker does NOT apply — these are subscription alerts.
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
 
@@ -276,8 +298,8 @@ newer_than:[N]d -from:linkedin.com -from:jobalerts.indeed.com -from:indeedemail.
 "your background" OR "came across your profile" OR "reaching out" OR "great fit" OR "perfect fit"))
 ```
 
-Filter out non-job noise before screening: surveys, loyalty emails, newsletters, mailing
-list patches, government/non-profit announcements, etc.
+Set `source` to `"Direct Outreach"`. Filter out non-job noise before screening: surveys,
+loyalty emails, newsletters, mailing list patches, government/non-profit announcements.
 
 Apply the "generic mass email" dealbreaker here: no name, boilerplate, no reference to
 specific background = hard fail.
@@ -457,7 +479,7 @@ string or empty array if not applicable). These fields drive the HTML card rende
 
 ```json
 {
-  "source": "Job Alert Listings | Direct Outreach | LinkedIn DMs",
+  "source": "MUST be exactly one of: Job Alert Listings | Direct Outreach | LinkedIn DMs",
   "message_id": "Gmail message ID",
   "thread_id": "Gmail thread ID",
   "subject": "email subject line",
@@ -619,6 +641,10 @@ If Google Drive MCP is connected, offer to upload directly instead.
 
 Users can update any section at any time without re-doing the full wizard:
 
+- "switch to testing mode" / "enable testing mode" → set `mode: "testing"` in state, save, confirm
+- "switch to production mode" / "disable testing mode" → set `mode: "production"` in state, save, confirm
+- "run jerbs test" / "jerbs test" → set `mode: "testing"` in state (if not already), save, then execute the **full screening flow** (Steps 0–5) including the HTML artifact output. This is a normal screening run with testing mode enabled — the banner prints, then everything proceeds exactly as if the user said "run jerbs"
+- "what mode am I in?" / "what version is this?" → print current mode and skill version regardless of mode
 - "Update my location preferences" → re-run only section 1c
 - "Update my salary expectations" → re-run only section 1e
 - "Add [company] to my blacklist" → append to blacklist, save

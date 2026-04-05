@@ -1,5 +1,6 @@
 ---
 name: jerbs
+version: "1.0.0"
 description: >
   Screens job-related emails in Gmail and LinkedIn DMs against a candidate's personal
   criteria and drafts follow-up replies for anything worth pursuing. Use this skill whenever
@@ -75,6 +76,27 @@ On first run, Claude creates criteria interactively via the setup wizard.
 On subsequent runs, Claude loads them and prints a summary before screening.
 
 The bundled `criteria_template.json` shows the full schema with all fields and defaults.
+
+---
+
+## Version banner (testing mode only)
+
+At the very start of every run, check `state.mode` **silently** — do NOT mention
+checking it, do NOT say what you found, do NOT narrate this step at all.
+
+- If `state.mode === "testing"`: print this banner, then proceed normally:
+
+  ```
+  🧪 jerbs v{version} [TESTING]
+  {latest changelog entry — one line from CHANGELOG.md}
+  ```
+
+  Where `{version}` comes from this file's frontmatter and the changelog entry is the
+  first bullet under the most recent version heading in `CHANGELOG.md`.
+
+- **Any other value (including `"production"`, absent, or unset): do NOTHING.** No banner,
+  no mention of version, no mention of mode, no "checking state", no "production mode",
+  no debug output. Act as if this section does not exist. Complete silence.
 
 ---
 
@@ -391,9 +413,9 @@ Base query (customize with user's extra_keywords and extra_exclusions):
 from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com)) newer_than:[N]d
 ```
 
-These are subscription digest emails containing multiple listings. Screen the **individual
-job listings** within each digest. The "generic mass email" dealbreaker does NOT apply to
-digest emails — they're subscription alerts, not personal outreach.
+These are subscription digest emails containing multiple listings. Set `source` to
+`"Job Alert Listings"`. Screen the **individual job listings** within each digest.
+The "generic mass email" dealbreaker does NOT apply — these are subscription alerts.
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
 
@@ -408,8 +430,8 @@ newer_than:[N]d -from:linkedin.com -from:jobalerts.indeed.com -from:indeedemail.
 "your background" OR "came across your profile" OR "reaching out" OR "great fit" OR "perfect fit"))
 ```
 
-Filter out non-job noise before screening: surveys, loyalty emails, newsletters, mailing
-list patches, government/non-profit announcements, etc.
+Set `source` to `"Direct Outreach"`. Filter out non-job noise before screening: surveys,
+loyalty emails, newsletters, mailing list patches, government/non-profit announcements.
 
 Apply the "generic mass email" dealbreaker here: no name, boilerplate, no reference to
 specific background = hard fail.
@@ -554,7 +576,7 @@ drive the HTML card rendering — missing fields mean missing UI elements.
 
 ```json
 {
-  "source": "Job Alert Listings | Direct Outreach | LinkedIn DMs",
+  "source": "MUST be exactly one of: Job Alert Listings | Direct Outreach | LinkedIn DMs",
   "message_id": "Gmail message ID",
   "thread_id": "Gmail thread ID",
   "subject": "email subject line",
@@ -577,6 +599,9 @@ drive the HTML card rendering — missing fields mean missing UI elements.
 ```
 
 **Key rules:**
+- `source` MUST be one of these **exact strings** — no other values, no snake_case, no
+  abbreviations: `"Job Alert Listings"`, `"Direct Outreach"`, or `"LinkedIn DMs"`.
+  The HTML template groups results by these values; any other string creates a broken group.
 - `email_url` is ALWAYS set — construct from message_id: `https://mail.google.com/mail/u/0/#inbox/<message_id>`
 - `reply_draft` MUST be set for every pass/maybe verdict. `draft_url` starts as `""`
   and is populated on-demand when the user clicks "Create Draft & Edit" in the artifact.
@@ -645,18 +670,24 @@ page showing the pending items — the user may have come back specifically to r
 
 ## Step 5 — Present results
 
-**CRITICAL: DO NOT list individual job results in the chat.** No per-item text, no
-markdown cards, no verdict details, no company names with descriptions, no comp
-assessments, no missing-info lists in the chat output. ALL of that goes in the HTML
-page only. If you find yourself writing a company name followed by a role description
-in the chat, STOP — you are doing it wrong.
+**ZERO results in the chat window.** Everything goes in the HTML artifact. This means:
 
-The ONLY thing you output in the chat after screening is:
+- NO company names in chat
+- NO role titles in chat
+- NO verdicts, reasons, or explanations in chat
+- NO "here's what I found" summaries listing individual items
+- NO markdown tables, bullet lists, or cards with screening results
+- NO comp assessments, missing-info lists, or draft text in chat
+- NO "I screened N emails and here are the results:" followed by per-item details
 
-1. A one-line summary with counts (include pending count if any)
-2. A brief persistence activity summary (only non-zero items, one line each)
-3. The full HTML report as an **artifact** that opens in the side panel
-4. An offer to export to spreadsheet
+If you are writing ANY individual result details in the chat, you are doing it wrong.
+The HTML artifact is the ONLY place results appear. The user reads them there.
+
+The ONLY thing you output in the chat is:
+
+1. A one-line summary with counts (e.g. "Here's your results — **2 interested**, **1 maybe**, **4 filtered**.")
+2. The HTML artifact (via `<antArtifact>` tags)
+3. An offer to export to spreadsheet
 
 **CRITICAL — use antArtifact tags, NOT a code block or inline HTML:**
 
@@ -734,6 +765,10 @@ The **only** change you make is replacing `__RESULTS_DATA__` with the JSON.
 
 Users can update any section at any time without re-doing the full wizard:
 
+- "switch to testing mode" / "enable testing mode" → set `mode: "testing"` in state, save, confirm
+- "switch to production mode" / "disable testing mode" → set `mode: "production"` in state, save, confirm
+- "run jerbs test" / "jerbs test" → set `mode: "testing"` in state (if not already), save, then execute the **full screening flow** (Steps 0–5) including the HTML artifact output. This is a normal screening run with testing mode enabled — the banner prints, then everything proceeds exactly as if the user said "run jerbs"
+- "what mode am I in?" / "what version is this?" → print current mode and skill version regardless of mode
 - "Update my location preferences" → re-run only section 1c
 - "Update my salary expectations" → re-run only section 1e
 - "Add [company] to my blacklist" → append to blacklist, save
