@@ -479,6 +479,10 @@ string or empty array if not applicable). These fields drive the HTML card rende
 }
 ```
 
+**No standalone `$WORD` tokens in any field value.** Claude.ai renders `$ABC` as a
+clickable stock ticker link. Dollar amounts like `$200k` are fine (number follows `$`).
+Avoid abbreviations like `$NYC`, `$GQR`, `$TC` — write them without the `$` prefix.
+
 Write all results to `results.json` with this wrapper before calling `export_html.py`:
 ```json
 {

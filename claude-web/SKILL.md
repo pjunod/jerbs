@@ -583,6 +583,9 @@ drive the HTML card rendering — missing fields mean missing UI elements.
 - `posting_url` is set when the email contains a link to a job posting
 - `comp_assessment` uses the user's sliding_scale_notes to give an honest assessment
 - `missing_fields` lists fields from the user's required_info that weren't in the email
+- **No standalone `$WORD` tokens in any field value.** Claude.ai renders `$ABC` as a
+  clickable stock ticker link. Dollar amounts like `$200k` are fine (number follows `$`).
+  Avoid abbreviations like `$NYC`, `$GQR`, `$TC` — write them without the `$` prefix.
 
 The HTML template renders these fields into cards with:
 - Expandable details showing verdict reason, comp assessment, missing info tags
