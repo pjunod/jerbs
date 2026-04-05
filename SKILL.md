@@ -13,7 +13,7 @@ description: >
   direct outreach + LinkedIn DMs) and combines results into one report. Optionally exports
   results to a formatted .xlsx / Google Sheets file with a built-in pipeline status tracker.
 argument-hint: "[lookback days] [dry-run|send]"
-compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_read_thread, gmail_create_draft). Requires gmail_send_message when send mode is enabled. LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_send_message or take any destructive action on emails unless the user has explicitly enabled send mode. gmail_create_draft is used in dry-run mode to create reply drafts the user can send with one click."
+compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_read_thread, gmail_create_draft). Requires gmail_send_message when send mode is enabled. LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_send_message or take any destructive action on emails unless the user has explicitly enabled send mode. gmail_create_draft is called on-demand when the user clicks 'Create Draft & Edit' in the results artifact."
 ---
 
 # Job Email Screener
@@ -299,9 +299,9 @@ For replies in LinkedIn:
   notification emails delivers the response through LinkedIn. When a LinkedIn DM gets a
   pass/maybe verdict, search Gmail for the corresponding notification email (e.g.
   `from:linkedin.com` matching the sender's name and message content). If found, create a
-  Gmail draft reply to the notification email using `gmail_create_draft` — this gives the
-  user the same one-click send link experience as direct email replies. Label it:
-  `📋 Draft LinkedIn reply — [click to review & send](draft_url)`
+  Gmail draft reply to the notification email — store the reply text in `reply_draft`
+  (the user will create the draft on-demand via the artifact button). Label it:
+  `📋 Draft LinkedIn reply — [click Create Draft & Edit in results]`
   If no matching notification email is found in Gmail (notifications disabled, etc.), fall
   back to copy-paste text: `📋 Draft LinkedIn reply (copy and send manually):`
 - **Send mode:** Use `linkedin_send_message` to reply in the conversation thread. Log to correspondence log with source "linkedin".
@@ -419,14 +419,14 @@ would accept a specific city for higher comp, note that in the assessment.
 For any pass/maybe, check which required fields are missing and draft a single reply
 requesting all of them at once.
 
-### Draft replies (MUST happen during screening, not after)
+### Draft replies (on-demand via artifact button)
 
-For every pass and maybe verdict, you MUST create a draft reply **during screening**
-before moving to the next item. Do NOT skip this step. Do NOT defer it to later.
-The draft reply text and Gmail draft URL are stored in the result object and rendered
-in the HTML results page — this is the ONLY place the user sees them.
+For every pass and maybe verdict, compose the reply text **during screening** but
+do **NOT** call `gmail_create_draft`. The HTML results page renders the draft text
+inline with a green "Create Draft & Edit" button. When the user clicks the button,
+it triggers a `sendPrompt()` call asking Claude to create the draft at that point.
 
-**Workflow for each pass/maybe item:**
+**Workflow for each pass/maybe item (during screening):**
 1. Determine verdict and reason
 2. Compose the reply text:
    - Use user's configured tone and signature
@@ -435,20 +435,20 @@ in the HTML results page — this is the ONLY place the user sees them.
    - **Never include any criteria values** — no salary figures, TC targets, company
      names from the whitelist/blacklist. Ask for *their* details without revealing
      yours. "What's the total comp range?" is fine; "I'm targeting $425k TC" is not.
-3. Call `gmail_create_draft` with the reply text, replying to the correct thread
-4. Store the results in the result object:
+3. Store in the result object:
    - `reply_draft` = the full reply text you composed
-   - `draft_url` = `https://mail.google.com/mail/u/0/#drafts?compose=<draft_message_id>`
-     (where `draft_message_id` comes from the `gmail_create_draft` response)
-   - `sent` = false (dry-run) or true (send mode)
-5. Log the draft to the correspondence log with `mode: "draft"`
+   - `draft_url` = `""` (empty string — populated later on-demand)
+   - `sent` = false
+
+**Handling the on-demand draft creation prompt:**
+When the user clicks "Create Draft & Edit" in the artifact, you will receive a prompt
+asking you to create a Gmail draft for a specific thread ID with specific reply text.
+When you receive this prompt:
+1. Call `gmail_create_draft` with the provided reply text, replying to the given thread
+2. Respond with just the Gmail draft URL so the user can review and send it
 
 **In send mode:** Use `gmail_send_message` instead of `gmail_create_draft`. Set
-`sent: true`. Log to correspondence log with `mode: "sent"`.
-
-The HTML card will render the full draft reply text and a clickable "review & send"
-link to the Gmail draft. **If you skip `gmail_create_draft`, the result cards will
-have no reply text and no send link — this defeats the entire purpose of the tool.**
+`sent: true` in the result object.
 
 ### Result object schema
 
@@ -472,7 +472,7 @@ string or empty array if not applicable). These fields drive the HTML card rende
   "comp_assessment": "sliding-scale comp note (pass/maybe only)",
   "missing_fields": ["salary", "equity", "location", "..."],
   "reply_draft": "full draft reply text (pass/maybe only)",
-  "draft_url": "https://mail.google.com/mail/u/0/#drafts?compose=<id>",
+  "draft_url": "",
   "posting_url": "URL to the job posting (if found in email)",
   "email_url": "https://mail.google.com/mail/u/0/#inbox/<message_id>",
   "sent": false
