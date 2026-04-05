@@ -773,18 +773,36 @@ The HTML report uses a **pre-built template** bundled in the .skill package at
 `templates/results-template.html`. This template contains ALL CSS, JS, and
 client-side rendering logic — you never write any CSS, JS, or HTML structure.
 
-**Your only job is:**
-1. Read the template file from the .skill package
-2. Build the results JSON wrapper (from Stage 5)
-3. Serialize the JSON wrapper to a string using `JSON.stringify` or equivalent
-4. Replace the literal placeholder `__RESULTS_DATA__` in the template with
-   the serialized JSON string
-5. Output the resulting HTML inside `<antArtifact>` tags
+The template loads results data from a three-source cascade:
+1. `fetch('results.json')` — local file (Claude Code)
+2. `localStorage` key `jerbs-results-data` — persisted from prior runs
+3. Embedded `<script id="results-data">` — inline fallback
 
-**Example:**
+**Your job is:**
+1. Build the results JSON wrapper (the schema documented above)
+2. Serialize the JSON wrapper to a string
+3. Write the JSON string to localStorage under the key `jerbs-results-data`:
+   ```
+   <script>localStorage.setItem('jerbs-results-data', JSON.stringify(...));</script>
+   ```
+4. Read the template file from the .skill package
+5. Output the template HTML inside `<antArtifact>` tags **without replacing
+   `__RESULTS_DATA__`** — the template will read from localStorage automatically
+
+**This means you do NOT embed the JSON inside the HTML.** The template placeholder
+`__RESULTS_DATA__` stays as-is. The template's data loader detects the unresolved
+placeholder and falls back to localStorage, where you already wrote the data.
+
+**Output structure:**
 ```
-template_html.replace('__RESULTS_DATA__', json.dumps(results_wrapper))
+<antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
+<script>localStorage.setItem('jerbs-results-data', '...JSON string...');</script>
+[full template HTML with __RESULTS_DATA__ left unreplaced]
+</antArtifact>
 ```
+
+The `<script>` tag with the localStorage write MUST come before the template HTML
+so the data is available when the template's DOMContentLoaded handler fires.
 
 The template handles everything:
 - Both terminal and cards themes with a runtime theme switcher
@@ -800,7 +818,6 @@ The template handles everything:
 
 **Do NOT modify the template HTML in any way.** Do NOT write custom CSS or JS.
 Do NOT add classes, change styles, or alter the template structure.
-The **only** change you make is replacing `__RESULTS_DATA__` with the JSON.
 
 ---
 
@@ -904,11 +921,12 @@ so the scheduler never replaces or hides results.
 ### Starting the scheduler
 
 When the user asks to start, automate, or set up the scheduler, render the **results
-template** (`templates/results-template.html`) with BOTH placeholders replaced:
+template** (`templates/results-template.html`):
 
-1. Replace `__RESULTS_DATA__` with an empty results wrapper (if no screening has
-   happened yet) or with actual results JSON
-2. Replace `__SCHEDULER_SETTINGS__` with a settings JSON object from the user's criteria:
+1. Write the results JSON to localStorage (empty wrapper if no screening yet, or actual
+   results) — same as normal rendering
+2. Replace `__SCHEDULER_SETTINGS__` with a settings JSON object from the user's criteria
+   (this is the only placeholder you replace in the template):
    ```json
    {
      "timezone": "America/New_York",
