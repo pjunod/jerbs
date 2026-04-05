@@ -41,7 +41,7 @@ or combine stages. Complete each one fully before moving to the next.
 │  3. CLASSIFY  Tag each message: digest / direct / LinkedIn  │
 │  4. ANALYZE   Apply criteria, verdicts, comp, draft replies │
 │  5. MERGE     Combine new results with pending from prior   │
-│  6. RENDER    Build JSON → inject into template → artifact  │
+│  6. RENDER    Write JSON to localStorage → output template   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
