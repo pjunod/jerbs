@@ -281,9 +281,9 @@ Base query (customize with user's extra_keywords and extra_exclusions):
 from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com)) newer_than:[N]d
 ```
 
-These are subscription digest emails containing multiple listings. Screen the **individual
-job listings** within each digest. The "generic mass email" dealbreaker does NOT apply to
-digest emails — they're subscription alerts, not personal outreach.
+These are subscription digest emails containing multiple listings. Set `source` to
+`"Job Alert Listings"`. Screen the **individual job listings** within each digest.
+The "generic mass email" dealbreaker does NOT apply — these are subscription alerts.
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
 
@@ -298,8 +298,8 @@ newer_than:[N]d -from:linkedin.com -from:jobalerts.indeed.com -from:indeedemail.
 "your background" OR "came across your profile" OR "reaching out" OR "great fit" OR "perfect fit"))
 ```
 
-Filter out non-job noise before screening: surveys, loyalty emails, newsletters, mailing
-list patches, government/non-profit announcements, etc.
+Set `source` to `"Direct Outreach"`. Filter out non-job noise before screening: surveys,
+loyalty emails, newsletters, mailing list patches, government/non-profit announcements.
 
 Apply the "generic mass email" dealbreaker here: no name, boilerplate, no reference to
 specific background = hard fail.
@@ -479,7 +479,7 @@ string or empty array if not applicable). These fields drive the HTML card rende
 
 ```json
 {
-  "source": "Job Alert Listings | Direct Outreach | LinkedIn DMs",
+  "source": "MUST be exactly one of: Job Alert Listings | Direct Outreach | LinkedIn DMs",
   "message_id": "Gmail message ID",
   "thread_id": "Gmail thread ID",
   "subject": "email subject line",
