@@ -480,34 +480,45 @@ If the LinkedIn MCP is not connected, skip LinkedIn DMs silently — do not prom
 
 # Stage 3 — CLASSIFY
 
-Read, filter, and tag each message. This stage has two phases: a batch read, then
-classification.
+This stage reads all messages and tags them. **ALL reading happens here — Stage 4 does
+NOT read any messages.** By the time you reach Stage 4, you must already have the full
+content of every message.
 
-## Batch read all messages in parallel
+## Step 3a — Batch read ALL messages in one parallel call
 
-Call `gmail_read_message` for **ALL** messages from the search results in a **single
-parallel batch** — do NOT read them one at a time. This is the single biggest tool-call
-optimization. If the search returned 15 messages, issue 15 `gmail_read_message` calls
-in one turn.
+Issue `gmail_read_message` for **every** message from the search results as **parallel
+tool calls in a single turn**. Do NOT read one, analyze it, then read the next — that
+is the failure mode we are avoiding.
 
-## Pre-filter noise before classification
+**Correct (1 turn, N parallel calls):**
+```
+Turn 1: gmail_read_message(id1) + gmail_read_message(id2) + ... + gmail_read_message(idN)
+```
 
-Before classifying, quickly discard obvious non-job messages that slipped through the
-search query. Skip the full screening pipeline for messages that are clearly:
-- Surveys, feedback requests, or NPS prompts
+**Wrong (N turns, 1 call each):**
+```
+Turn 1: gmail_read_message(id1) → analyze → 
+Turn 2: gmail_read_message(id2) → analyze → ...
+```
+
+You now have the full content of all messages. Proceed to filtering.
+
+## Step 3b — Drop noise
+
+Discard non-job messages that slipped through the search query:
+- Surveys, feedback requests, NPS prompts
 - Loyalty program / rewards emails
 - Newsletter digests unrelated to jobs
 - Mailing list patches or CI notifications
 - Government / non-profit announcements
-- Automated receipts, shipping notifications, or account alerts
+- Automated receipts, shipping notifications, account alerts
 
-These get no result object — they are silently dropped. Do NOT create a "fail" result
-for noise. Only messages that are plausibly job-related proceed to classification.
+These get no result object — silently drop them.
 
-## Classify each message
+## Step 3c — Classify remaining messages
 
-For each remaining message, tag it with a source category. This determines which
-screening rules apply in Stage 4:
+Tag each message with a source category. This determines which screening rules
+apply in Stage 4:
 
 **Job Alert Digest** — sender is `linkedin.com`, `jobalerts.indeed.com`,
 `indeedemail.com`, or another subscription alert sender:
