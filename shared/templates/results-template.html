@@ -650,6 +650,7 @@ footer {
 <!-- ── Data loading: fetch → localStorage → embedded ─────────────────── -->
 <script>
 var _JERBS_LS_KEY = 'jerbs-results-data';
+var _JERBS_TPL_KEY = 'jerbs-template';
 
 // Save results to localStorage for cross-render persistence
 function _saveResultsToStorage(jsonStr) {
@@ -782,13 +783,25 @@ function toggleAllCards(btn){
   if(btn.event)btn.event.stopPropagation();
 }
 function downloadPage(){
-  var html=document.documentElement.outerHTML;
-  var blob=new Blob(['<!DOCTYPE html>\n'+html],{type:'text/html'});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  var d=document.querySelector('title').textContent.match(/\d{4}-\d{2}-\d{2}/);
-  a.download='jerbs-results-'+(d?d[0]:'report')+'.html';
-  a.click();URL.revokeObjectURL(a.href);
+  // Build a standalone HTML file with results embedded in the template
+  var resultsJson = '';
+  try { resultsJson = localStorage.getItem(_JERBS_LS_KEY) || ''; } catch(e) {}
+  var tpl = '';
+  try { tpl = localStorage.getItem(_JERBS_TPL_KEY) || ''; } catch(e) {}
+  var html;
+  if (tpl && resultsJson) {
+    // Reconstruct standalone file: template + embedded JSON
+    html = tpl.replace('__RESULTS_DATA__', resultsJson);
+  } else {
+    // Fallback: download current page as-is
+    html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  }
+  var blob = new Blob([html], {type: 'text/html'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  var d = document.querySelector('title').textContent.match(/\d{4}-\d{2}-\d{2}/);
+  a.download = 'jerbs-results-' + (d ? d[0] : 'report') + '.html';
+  a.click(); URL.revokeObjectURL(a.href);
 }
 </script>
 

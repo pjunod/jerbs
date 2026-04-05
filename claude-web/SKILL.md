@@ -773,36 +773,77 @@ The HTML report uses a **pre-built template** bundled in the .skill package at
 `templates/results-template.html`. This template contains ALL CSS, JS, and
 client-side rendering logic — you never write any CSS, JS, or HTML structure.
 
-The template loads results data from a three-source cascade:
-1. `fetch('results.json')` — local file (Claude Code)
-2. `localStorage` key `jerbs-results-data` — persisted from prior runs
-3. Embedded `<script id="results-data">` — inline fallback
+The template uses localStorage to load data, so the full template only needs to be
+output once. After that, only a tiny bootstrap artifact is needed.
 
-**Your job is:**
-1. Build the results JSON wrapper (the schema documented above)
-2. Serialize the JSON wrapper to a string
-3. Write the JSON string to localStorage under the key `jerbs-results-data`:
-   ```
-   <script>localStorage.setItem('jerbs-results-data', JSON.stringify(...));</script>
-   ```
-4. Read the template file from the .skill package
-5. Output the template HTML inside `<antArtifact>` tags **without replacing
-   `__RESULTS_DATA__`** — the template will read from localStorage automatically
+### First run (template not yet cached)
 
-**This means you do NOT embed the JSON inside the HTML.** The template placeholder
-`__RESULTS_DATA__` stays as-is. The template's data loader detects the unresolved
-placeholder and falls back to localStorage, where you already wrote the data.
+Check if `localStorage.getItem('jerbs-template')` exists. If NOT (first run ever, or
+localStorage was cleared), you must cache the template:
 
-**Output structure:**
+1. Read the template file from the .skill package
+2. Build the results JSON wrapper (the schema documented above)
+3. Serialize the JSON string
+4. Output the artifact with BOTH the template cache write AND the results:
+
 ```
 <antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
-<script>localStorage.setItem('jerbs-results-data', '...JSON string...');</script>
+<script>
+localStorage.setItem('jerbs-template', document.currentScript.getAttribute('data-tpl'));
+localStorage.setItem('jerbs-results-data', '...JSON string...');
+</script>
 [full template HTML with __RESULTS_DATA__ left unreplaced]
 </antArtifact>
 ```
 
-The `<script>` tag with the localStorage write MUST come before the template HTML
-so the data is available when the template's DOMContentLoaded handler fires.
+To cache the template, add a `data-tpl` attribute to the script tag containing the
+full template HTML as an escaped string. The template's own DOMContentLoaded handler
+will read results from localStorage automatically.
+
+**Alternatively** (simpler for first run): just replace `__RESULTS_DATA__` with the
+JSON inline as before, AND write both to localStorage:
+
+```
+<antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
+<script>
+localStorage.setItem('jerbs-template', ...full template string...);
+localStorage.setItem('jerbs-results-data', '...JSON string...');
+</script>
+[template HTML with __RESULTS_DATA__ replaced with JSON]
+</antArtifact>
+```
+
+This is a one-time cost. After this, every subsequent run uses the fast path below.
+
+### Subsequent runs (template already cached)
+
+When `localStorage.getItem('jerbs-template')` already exists, output a **tiny bootstrap
+artifact** instead of the full template:
+
+```
+<antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>jerbs — Screening Report</title>
+<script>
+localStorage.setItem('jerbs-results-data', '...JSON string...');
+var _tpl = localStorage.getItem('jerbs-template');
+if (_tpl) { document.open(); document.write(_tpl); document.close(); }
+else { document.write('<h2>Template not cached. Run jerbs again to reload.</h2>'); }
+</script>
+</head><body></body></html>
+</antArtifact>
+```
+
+This is ~1KB instead of ~80KB. It writes the new results JSON to localStorage, reads
+the cached template, and renders it. The template's DOMContentLoaded handler picks up
+the results from localStorage automatically.
+
+**How to check if the template is cached:** At the start of Stage 6 (RENDER), before
+building the artifact, output a small inline `<script>` check or simply assume the
+template is cached after the first successful run in a session. If the bootstrap
+renders "Template not cached", the user just runs again and it will do the full output.
+
+### Template features
 
 The template handles everything:
 - Both terminal and cards themes with a runtime theme switcher
@@ -813,7 +854,7 @@ The template handles everything:
 - Age badges with date-based color gradients (green→red over 14 days)
 - Blue "new" badges for current-run items
 - localStorage viewed-state tracking (dim dot on expand)
-- Save/download button
+- Save/download button (downloads a standalone HTML file with embedded JSON)
 - Responsive mobile layout
 
 **Do NOT modify the template HTML in any way.** Do NOT write custom CSS or JS.
