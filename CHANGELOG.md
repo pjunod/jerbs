@@ -7,6 +7,16 @@ Versions follow [semver](https://semver.org/): MAJOR.MINOR.PATCH
 
 ---
 
+## 1.1.0 — 2026-04-05
+
+- Restructured SKILL.md around 6-stage pipeline (LOAD → SEARCH → CLASSIFY → ANALYZE → MERGE → RENDER)
+- Unified Gmail search: single query replaces two separate passes
+- Pipeline overview diagram at top of SKILL.md gives Claude the full flow before starting
+- Enforced exact source label strings ("Job Alert Listings", "Direct Outreach", "LinkedIn DMs")
+- Strengthened no-results-in-chat constraint in rendering stage
+
+---
+
 ## 1.0.0 — 2026-04-05
 
 First formally versioned release. All prior iterations are considered pre-1.0.
