@@ -2,9 +2,9 @@ name: Skill package freshness
 
 on:
   push:
-    branches: [main]
+    branches: [main, qa]
   pull_request:
-    branches: [main]
+    branches: [main, qa]
 
 jobs:
   check-skill:
