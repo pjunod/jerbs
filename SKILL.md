@@ -289,10 +289,26 @@ from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
 
-### Classify and screen each message
+**Pre-filter from search metadata:** If the search results include sender and subject
+metadata, check for blacklisted companies/senders before reading the full message. Any
+message from a blacklisted sender can be marked as a fail result without calling
+`gmail_read_message` — this saves a tool call per blacklisted match.
 
-For each message returned by the search, read it with `gmail_read_message`, then classify
-it and apply the correct screening rules:
+### Batch read all messages in parallel
+
+Call `gmail_read_message` for **ALL** remaining messages in a **single parallel batch** —
+do NOT read them one at a time. If the search returned 15 messages, issue 15
+`gmail_read_message` calls in one turn.
+
+### Pre-filter noise
+
+Before classifying, discard obvious non-job messages (surveys, loyalty emails, newsletters,
+mailing list patches, CI notifications, receipts). These get no result object — silently
+drop them.
+
+### Classify each message
+
+For each remaining message, tag it with a source and apply the correct screening rules:
 
 **Job Alert Digest** — sender is `linkedin.com`, `jobalerts.indeed.com`,
 `indeedemail.com`, or another subscription alert sender:

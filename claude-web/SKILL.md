@@ -448,6 +448,11 @@ from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
 
+**Pre-filter from search metadata:** If the search results include sender and subject
+metadata, check for blacklisted companies/senders before reading the full message. Any
+message from a blacklisted sender can be marked as a fail result without calling
+`gmail_read_message` — this saves a tool call per blacklisted match.
+
 ## LinkedIn DMs (optional)
 
 If the LinkedIn MCP is connected (`linkedin_search_messages`, `linkedin_read_message` available):
@@ -475,11 +480,34 @@ If the LinkedIn MCP is not connected, skip LinkedIn DMs silently — do not prom
 
 # Stage 3 — CLASSIFY
 
-Read each message and tag it with a source category. This determines which screening
-rules apply in Stage 4.
+Read, filter, and tag each message. This stage has two phases: a batch read, then
+classification.
 
-For each message returned by the Gmail search, read it with `gmail_read_message`, then
-classify:
+## Batch read all messages in parallel
+
+Call `gmail_read_message` for **ALL** messages from the search results in a **single
+parallel batch** — do NOT read them one at a time. This is the single biggest tool-call
+optimization. If the search returned 15 messages, issue 15 `gmail_read_message` calls
+in one turn.
+
+## Pre-filter noise before classification
+
+Before classifying, quickly discard obvious non-job messages that slipped through the
+search query. Skip the full screening pipeline for messages that are clearly:
+- Surveys, feedback requests, or NPS prompts
+- Loyalty program / rewards emails
+- Newsletter digests unrelated to jobs
+- Mailing list patches or CI notifications
+- Government / non-profit announcements
+- Automated receipts, shipping notifications, or account alerts
+
+These get no result object — they are silently dropped. Do NOT create a "fail" result
+for noise. Only messages that are plausibly job-related proceed to classification.
+
+## Classify each message
+
+For each remaining message, tag it with a source category. This determines which
+screening rules apply in Stage 4:
 
 **Job Alert Digest** — sender is `linkedin.com`, `jobalerts.indeed.com`,
 `indeedemail.com`, or another subscription alert sender:
