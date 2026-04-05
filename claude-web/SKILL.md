@@ -1,6 +1,6 @@
 ---
 name: jerbs
-version: "1.0.0"
+version: "1.1.0-pr111"
 description: >
   Screens job-related emails in Gmail and LinkedIn DMs against a candidate's personal
   criteria and drafts follow-up replies for anything worth pursuing. Use this skill whenever
