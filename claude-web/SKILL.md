@@ -813,55 +813,37 @@ The `<antArtifact>` tag MUST have:
 
 ## Using the pre-built template
 
-The HTML report uses a **pre-built template** bundled in the .skill package at
-`templates/results-template.html`. This template contains ALL CSS, JS, and
-client-side rendering logic — you never write any CSS, JS, or HTML structure.
+**CRITICAL: You MUST read and output the template file UNMODIFIED. Do NOT write your
+own HTML. Do NOT replace any placeholders. The template loads its data externally.**
 
-The template loads results data from a three-source cascade:
-1. `fetch('results.json')` — local file (Claude Code)
-2. `localStorage` key `jerbs-results-data` — persisted from prior runs
-3. Embedded `<script id="results-data">` — inline fallback
+The HTML report is a pre-built template at `templates/results-template.html` in the
+.skill package. It is ~1700 lines of production HTML/CSS/JS. You cannot reproduce it.
+If you try to write your own HTML, the output will be broken — missing theme switcher,
+missing filter buttons, wrong styling. **Every run must use the template file.**
 
-**Your job is:**
-1. Build the results JSON wrapper (the schema documented above)
-2. Serialize the JSON wrapper to a string
-3. Write the JSON string to localStorage under the key `jerbs-results-data`:
-   ```
-   <script>localStorage.setItem('jerbs-results-data', JSON.stringify(...));</script>
-   ```
-4. Read the template file from the .skill package
-5. Output the template HTML inside `<antArtifact>` tags **without replacing
-   `__RESULTS_DATA__`** — the template will read from localStorage automatically
+The template automatically loads results data from localStorage. Your job is to write
+the data there, then output the template unchanged.
 
-**This means you do NOT embed the JSON inside the HTML.** The template placeholder
-`__RESULTS_DATA__` stays as-is. The template's data loader detects the unresolved
-placeholder and falls back to localStorage, where you already wrote the data.
+**Steps — follow exactly:**
+1. Build the results JSON wrapper (from Stage 5 — MERGE)
+2. Serialize the JSON to a string
+3. Read `templates/results-template.html` from the .skill package
+4. Output this inside `<antArtifact>` tags:
+   - A `<script>` tag that writes the JSON to localStorage
+   - The **entire template file, byte-for-byte, with ZERO modifications**
 
-**Output structure:**
 ```
 <antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
-<script>localStorage.setItem('jerbs-results-data', '...JSON string...');</script>
-[full template HTML with __RESULTS_DATA__ left unreplaced]
+<script>localStorage.setItem('jerbs-results-data', '...serialized JSON...');</script>
+[paste the ENTIRE template file here — do not modify a single character]
 </antArtifact>
 ```
 
-The `<script>` tag with the localStorage write MUST come before the template HTML
-so the data is available when the template's DOMContentLoaded handler fires.
+**You are NOT writing HTML. You are NOT creating CSS. You are NOT building a page.**
+You are writing one `<script>` tag for the data, then copying a file verbatim.
 
-The template handles everything:
-- Both terminal and cards themes with a runtime theme switcher
-- Light/dark mode toggle
-- Filter bar (All / New / Unread / Interested / Maybe / Filtered)
-- Expandable cards with verdict, comp, missing info, draft reply, links
-- Persistence summary, action banners
-- Age badges with date-based color gradients (green→red over 14 days)
-- Blue "new" badges for current-run items
-- localStorage viewed-state tracking (dim dot on expand)
-- Save/download button
-- Responsive mobile layout
-
-**Do NOT modify the template HTML in any way.** Do NOT write custom CSS or JS.
-Do NOT add classes, change styles, or alter the template structure.
+If you find yourself writing `<style>`, `<div class="card">`, `<button>`, or any
+HTML structure — **STOP. You are doing it wrong.** Read the template file and output it.
 
 ---
 
