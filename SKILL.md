@@ -307,8 +307,13 @@ it and apply the correct screening rules:
 - Apply the "generic mass email" dealbreaker: no name, boilerplate, no reference to
   specific background = hard fail
 
-After classifying and screening all messages, proceed to Step 4 for verdict details,
-then Step 5 to render the HTML artifact.
+After classifying and screening all messages, you MUST complete these remaining steps
+(do NOT skip any):
+
+1. **Step 4** — Apply verdict rules, comp logic, draft replies for each result
+2. **Pending results** — Load `pending_results` from state, merge with new results
+3. **Build results JSON** — Create the full results wrapper with `results`, `pending_results`, `actions`, `persistence_stats`
+4. **Step 5** — Read the template from `templates/results-template.html`, replace `__RESULTS_DATA__` with the JSON, output inside `<antArtifact>` tags
 
 ### LinkedIn DMs (optional)
 
