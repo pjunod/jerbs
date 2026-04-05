@@ -45,6 +45,17 @@ or combine stages. Complete each one fully before moving to the next.
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Tool call efficiency — CRITICAL
+
+**Maximize parallel tool calls per turn. Minimize total turns.** Every turn where you
+call only one tool when you could have called multiple is wasted latency the user sees.
+
+- When you need to read 20 messages, issue ALL 20 `gmail_read_message` calls in ONE
+  turn — not 3 at a time across 7 turns
+- Do NOT analyze, evaluate, classify, or produce output between read batches
+- Read everything first, THEN think about the results
+- The goal is to complete all reading in 1-2 turns maximum, regardless of message count
+
 The output of stage 6 is always an HTML artifact rendered via `<antArtifact>` tags.
 **ZERO individual results appear in the chat window** — only a one-line count summary,
 the artifact, and an offer to export.
@@ -484,29 +495,10 @@ This stage reads all messages and tags them. **ALL reading happens here — Stag
 NOT read any messages.** By the time you reach Stage 4, you must already have the full
 content of every message.
 
-## Step 3a — Read ALL messages before analyzing ANY
+## Step 3a — Read ALL messages
 
-Issue `gmail_read_message` for **every** message as parallel tool calls. Read them
-ALL before doing any analysis, classification, or verdict work.
-
-**If you can fit all reads in one turn, do it:**
-```
-Turn 1: gmail_read_message(id1) + gmail_read_message(id2) + ... + gmail_read_message(idN)
-→ All content loaded. Proceed to Step 3b.
-```
-
-**If the platform limits parallel calls per turn, batch in groups but do NOT analyze
-between batches — just keep reading:**
-```
-Turn 1: gmail_read_message(id1) + ... + gmail_read_message(id8)   ← read only
-Turn 2: gmail_read_message(id9) + ... + gmail_read_message(id16)  ← read only
-Turn 3: gmail_read_message(id17) + ... + gmail_read_message(idN)  ← read only
-→ All content loaded. NOW proceed to Step 3b.
-```
-
-**The failure mode to avoid:** reading a message, analyzing/classifying it, then
-reading the next. This turns N reads into N sequential turns instead of 2-3 batch turns.
-Do NOT evaluate, classify, filter, or produce verdicts during Step 3a. Just read.
+Issue `gmail_read_message` for **every** message in a **single turn** with all calls
+in parallel. Do not analyze anything until all reads have returned.
 
 ## Step 3b — Drop noise
 
