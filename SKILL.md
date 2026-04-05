@@ -10,8 +10,8 @@ description: >
   my job emails", "screen my recruiter emails", "what job leads came in this week", "run my
   job screener", "set up my job screener", "check my LinkedIn messages", or "update my
   screening criteria". Requires Gmail to be connected. Optionally screens LinkedIn DMs if
-  the LinkedIn MCP is connected. Runs up to three passes automatically (job alert digests +
-  direct outreach + LinkedIn DMs) and combines results into one report. Optionally exports
+  the LinkedIn MCP is connected. Screens Gmail in one unified search (job alert digests +
+  direct outreach), plus an optional LinkedIn DM pass, and combines results into one report. Optionally exports
   results to a formatted .xlsx / Google Sheets file with a built-in pipeline status tracker.
 argument-hint: "[lookback days] [dry-run|send]"
 compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, gmail_read_thread, gmail_create_draft). Requires gmail_send_message when send mode is enabled. LinkedIn MCP is optional (linkedin_search_messages, linkedin_read_message, linkedin_send_message). Never use gmail_send_message or take any destructive action on emails unless the user has explicitly enabled send mode. gmail_create_draft is called on-demand when the user clicks 'Create Draft & Edit' in the results artifact."
@@ -20,7 +20,7 @@ compatibility: "Requires Gmail MCP (gmail_search_messages, gmail_read_message, g
 # Job Email Screener
 
 A fully configurable job email screener that works for any role, industry, and experience
-level. Screens Gmail in two passes (plus an optional LinkedIn DM pass), applies the user's
+level. Screens Gmail in one unified search (plus an optional LinkedIn DM pass), applies the user's
 criteria, surfaces draft replies, and optionally exports results to a spreadsheet pipeline
 tracker.
 
@@ -218,7 +218,7 @@ At the start of every screening run, print a concise summary so the user can ver
    Base floor: $[X]  |  TC target: $[X]+
    Dealbreakers: [list]
    Required info: [list]
-   Looking back: [N] days  |  Max per pass: [N]
+   Looking back: [N] days  |  Max results: [N]
    LinkedIn DMs: [enabled / not connected]
 
 ⚡ SEND MODE: ON  — replies will be sent automatically and logged
@@ -258,55 +258,64 @@ If there are no open threads, skip this section entirely — don't mention it.
 
 **First run** (no entries in `screened_message_ids` yet):
 - Lookback: 7 days — cast a wide net to catch everything still in play
-- Max results per pass: unlimited (fetch all results)
+- Max results: unlimited (fetch all results)
 - Goal: get a complete picture of what's come in recently
 
 **Subsequent runs** (screening history exists):
 - Lookback: 1 day — only new emails since the last run
-- Max results per pass: 100
-- If either pass returns exactly 100 results, assume there may be more — tell the user:
-  > "Pass [1/2] hit the 100-result limit — there may be more emails matching. Want me to
+- Max results: 100
+- If the search returns exactly 100 results, assume there may be more — tell the user:
+  > "Gmail search hit the 100-result limit — there may be more emails matching. Want me to
   > increase the limit? (suggest a number, or say 'get all of them')"
-  Wait for their answer before continuing with that pass. If they say get all, remove
-  the limit; if they give a number, use that.
+  Wait for their answer before continuing. If they say get all, remove the limit; if they
+  give a number, use that.
 
 The user can always override with explicit instructions ("look back 3 days", "get everything").
 After each run, update `last_run_date` in the criteria file.
 
-### Pass 1 — Job alert digests (LinkedIn / Indeed)
+### Gmail search — single unified query
 
-Base query (customize with user's extra_keywords and extra_exclusions):
-```
-(subject:(opportunity OR role OR position OR opening OR hiring [+ user keywords]) OR
-from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com)) newer_than:[N]d
-```
+Run **one** `gmail_search_messages` call that captures both digest alerts and direct
+recruiter outreach (customize with user's extra_keywords and extra_exclusions):
 
-These are subscription digest emails containing multiple listings. Set `source` to
-`"Job Alert Listings"`. Screen the **individual job listings** within each digest.
-The "generic mass email" dealbreaker does NOT apply — these are subscription alerts.
+```
+newer_than:[N]d -from:noreply -from:no-reply [+ user exclusions]
+(subject:(opportunity OR role OR position OR opening OR hiring OR "reaching out" OR
+"your background" OR "your profile" OR "came across" [+ user keywords]) OR
+from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
+("your experience" OR "your background" OR "came across your profile" OR
+"reaching out" OR "great fit" OR "perfect fit"))
+```
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
 
-### Pass 2 — Direct recruiter outreach
+### Classify and screen each message
 
-Base query:
-```
-newer_than:[N]d -from:linkedin.com -from:jobalerts.indeed.com -from:indeedemail.com
--from:noreply -from:no-reply [+ user exclusions]
-(subject:(opportunity OR role OR position OR opening OR hiring OR "reaching out" OR
-"your background" OR "your profile" OR "came across") OR ("your experience" OR
-"your background" OR "came across your profile" OR "reaching out" OR "great fit" OR "perfect fit"))
-```
+For each message returned by the search, read it with `gmail_read_message`, then classify
+it and apply the correct screening rules:
 
-Set `source` to `"Direct Outreach"`. Filter out non-job noise before screening: surveys,
-loyalty emails, newsletters, mailing list patches, government/non-profit announcements.
+**Job Alert Digest** — sender is `linkedin.com`, `jobalerts.indeed.com`,
+`indeedemail.com`, or another subscription alert sender:
+- Set `source` = `"Job Alert Listings"`
+- Screen the **individual job listings** within the digest, not the email as a whole
+- The "generic mass email" dealbreaker does NOT apply — these are subscription alerts
 
-Apply the "generic mass email" dealbreaker here: no name, boilerplate, no reference to
-specific background = hard fail.
+**Direct Outreach** — everything else that passes noise filtering:
+- Set `source` = `"Direct Outreach"`
+- Filter out non-job noise first (surveys, loyalty emails, newsletters, mailing list
+  patches, government/non-profit announcements)
+- Apply the "generic mass email" dealbreaker: no name, boilerplate, no reference to
+  specific background = hard fail
 
-Skip any message IDs already in `screened_message_ids`.
+After classifying and screening all messages, you MUST complete these remaining steps
+(do NOT skip any):
 
-### Pass 3 — LinkedIn DMs (optional)
+1. **Step 4** — Apply verdict rules, comp logic, draft replies for each result
+2. **Pending results** — Load `pending_results` from state, merge with new results
+3. **Build results JSON** — Create the full results wrapper with `results`, `pending_results`, `actions`, `persistence_stats`
+4. **Step 5** — Read the template from `templates/results-template.html`, replace `__RESULTS_DATA__` with the JSON, output inside `<antArtifact>` tags
+
+### LinkedIn DMs (optional)
 
 If the LinkedIn MCP is connected (`linkedin_search_messages`, `linkedin_read_message` available), run a third pass:
 
@@ -314,7 +323,7 @@ If the LinkedIn MCP is connected (`linkedin_search_messages`, `linkedin_read_mes
 2. Skip any message IDs already in `screened_message_ids`
 3. For each new message, use `linkedin_read_message` to get the full content
 4. LinkedIn DMs have no real subject line — the "subject" is synthesized from the sender name and first line of the message
-5. Apply the same screening criteria as Pass 2 (direct outreach). The "generic mass email" dealbreaker applies — generic InMail templates with no personalization are a hard fail
+5. Apply the same screening criteria as Direct Outreach. The "generic mass email" dealbreaker applies — generic InMail templates with no personalization are a hard fail
 
 For replies in LinkedIn:
 - **Dry-run mode:** LinkedIn sends email notifications for DMs, and replying to those
@@ -328,7 +337,7 @@ For replies in LinkedIn:
   back to copy-paste text: `📋 Draft LinkedIn reply (copy and send manually):`
 - **Send mode:** Use `linkedin_send_message` to reply in the conversation thread. Log to correspondence log with source "linkedin".
 
-If the LinkedIn MCP is not connected, skip Pass 3 silently — do not prompt the user to connect it.
+If the LinkedIn MCP is not connected, skip LinkedIn DMs silently — do not prompt the user to connect it.
 
 After screening, add all newly screened message IDs to `screened_message_ids`, set
 `last_run_date` to today, and save the criteria file.
