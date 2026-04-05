@@ -449,7 +449,9 @@ Run **one** `gmail_search_messages` call that captures both digest alerts and di
 recruiter outreach (customize with user's extra_keywords and extra_exclusions):
 
 ```
-newer_than:[N]d -from:noreply -from:no-reply [+ user exclusions]
+newer_than:[N]d -from:noreply -from:no-reply -from:glassdoor
+-from:github.com -from:codecov -subject:invitation -subject:survey
+-subject:newsletter -subject:"mailing list" [+ user exclusions]
 (subject:(opportunity OR role OR position OR opening OR hiring OR "reaching out" OR
 "your background" OR "your profile" OR "came across" [+ user keywords]) OR
 from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
@@ -459,10 +461,24 @@ from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
 
-**Pre-filter from search metadata:** If the search results include sender and subject
-metadata, check for blacklisted companies/senders before reading the full message. Any
-message from a blacklisted sender can be marked as a fail result without calling
-`gmail_read_message` — this saves a tool call per blacklisted match.
+## Pre-filter from search metadata (before reading ANY messages)
+
+The search results include sender and subject for each message. Use this metadata to
+eliminate messages **without calling `gmail_read_message`**. Every message you can
+discard here saves a tool call.
+
+**Drop without reading:**
+- Messages from blacklisted companies/senders → silent drop (no result object)
+- Messages you sent (DRAFT, SENT labels) → silent drop
+- Obvious noise by sender: Glassdoor reviews/alerts, LinkedIn social notifications
+  (invitations, "getting noticed", news), kernel mailing lists, GitHub/CI notifications,
+  newsletters, real estate, surveys, loyalty programs
+- Obvious noise by subject: furniture, food delivery, shipping, account alerts
+- Subjects containing clear dealbreakers: "contract", "part-time", "intern" (when
+  targeting senior full-time)
+
+**Only read messages that are plausibly job-related and not obviously disqualified.**
+The goal is to reduce the read list from ~50 to ~10-15 messages max.
 
 ## LinkedIn DMs (optional)
 
@@ -489,51 +505,37 @@ If the LinkedIn MCP is not connected, skip LinkedIn DMs silently — do not prom
 
 ---
 
-# Stage 3 — CLASSIFY
+# Stage 3 — CLASSIFY and READ
 
-This stage reads all messages and tags them. **ALL reading happens here — Stage 4 does
-NOT read any messages.** By the time you reach Stage 4, you must already have the full
-content of every message.
+Classify from search metadata, then read only what survives. **ALL reading happens
+here — Stage 4 does NOT call `gmail_read_message`.**
 
-## Step 3a — Read ALL messages
+## Step 3a — Classify from search metadata (NO reads yet)
 
-Issue `gmail_read_message` for **every** message in a **single turn** with all calls
-in parallel. Do not analyze anything until all reads have returned.
+Using only the sender and subject from the search results (no `gmail_read_message`
+calls), tag each message into one of these buckets:
 
-## Step 3b — Drop noise
-
-Discard non-job messages that slipped through the search query:
-- Surveys, feedback requests, NPS prompts
-- Loyalty program / rewards emails
-- Newsletter digests unrelated to jobs
-- Mailing list patches or CI notifications
-- Government / non-profit announcements
-- Automated receipts, shipping notifications, account alerts
-
-These get no result object — silently drop them.
-
-## Step 3c — Classify remaining messages
-
-Tag each message with a source category. This determines which screening rules
-apply in Stage 4:
+**Drop** — already handled by Stage 2 pre-filter. Any remaining noise gets dropped
+here too. No result object, no read.
 
 **Job Alert Digest** — sender is `linkedin.com`, `jobalerts.indeed.com`,
 `indeedemail.com`, or another subscription alert sender:
 - Set `source` = `"Job Alert Listings"`
-- Screen the **individual job listings** within the digest, not the email as a whole
-- The "generic mass email" dealbreaker does NOT apply — these are subscription alerts
+- Will screen individual listings within the digest after reading
 
-**Direct Outreach** — everything else that passes noise filtering:
+**Direct Outreach** — everything else that survived filtering:
 - Set `source` = `"Direct Outreach"`
-- Filter out non-job noise first (surveys, loyalty emails, newsletters, mailing list
-  patches, government/non-profit announcements)
-- Apply the "generic mass email" dealbreaker: no name, boilerplate, no reference to
-  specific background = hard fail
+- Will apply "generic mass email" dealbreaker after reading
 
 **LinkedIn DM** (from Stage 2 LinkedIn search):
 - Set `source` = `"LinkedIn DMs"`
-- Apply the same screening criteria as Direct Outreach
-- The "generic mass email" dealbreaker applies — generic InMail templates with no personalization are a hard fail
+- Will apply same screening criteria as Direct Outreach after reading
+
+## Step 3b — Read ONLY the surviving messages
+
+Issue `gmail_read_message` for the messages that survived Steps 2 and 3a — typically
+10-15 messages, not 50. Issue ALL reads in a **single turn** with all calls in parallel.
+Do not analyze anything until all reads have returned.
 
 ---
 

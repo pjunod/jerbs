@@ -279,7 +279,9 @@ Run **one** `gmail_search_messages` call that captures both digest alerts and di
 recruiter outreach (customize with user's extra_keywords and extra_exclusions):
 
 ```
-newer_than:[N]d -from:noreply -from:no-reply [+ user exclusions]
+newer_than:[N]d -from:noreply -from:no-reply -from:glassdoor
+-from:github.com -from:codecov -subject:invitation -subject:survey
+-subject:newsletter -subject:"mailing list" [+ user exclusions]
 (subject:(opportunity OR role OR position OR opening OR hiring OR "reaching out" OR
 "your background" OR "your profile" OR "came across" [+ user keywords]) OR
 from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
