@@ -1,7 +1,7 @@
 """
 export_html.py — Job Email Screener
-Thin wrapper that injects screening results JSON into the client-side HTML
-template (results-template.html) to produce a self-contained results page.
+Copies the client-side HTML template (results-template.html) and writes a
+results-data.js file alongside it so the template can load data via <script src>.
 
 The template handles all rendering: both themes (terminal/cards), light/dark
 mode, filtering, expandable cards, age badges, and theme switching at runtime.
@@ -15,6 +15,7 @@ Or import and call:
 """
 
 import json
+import shutil
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -73,7 +74,7 @@ def _resolve_pending(results_data, new_message_ids):
 
 
 def export_to_html(results_data, output_path, theme=None):
-    """Generate a self-contained HTML results page by injecting JSON into the template."""
+    """Generate an HTML results page by copying the template and writing data to results-data.js."""
     theme = theme or results_data.get("theme", DEFAULT_THEME)
     if theme not in THEMES:
         theme = DEFAULT_THEME
@@ -84,11 +85,16 @@ def export_to_html(results_data, output_path, theme=None):
     results_data["pending_results"] = pending
     results_data["theme"] = theme
 
-    # Read template and inject JSON data
-    template = TEMPLATE_PATH.read_text(encoding="utf-8")
-    html = template.replace("__RESULTS_DATA__", json.dumps(results_data))
+    # Write results-data.js next to the output HTML (works on file:// via <script src>)
+    output = Path(output_path)
+    js_path = output.parent / "results-data.js"
+    js_path.write_text(
+        f"var JERBS_RESULTS = {json.dumps(results_data)};",
+        encoding="utf-8",
+    )
 
-    Path(output_path).write_text(html, encoding="utf-8")
+    # Copy template as-is (placeholder stays for web/fallback use)
+    shutil.copy2(TEMPLATE_PATH, output)
 
     total = len(results_data.get("results", [])) + len(pending)
     print(f"Exported {total} results → {output_path}")

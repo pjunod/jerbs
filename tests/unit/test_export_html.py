@@ -68,12 +68,41 @@ def run_html_export(items, **kwargs):
         data["persistence_stats"] = kwargs["persistence_stats"]
     with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as f:
         path = f.name
+    js_path = Path(path).parent / "results-data.js"
     try:
         export_to_html(data, path, theme=kwargs.get("theme"))
         with open(path, encoding="utf-8") as f:
             return f.read()
     finally:
         os.unlink(path)
+        js_path.unlink(missing_ok=True)
+
+
+def run_js_export(items, **kwargs):
+    """Run export and return parsed JSON from results-data.js."""
+    data = {
+        "run_date": kwargs.get("run_date", "2026-04-02"),
+        "profile_name": kwargs.get("profile_name", "Test Profile"),
+        "mode": kwargs.get("mode", "dry-run"),
+        "lookback_days": kwargs.get("lookback_days", "1"),
+        "actions": kwargs.get("actions", []),
+        "pending_results": kwargs.get("pending_results", []),
+        "results": items,
+    }
+    if "persistence_stats" in kwargs:
+        data["persistence_stats"] = kwargs["persistence_stats"]
+    with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as f:
+        path = f.name
+    js_path = Path(path).parent / "results-data.js"
+    try:
+        export_to_html(data, path, theme=kwargs.get("theme"))
+        raw = js_path.read_text(encoding="utf-8")
+        # Strip "var JERBS_RESULTS = " prefix and trailing ";"
+        json_str = raw.removeprefix("var JERBS_RESULTS = ").removesuffix(";")
+        return json.loads(json_str)
+    finally:
+        os.unlink(path)
+        js_path.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -106,69 +135,49 @@ class TestExportToHtml:
         assert 'id="css-cards"' in html
         assert "renderPage" in html
 
-    def test_placeholder_replaced_with_json(self):
+    def test_js_data_file_written(self):
+        data = run_js_export([])
+        assert data["run_date"] == "2026-04-02"
+
+    def test_placeholder_preserved_in_template(self):
         html = run_html_export([])
-        assert "__RESULTS_DATA__" not in html
+        assert "__RESULTS_DATA__" in html
 
-    def test_results_json_injected(self):
-        html = run_html_export([make_result(company="Acme")])
-        assert "Acme" in html
-        assert "TechCorp" not in html or "Acme" in html
+    def test_results_in_js_file(self):
+        data = run_js_export([make_result(company="Acme")])
+        companies = [r["company"] for r in data["results"]]
+        assert "Acme" in companies
 
-    def test_theme_field_set_in_json(self):
-        html = run_html_export([], theme="cards")
-        # Extract the embedded JSON and verify theme field
-        import re
-
-        match = re.search(
-            r'<script id="results-data" type="application/json">(.*?)</script>',
-            html,
-            re.DOTALL,
-        )
-        assert match
-        data = json.loads(match.group(1))
+    def test_theme_field_set_in_js(self):
+        data = run_js_export([], theme="cards")
         assert data["theme"] == "cards"
 
-    def test_default_theme_in_json(self):
-        html = run_html_export([])
-        import re
-
-        match = re.search(
-            r'<script id="results-data" type="application/json">(.*?)</script>',
-            html,
-            re.DOTALL,
-        )
-        assert match
-        data = json.loads(match.group(1))
+    def test_default_theme_in_js(self):
+        data = run_js_export([])
         assert data["theme"] == "terminal"
 
     def test_invalid_theme_falls_back_to_default(self):
-        html = run_html_export([], theme="nonexistent")
-        import re
-
-        match = re.search(
-            r'<script id="results-data" type="application/json">(.*?)</script>',
-            html,
-            re.DOTALL,
-        )
-        assert match
-        data = json.loads(match.group(1))
+        data = run_js_export([], theme="nonexistent")
         assert data["theme"] == "terminal"
 
     def test_file_written_to_disk(self):
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
+        js_path = Path(path).parent / "results-data.js"
         try:
             export_to_html({"results": [], "pending_results": []}, path)
             assert os.path.exists(path)
+            assert js_path.exists()
             content = Path(path).read_text(encoding="utf-8")
             assert "<!DOCTYPE html>" in content
         finally:
             os.unlink(path)
+            js_path.unlink(missing_ok=True)
 
     def test_prints_export_message(self, capsys):
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
+        js_path = Path(path).parent / "results-data.js"
         try:
             export_to_html({"results": [make_result()], "pending_results": []}, path)
             captured = capsys.readouterr()
@@ -176,6 +185,7 @@ class TestExportToHtml:
             assert "1 results" in captured.out
         finally:
             os.unlink(path)
+            js_path.unlink(missing_ok=True)
 
     def test_both_themes_css_present(self):
         """Every output file has both themes — the old engine only included one."""
@@ -190,21 +200,16 @@ class TestExportToHtml:
         data = {"results": [], "pending_results": [], "theme": "cards"}
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
+        js_path = Path(path).parent / "results-data.js"
         try:
             export_to_html(data, path)
-            content = Path(path).read_text(encoding="utf-8")
-            import re
-
-            match = re.search(
-                r'<script id="results-data" type="application/json">(.*?)</script>',
-                content,
-                re.DOTALL,
-            )
-            assert match
-            embedded = json.loads(match.group(1))
+            raw = js_path.read_text(encoding="utf-8")
+            json_str = raw.removeprefix("var JERBS_RESULTS = ").removesuffix(";")
+            embedded = json.loads(json_str)
             assert embedded["theme"] == "cards"
         finally:
             os.unlink(path)
+            js_path.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -213,42 +218,36 @@ class TestExportToHtml:
 
 
 class TestPendingMergedInFullExport:
-    def test_pending_injected_into_json(self):
+    def test_pending_injected_into_js(self):
         pending = [make_pending()]
-        html = run_html_export(
+        data = run_js_export(
             [make_result(company="NewCo")],
             pending_results=pending,
         )
-        # Both should appear in the embedded JSON
-        assert "OldCorp" in html
-        assert "NewCo" in html
+        pending_companies = [p["company"] for p in data["pending_results"]]
+        result_companies = [r["company"] for r in data["results"]]
+        assert "OldCorp" in pending_companies
+        assert "NewCo" in result_companies
 
     def test_pending_deduped_against_new(self):
         pending = [make_pending(message_id="same_id")]
         new = [make_result(company="NewCo", message_id="same_id")]
-        html = run_html_export(new, pending_results=pending)
-        import re
-
-        match = re.search(
-            r'<script id="results-data" type="application/json">(.*?)</script>',
-            html,
-            re.DOTALL,
-        )
-        assert match
-        data = json.loads(match.group(1))
+        data = run_js_export(new, pending_results=pending)
         # OldCorp should be excluded (same message_id as NewCo)
         pending_companies = [p["company"] for p in data["pending_results"]]
         assert "OldCorp" not in pending_companies
 
     def test_only_pending_no_new_results(self):
         pending = [make_pending()]
-        html = run_html_export([], pending_results=pending)
-        assert "OldCorp" in html
+        data = run_js_export([], pending_results=pending)
+        pending_companies = [p["company"] for p in data["pending_results"]]
+        assert "OldCorp" in pending_companies
 
     def test_pending_counted_in_export_message(self, capsys):
         pending = [make_pending()]
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
+        js_path = Path(path).parent / "results-data.js"
         try:
             export_to_html(
                 {"results": [make_result()], "pending_results": pending},
@@ -258,6 +257,7 @@ class TestPendingMergedInFullExport:
             assert "2 results" in captured.out
         finally:
             os.unlink(path)
+            js_path.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -394,5 +394,7 @@ class TestScriptGuard:
             with patch("builtins.print"):
                 runpy.run_path(self._export_path, run_name="__main__")
         assert output_file.exists()
-        content = output_file.read_text()
+        js_file = tmp_path / "results-data.js"
+        assert js_file.exists()
+        content = js_file.read_text()
         assert '"theme": "cards"' in content or '"theme":"cards"' in content
