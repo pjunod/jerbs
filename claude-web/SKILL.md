@@ -1,6 +1,6 @@
 ---
 name: jerbs
-version: "1.1.0"
+version: "1.2.0-pr112"
 description: >
   Screens job-related emails in Gmail and LinkedIn DMs against a candidate's personal
   criteria and drafts follow-up replies for anything worth pursuing. Use this skill whenever
@@ -41,9 +41,20 @@ or combine stages. Complete each one fully before moving to the next.
 │  3. CLASSIFY  Tag each message: digest / direct / LinkedIn  │
 │  4. ANALYZE   Apply criteria, verdicts, comp, draft replies │
 │  5. MERGE     Combine new results with pending from prior   │
-│  6. RENDER    Build JSON → inject into template → artifact  │
+│  6. RENDER    Write JSON to localStorage → output template   │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Tool call efficiency — CRITICAL
+
+**Maximize parallel tool calls per turn. Minimize total turns.** Every turn where you
+call only one tool when you could have called multiple is wasted latency the user sees.
+
+- When you need to read 20 messages, issue ALL 20 `gmail_read_message` calls in ONE
+  turn — not 3 at a time across 7 turns
+- Do NOT analyze, evaluate, classify, or produce output between read batches
+- Read everything first, THEN think about the results
+- The goal is to complete all reading in 1-2 turns maximum, regardless of message count
 
 The output of stage 6 is always an HTML artifact rendered via `<antArtifact>` tags.
 **ZERO individual results appear in the chat window** — only a one-line count summary,
@@ -438,7 +449,9 @@ Run **one** `gmail_search_messages` call that captures both digest alerts and di
 recruiter outreach (customize with user's extra_keywords and extra_exclusions):
 
 ```
-newer_than:[N]d -from:noreply -from:no-reply [+ user exclusions]
+newer_than:[N]d -from:noreply -from:no-reply -from:glassdoor
+-from:github.com -from:codecov -subject:invitation -subject:survey
+-subject:newsletter -subject:"mailing list" [+ user exclusions]
 (subject:(opportunity OR role OR position OR opening OR hiring OR "reaching out" OR
 "your background" OR "your profile" OR "came across" [+ user keywords]) OR
 from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
@@ -447,6 +460,25 @@ from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
 ```
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
+
+## Pre-filter from search metadata (before reading ANY messages)
+
+The search results include sender and subject for each message. Use this metadata to
+eliminate messages **without calling `gmail_read_message`**. Every message you can
+discard here saves a tool call.
+
+**Drop without reading:**
+- Messages from blacklisted companies/senders → silent drop (no result object)
+- Messages you sent (DRAFT, SENT labels) → silent drop
+- Obvious noise by sender: Glassdoor reviews/alerts, LinkedIn social notifications
+  (invitations, "getting noticed", news), kernel mailing lists, GitHub/CI notifications,
+  newsletters, real estate, surveys, loyalty programs
+- Obvious noise by subject: furniture, food delivery, shipping, account alerts
+- Subjects containing clear dealbreakers: "contract", "part-time", "intern" (when
+  targeting senior full-time)
+
+**Only read messages that are plausibly job-related and not obviously disqualified.**
+The goal is to reduce the read list from ~50 to ~10-15 messages max.
 
 ## LinkedIn DMs (optional)
 
@@ -473,31 +505,37 @@ If the LinkedIn MCP is not connected, skip LinkedIn DMs silently — do not prom
 
 ---
 
-# Stage 3 — CLASSIFY
+# Stage 3 — CLASSIFY and READ
 
-Read each message and tag it with a source category. This determines which screening
-rules apply in Stage 4.
+Classify from search metadata, then read only what survives. **ALL reading happens
+here — Stage 4 does NOT call `gmail_read_message`.**
 
-For each message returned by the Gmail search, read it with `gmail_read_message`, then
-classify:
+## Step 3a — Classify from search metadata (NO reads yet)
+
+Using only the sender and subject from the search results (no `gmail_read_message`
+calls), tag each message into one of these buckets:
+
+**Drop** — already handled by Stage 2 pre-filter. Any remaining noise gets dropped
+here too. No result object, no read.
 
 **Job Alert Digest** — sender is `linkedin.com`, `jobalerts.indeed.com`,
 `indeedemail.com`, or another subscription alert sender:
 - Set `source` = `"Job Alert Listings"`
-- Screen the **individual job listings** within the digest, not the email as a whole
-- The "generic mass email" dealbreaker does NOT apply — these are subscription alerts
+- Will screen individual listings within the digest after reading
 
-**Direct Outreach** — everything else that passes noise filtering:
+**Direct Outreach** — everything else that survived filtering:
 - Set `source` = `"Direct Outreach"`
-- Filter out non-job noise first (surveys, loyalty emails, newsletters, mailing list
-  patches, government/non-profit announcements)
-- Apply the "generic mass email" dealbreaker: no name, boilerplate, no reference to
-  specific background = hard fail
+- Will apply "generic mass email" dealbreaker after reading
 
 **LinkedIn DM** (from Stage 2 LinkedIn search):
 - Set `source` = `"LinkedIn DMs"`
-- Apply the same screening criteria as Direct Outreach
-- The "generic mass email" dealbreaker applies — generic InMail templates with no personalization are a hard fail
+- Will apply same screening criteria as Direct Outreach after reading
+
+## Step 3b — Read ONLY the surviving messages
+
+Issue `gmail_read_message` for the messages that survived Steps 2 and 3a — typically
+10-15 messages, not 50. Issue ALL reads in a **single turn** with all calls in parallel.
+Do not analyze anything until all reads have returned.
 
 ---
 
@@ -769,38 +807,41 @@ The `<antArtifact>` tag MUST have:
 
 ## Using the pre-built template
 
-The HTML report uses a **pre-built template** bundled in the .skill package at
-`templates/results-template.html`. This template contains ALL CSS, JS, and
-client-side rendering logic — you never write any CSS, JS, or HTML structure.
+**CRITICAL: You MUST read and output the template file UNMODIFIED. Do NOT write your
+own HTML. Do NOT replace any placeholders. The template loads its data externally.**
 
-**Your only job is:**
-1. Read the template file from the .skill package
-2. Build the results JSON wrapper (from Stage 5)
-3. Serialize the JSON wrapper to a string using `JSON.stringify` or equivalent
-4. Replace the literal placeholder `__RESULTS_DATA__` in the template with
-   the serialized JSON string
-5. Output the resulting HTML inside `<antArtifact>` tags
+The HTML report is a pre-built template at `templates/results-template.html` in the
+.skill package. It is ~1700 lines of production HTML/CSS/JS. You cannot reproduce it.
+If you try to write your own HTML, the output will be broken — missing theme switcher,
+missing filter buttons, wrong styling. **Every run must use the template file.**
 
-**Example:**
+The template automatically loads results data from localStorage. Your job is to write
+the data there, then output the template unchanged.
+
+**Steps — follow exactly:**
+1. Build the results JSON wrapper (from Stage 5 — MERGE)
+2. Serialize the JSON to a string, then **base64-encode** it (use `btoa()` equivalent)
+3. Read `templates/results-template.html` from the .skill package
+4. Output this inside `<antArtifact>` tags:
+   - A `<script>` tag that base64-decodes the data and writes it to localStorage
+   - The **entire template file, byte-for-byte, with ZERO modifications**
+
 ```
-template_html.replace('__RESULTS_DATA__', json.dumps(results_wrapper))
+<antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
+<script>localStorage.setItem('jerbs-results-data', atob('...base64 encoded JSON...'));</script>
+[paste the ENTIRE template file here — do not modify a single character]
+</antArtifact>
 ```
 
-The template handles everything:
-- Both terminal and cards themes with a runtime theme switcher
-- Light/dark mode toggle
-- Filter bar (All / New / Unread / Interested / Maybe / Filtered)
-- Expandable cards with verdict, comp, missing info, draft reply, links
-- Persistence summary, action banners
-- Age badges with date-based color gradients (green→red over 14 days)
-- Blue "new" badges for current-run items
-- localStorage viewed-state tracking (dim dot on expand)
-- Save/download button
-- Responsive mobile layout
+**Why base64:** The JSON contains quotes, newlines, and special characters that break
+JavaScript string literals. Base64 encoding produces a safe ASCII string with no escaping
+issues. The `atob()` call decodes it back to the original JSON at runtime.
 
-**Do NOT modify the template HTML in any way.** Do NOT write custom CSS or JS.
-Do NOT add classes, change styles, or alter the template structure.
-The **only** change you make is replacing `__RESULTS_DATA__` with the JSON.
+**You are NOT writing HTML. You are NOT creating CSS. You are NOT building a page.**
+You are writing one `<script>` tag for the data, then copying a file verbatim.
+
+If you find yourself writing `<style>`, `<div class="card">`, `<button>`, or any
+HTML structure — **STOP. You are doing it wrong.** Read the template file and output it.
 
 ---
 
@@ -904,11 +945,12 @@ so the scheduler never replaces or hides results.
 ### Starting the scheduler
 
 When the user asks to start, automate, or set up the scheduler, render the **results
-template** (`templates/results-template.html`) with BOTH placeholders replaced:
+template** (`templates/results-template.html`):
 
-1. Replace `__RESULTS_DATA__` with an empty results wrapper (if no screening has
-   happened yet) or with actual results JSON
-2. Replace `__SCHEDULER_SETTINGS__` with a settings JSON object from the user's criteria:
+1. Write the results JSON to localStorage (empty wrapper if no screening yet, or actual
+   results) — same as normal rendering
+2. Replace `__SCHEDULER_SETTINGS__` with a settings JSON object from the user's criteria
+   (this is the only placeholder you replace in the template):
    ```json
    {
      "timezone": "America/New_York",

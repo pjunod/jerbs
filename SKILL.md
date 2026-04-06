@@ -279,7 +279,9 @@ Run **one** `gmail_search_messages` call that captures both digest alerts and di
 recruiter outreach (customize with user's extra_keywords and extra_exclusions):
 
 ```
-newer_than:[N]d -from:noreply -from:no-reply [+ user exclusions]
+newer_than:[N]d -from:noreply -from:no-reply -from:glassdoor
+-from:github.com -from:codecov -subject:invitation -subject:survey
+-subject:newsletter -subject:"mailing list" [+ user exclusions]
 (subject:(opportunity OR role OR position OR opening OR hiring OR "reaching out" OR
 "your background" OR "your profile" OR "came across" [+ user keywords]) OR
 from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
@@ -289,10 +291,24 @@ from:(linkedin.com OR jobalerts.indeed.com OR indeedemail.com) OR
 
 Skip any message IDs already in `screened_message_ids` (previously screened).
 
-### Classify and screen each message
+**Pre-filter from search metadata:** If the search results include sender and subject
+metadata, check for blacklisted companies/senders before reading the full message. Any
+message from a blacklisted sender can be marked as a fail result without calling
+`gmail_read_message` — this saves a tool call per blacklisted match.
 
-For each message returned by the search, read it with `gmail_read_message`, then classify
-it and apply the correct screening rules:
+### Read ALL messages
+
+Issue `gmail_read_message` for **every** remaining message in a **single turn** with
+all calls in parallel. Do not analyze anything until all reads have returned.
+
+### Drop noise
+
+Discard non-job messages (surveys, loyalty emails, newsletters, mailing list patches,
+CI notifications, receipts). These get no result object — silently drop them.
+
+### Classify each message
+
+For each remaining message, tag it with a source and apply the correct screening rules:
 
 **Job Alert Digest** — sender is `linkedin.com`, `jobalerts.indeed.com`,
 `indeedemail.com`, or another subscription alert sender:
