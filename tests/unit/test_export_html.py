@@ -1,5 +1,5 @@
 """
-Unit tests for export_html.py — template copy + results.json wrapper.
+Unit tests for export_html.py — template copy + results-data.js wrapper.
 """
 
 import json
@@ -55,6 +55,13 @@ def make_pending(verdict="pass", company="OldCorp", role="Staff SRE", **kw):
     return r
 
 
+def _parse_js_data(js_path):
+    """Parse results-data.js and return the JSON data."""
+    raw = Path(js_path).read_text(encoding="utf-8")
+    json_str = raw.removeprefix("var JERBS_RESULTS = ").removesuffix(";")
+    return json.loads(json_str)
+
+
 def run_html_export(items, **kwargs):
     data = {
         "run_date": kwargs.get("run_date", "2026-04-02"),
@@ -71,12 +78,11 @@ def run_html_export(items, **kwargs):
         data["scheduler"] = kwargs["scheduler"]
     with tempfile.TemporaryDirectory() as tmp:
         html_path = os.path.join(tmp, "out.html")
-        json_path = os.path.join(tmp, "results.json")
+        js_path = os.path.join(tmp, "results-data.js")
         export_to_html(data, html_path, theme=kwargs.get("theme"))
         with open(html_path, encoding="utf-8") as f:
             html = f.read()
-        with open(json_path, encoding="utf-8") as f:
-            results_json = json.load(f)
+        results_json = _parse_js_data(js_path)
         return html, results_json
 
 
@@ -98,7 +104,7 @@ class TestConstants:
 
 
 # ---------------------------------------------------------------------------
-# export_to_html (template copy + results.json)
+# export_to_html (template copy + results-data.js)
 # ---------------------------------------------------------------------------
 
 
@@ -115,8 +121,8 @@ class TestExportToHtml:
         html, _ = run_html_export([])
         assert "__RESULTS_DATA__" in html
 
-    def test_results_json_written(self):
-        """Data goes into results.json next to the HTML file."""
+    def test_results_js_written(self):
+        """Data goes into results-data.js next to the HTML file."""
         _, results_json = run_html_export([make_result(company="Acme")])
         companies = [r["company"] for r in results_json.get("results", [])]
         assert "Acme" in companies
@@ -136,10 +142,10 @@ class TestExportToHtml:
     def test_files_written_to_disk(self):
         with tempfile.TemporaryDirectory() as tmp:
             html_path = os.path.join(tmp, "out.html")
-            json_path = os.path.join(tmp, "results.json")
+            js_path = os.path.join(tmp, "results-data.js")
             export_to_html({"results": [], "pending_results": []}, html_path)
             assert os.path.exists(html_path)
-            assert os.path.exists(json_path)
+            assert os.path.exists(js_path)
             content = Path(html_path).read_text(encoding="utf-8")
             assert "<!DOCTYPE html>" in content
 
@@ -164,10 +170,9 @@ class TestExportToHtml:
         data = {"results": [], "pending_results": [], "theme": "cards"}
         with tempfile.TemporaryDirectory() as tmp:
             html_path = os.path.join(tmp, "out.html")
-            json_path = os.path.join(tmp, "results.json")
+            js_path = os.path.join(tmp, "results-data.js")
             export_to_html(data, html_path)
-            with open(json_path, encoding="utf-8") as f:
-                embedded = json.load(f)
+            embedded = _parse_js_data(js_path)
             assert embedded["theme"] == "cards"
 
 
@@ -262,7 +267,7 @@ class TestPendingMergedInFullExport:
             [make_result(company="NewCo")],
             pending_results=pending,
         )
-        # Both should appear in the results.json
+        # Both should appear in the results-data.js
         result_companies = [r["company"] for r in results_json.get("results", [])]
         pending_companies = [p["company"] for p in results_json.get("pending_results", [])]
         assert "NewCo" in result_companies
@@ -411,9 +416,9 @@ class TestScriptGuard:
         content = output_file.read_text()
         assert "<!DOCTYPE html>" in content
         assert "renderPage" in content
-        # results.json should also exist
-        json_file = tmp_path / "results.json"
-        assert json_file.exists()
+        # results-data.js should also exist
+        js_file = tmp_path / "results-data.js"
+        assert js_file.exists()
 
     def test_runs_with_theme_flag(self, tmp_path):
         import runpy
@@ -430,8 +435,7 @@ class TestScriptGuard:
             with patch("builtins.print"):
                 runpy.run_path(self._export_path, run_name="__main__")
         assert output_file.exists()
-        json_file = tmp_path / "results.json"
-        assert json_file.exists()
-        with open(json_file, encoding="utf-8") as f:
-            result_data = json.load(f)
+        js_file = tmp_path / "results-data.js"
+        assert js_file.exists()
+        result_data = _parse_js_data(js_file)
         assert result_data["theme"] == "cards"

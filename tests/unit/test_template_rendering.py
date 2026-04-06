@@ -7,7 +7,7 @@ client-side JavaScript execution. They cover the rendering pipeline that unit
 tests cannot reach: theme switching, card building, filter bar, age badges,
 and light/dark mode — all of which execute in JavaScript.
 
-Files are served via a local HTTP server so fetch('results.json') works
+Files are served via a local HTTP server so the <script src="results-data.js"> tag works
 (file:// URLs cannot use fetch).
 
 Requires: playwright (pip install playwright && playwright install chromium)
@@ -138,12 +138,12 @@ class _QuietHandler(SimpleHTTPRequestHandler):
 
 @pytest.fixture(scope="module")
 def served_dir(tmp_path_factory):
-    """Set up a tmpdir with HTML + results.json, served via HTTP."""
+    """Set up a tmpdir with HTML + results-data.js, served via HTTP."""
     tmp = tmp_path_factory.mktemp("template_test")
     html_path = tmp / "index.html"
     export_to_html(SAMPLE_DATA.copy(), str(html_path))
-    # Verify results.json was created
-    assert (tmp / "results.json").exists()
+    # Verify results-data.js was created
+    assert (tmp / "results-data.js").exists()
     return tmp
 
 
