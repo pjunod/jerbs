@@ -1,7 +1,7 @@
 """
 export_html.py — Job Email Screener
-Copies the client-side HTML template (results-template.html) alongside a
-results.json data file so the template can fetch its data at runtime.
+Copies the client-side HTML template (results-template.html) and writes a
+results-data.js file alongside it so the template can load data via <script src>.
 
 The template handles all rendering: both themes (terminal/cards), light/dark
 mode, filtering, expandable cards, age badges, and theme switching at runtime.
@@ -99,7 +99,7 @@ def _load_scheduler_settings():
 
 
 def export_to_html(results_data, output_path, theme=None):
-    """Generate an HTML results page by copying the template and writing data to results.json."""
+    """Generate an HTML results page by copying the template and writing data to results-data.js."""
     theme = theme or results_data.get("theme", DEFAULT_THEME)
     if theme not in THEMES:
         theme = DEFAULT_THEME
@@ -116,10 +116,13 @@ def export_to_html(results_data, output_path, theme=None):
         if sched:
             results_data["scheduler"] = sched
 
-    # Write results.json next to the output HTML
+    # Write results-data.js next to the output HTML (works on file:// via <script src>)
     output = Path(output_path)
-    json_path = output.parent / "results.json"
-    json_path.write_text(json.dumps(results_data), encoding="utf-8")
+    js_path = output.parent / "results-data.js"
+    js_path.write_text(
+        f"var JERBS_RESULTS = {json.dumps(results_data)};",
+        encoding="utf-8",
+    )
 
     # Copy template as-is (placeholder stays for web/fallback use)
     shutil.copy2(TEMPLATE_PATH, output)
