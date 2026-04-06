@@ -129,11 +129,9 @@ def html_file():
     """Generate an HTML file from sample data using the real pipeline."""
     with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as f:
         path = f.name
-    js_path = Path(path).parent / "results-data.js"
     export_to_html(SAMPLE_DATA.copy(), path)
     yield path
     Path(path).unlink(missing_ok=True)
-    js_path.unlink(missing_ok=True)
 
 
 @pytest.fixture(scope="module")
@@ -174,9 +172,9 @@ class TestPageRenders:
         title = page.title()
         assert "2026-04-04" in title
 
-    def test_no_placeholder_in_visible_text(self, page):
-        text = page.inner_text("body")
-        assert "__RESULTS_DATA__" not in text
+    def test_no_placeholder_visible(self, page):
+        content = page.content()
+        assert "__RESULTS_DATA__" not in content
 
 
 # ---------------------------------------------------------------------------

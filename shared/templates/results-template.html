@@ -643,14 +643,11 @@ footer {
 })();
 </script>
 
-<!-- ── External data (file:// compatible, written by export_html.py) ──── -->
-<script src="results-data.js"></script>
-
-<!-- ── Embedded data (fallback for claude.ai artifacts) ───────────────── -->
+<!-- ── Embedded data (replaced at generation time, or loaded externally) ── -->
 <script id="results-data" type="application/json">__RESULTS_DATA__</script>
 <script id="scheduler-settings" type="application/json">__SCHEDULER_SETTINGS__</script>
 
-<!-- ── Data loading: script var → fetch → localStorage → embedded ────── -->
+<!-- ── Data loading: fetch → localStorage → embedded ─────────────────── -->
 <script>
 var _JERBS_LS_KEY = 'jerbs-results-data';
 
@@ -659,17 +656,9 @@ function _saveResultsToStorage(jsonStr) {
   try { localStorage.setItem(_JERBS_LS_KEY, jsonStr); } catch(e) {}
 }
 
-// Load results using four-source cascade: script var → fetch → localStorage → embedded
+// Load results using three-source cascade: fetch → localStorage → embedded
 function _loadResultsData(callback) {
-  // Source 1: global variable from <script src="results-data.js"> (works on file://)
-  if (typeof JERBS_RESULTS !== 'undefined' && JERBS_RESULTS) {
-    var text = JSON.stringify(JERBS_RESULTS);
-    _saveResultsToStorage(text);
-    callback(text, 'script');
-    return;
-  }
-
-  // Source 2: try fetch('results.json') for HTTP usage
+  // Source 1: try fetch('results.json') for local/Claude Code usage
   if (typeof fetch === 'function') {
     fetch('results.json').then(function(r) {
       if (!r.ok) throw new Error(r.status);
@@ -686,7 +675,7 @@ function _loadResultsData(callback) {
 }
 
 function _tryLocalStorageThenEmbedded(callback) {
-  // Source 3: localStorage (persisted from a prior run on claude.ai)
+  // Source 2: localStorage (persisted from a prior run on claude.ai)
   try {
     var stored = localStorage.getItem(_JERBS_LS_KEY);
     if (stored && stored.trim().charAt(0) === '{') {
@@ -695,7 +684,7 @@ function _tryLocalStorageThenEmbedded(callback) {
     }
   } catch(e) {}
 
-  // Source 4: embedded <script id="results-data"> (claude.ai artifact fallback)
+  // Source 3: embedded <script id="results-data"> (always available)
   var el = document.getElementById('results-data');
   var raw = el ? el.textContent : '';
   if (raw && raw.trim().charAt(0) === '{') {
