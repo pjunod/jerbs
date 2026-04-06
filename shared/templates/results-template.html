@@ -985,7 +985,8 @@ function downloadPage(){
     if(panel)panel.classList.toggle('open');
   };
 
-  document.addEventListener('DOMContentLoaded',schedInit);
+  // schedInit is called after renderPage builds the DOM — not on DOMContentLoaded
+  window._schedInit = schedInit;
 })();
 </script>
 
@@ -1684,6 +1685,7 @@ function downloadPage(){
       var data = JSON.parse(raw);
       renderPage(data);
       initLightDark();
+      if (typeof window._schedInit === 'function') window._schedInit();
     } catch(e) {
       console.error('Failed to re-render on theme switch:', e);
     }
@@ -1724,6 +1726,7 @@ function downloadPage(){
         try {
           renderPage(waitData);
           initLightDark();
+          if (typeof window._schedInit === 'function') window._schedInit();
         } catch(re) {
           document.getElementById('app').innerHTML =
             '<div style="padding:40px;color:#f85149;font-family:monospace;">' +
@@ -1736,6 +1739,7 @@ function downloadPage(){
         try {
           renderPage(data);
           initLightDark();
+          if (typeof window._schedInit === 'function') window._schedInit();
           // Strip ?theme= so the switcher button can override via localStorage
           if (window.history.replaceState && window.location.search.indexOf('theme=') !== -1) {
             var url = window.location.pathname + window.location.hash;
