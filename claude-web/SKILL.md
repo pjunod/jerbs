@@ -1,6 +1,6 @@
 ---
 name: jerbs
-version: "1.2.0-pr117"
+version: "1.2.0-pr120"
 description: >
   Screens job-related emails in Gmail and LinkedIn DMs against a candidate's personal
   criteria and drafts follow-up replies for anything worth pursuing. Use this skill whenever
@@ -613,6 +613,11 @@ When you receive this prompt:
 `sent: true` in the result object.
 
 ## Result object schema
+
+The authoritative field definitions are in `schemas/results.schema.json` in the
+.skill package. That schema is the single source of truth for field names, types,
+and requirements. The summary below is for quick reference — when in doubt, read
+the schema file.
 
 As you screen each item, build a result object. These fields drive the HTML card
 rendering — empty fields mean empty card sections, which looks broken to the user.

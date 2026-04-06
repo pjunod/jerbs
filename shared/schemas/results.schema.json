@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/pjunod/jerbs/shared/schemas/results.schema.json",
+  "title": "Jerbs Screening Results",
+  "description": "Authoritative schema for the results JSON that drives the HTML results page. All field names, types, and requirements are defined here. Both SKILL.md files and the HTML template reference this schema — it is the single source of truth.",
+  "type": "object",
+  "required": ["run_date", "profile_name", "mode", "lookback_days", "results"],
+  "properties": {
+    "run_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO date of this screening run (YYYY-MM-DD)."
+    },
+    "profile_name": {
+      "type": "string",
+      "description": "Display name for the screening profile."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["dry-run", "send"],
+      "description": "dry-run = drafts only; send = emails sent automatically."
+    },
+    "lookback_days": {
+      "type": ["integer", "string"],
+      "description": "Number of days searched."
+    },
+    "theme": {
+      "type": "string",
+      "enum": ["terminal", "cards"],
+      "description": "Default theme for the results page. Optional — defaults to terminal."
+    },
+    "actions": {
+      "type": "array",
+      "description": "Action banners displayed at the top of the results page (purple section). Built from active correspondence threads in Step 2.5.",
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "persistence_stats": {
+      "$ref": "#/$defs/persistence_stats"
+    },
+    "pending_results": {
+      "type": "array",
+      "description": "Pass/maybe results carried forward from previous runs.",
+      "items": { "$ref": "#/$defs/result" }
+    },
+    "results": {
+      "type": "array",
+      "description": "Newly screened results from this run.",
+      "items": { "$ref": "#/$defs/result" }
+    },
+    "scheduler": {
+      "$ref": "#/$defs/scheduler"
+    }
+  },
+  "$defs": {
+    "result": {
+      "type": "object",
+      "description": "A single screened job listing or recruiter outreach item.",
+      "required": [
+        "source", "message_id", "verdict", "company", "role", "reason"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": ["Job Alert Listings", "Direct Outreach", "LinkedIn DMs"],
+          "description": "MUST be one of these exact strings. The template groups results by source — any other value creates a broken 'Other' group."
+        },
+        "message_id": {
+          "type": "string",
+          "description": "Gmail message ID. Used for deduplication and constructing email_url."
+        },
+        "thread_id": {
+          "type": "string",
+          "description": "Gmail thread ID. Used for draft replies and thread linking."
+        },
+        "subject": {
+          "type": "string",
+          "description": "Email subject line."
+        },
+        "from": {
+          "type": "string",
+          "description": "Sender name and email address."
+        },
+        "email_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date the email was sent (YYYY-MM-DD). Drives age badges and sorting."
+        },
+        "company": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Company name. NEVER empty."
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Job title. NEVER empty."
+        },
+        "location": {
+          "type": "string",
+          "description": "City, remote, hybrid, etc."
+        },
+        "verdict": {
+          "type": "string",
+          "enum": ["pass", "maybe", "fail"],
+          "description": "Screening verdict."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "1-2 sentence verdict explanation. NEVER empty — every card displays this prominently. An empty reason makes the card look broken."
+        },
+        "dealbreaker": {
+          "type": "string",
+          "description": "Which dealbreaker triggered. Required for fail verdicts, empty string for pass/maybe."
+        },
+        "comp_assessment": {
+          "type": "string",
+          "description": "Honest sliding-scale comp note. NEVER empty on pass/maybe — if no comp listed, say so and estimate. Empty string for fail. WARNING: Do NOT use 'comp_note', 'comp', or 'salary' — the template reads 'comp_assessment' only."
+        },
+        "missing_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required info fields missing from the email. Empty array [] if nothing missing."
+        },
+        "reply_draft": {
+          "type": "string",
+          "description": "Full draft reply text for pass/maybe verdicts. Empty string for fail."
+        },
+        "draft_url": {
+          "type": "string",
+          "description": "Gmail draft URL from gmail_create_draft. Empty string until draft is created."
+        },
+        "posting_url": {
+          "type": "string",
+          "description": "URL to the job posting, if found in the email. Empty string if not found."
+        },
+        "email_url": {
+          "type": "string",
+          "description": "Gmail URL: https://mail.google.com/mail/u/0/#inbox/<message_id>. ALWAYS set."
+        },
+        "sent": {
+          "type": "boolean",
+          "description": "false in dry-run mode, true when reply was actually sent."
+        },
+        "added_at": {
+          "type": "string",
+          "format": "date",
+          "description": "Date this result was added to pending_results. Only present on pending items."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending"],
+          "description": "Always 'pending' for items in pending_results. Absent on new results."
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "description": "An action banner displayed in the purple section at the top of results. Built from active correspondence threads (recruiter replies, unsent drafts, awaiting responses).",
+      "required": ["title", "body"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Banner heading, e.g. '📬 Reply received — Company Name' or '⏳ Awaiting reply — Company Name (N days)'."
+        },
+        "body": {
+          "type": "string",
+          "description": "1-2 sentence description of what happened and what action is needed."
+        },
+        "links": {
+          "type": "array",
+          "description": "Clickable action buttons on the banner.",
+          "items": {
+            "type": "object",
+            "required": ["label", "url"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Button text, e.g. 'View thread', 'Open Gmail drafts'."
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Link target."
+              }
+            }
+          }
+        }
+      }
+    },
+    "persistence_stats": {
+      "type": "object",
+      "description": "Counts from the persistence layer displayed in the Session Activity callout. Only include non-zero values.",
+      "properties": {
+        "pending_merged": {
+          "type": "integer",
+          "description": "Pending results merged from previous runs into this display."
+        },
+        "pending_total": {
+          "type": "integer",
+          "description": "Total pending results after merge."
+        },
+        "responses_found": {
+          "type": "integer",
+          "description": "Recruiter responses detected in active thread check."
+        },
+        "screened_ids_pruned": {
+          "type": "integer",
+          "description": "Stale screening IDs pruned (>60 days old)."
+        },
+        "correspondence_pruned": {
+          "type": "integer",
+          "description": "Closed correspondence entries pruned (>90 days old)."
+        }
+      }
+    },
+    "scheduler": {
+      "type": "object",
+      "description": "Scheduler settings. When present, the scheduler panel is shown in the results page. Omit entirely when the scheduler is not active.",
+      "required": ["timezone"],
+      "properties": {
+        "timezone": {
+          "type": "string",
+          "description": "IANA timezone, e.g. 'America/New_York'."
+        },
+        "bizStart": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "description": "Business hours start (hour, 24h). Default: 9."
+        },
+        "bizEnd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "description": "Business hours end (hour, 24h). Default: 17."
+        },
+        "autoStart": {
+          "type": "boolean",
+          "description": "Auto-start scheduler on page load."
+        },
+        "rapidModeEnd": {
+          "type": "integer",
+          "description": "Unix timestamp (ms) when rapid mode expires. Set to Date.now() + 30*60*1000 after generating drafts."
+        },
+        "runCount": {
+          "type": "integer",
+          "description": "Number of screening runs in this session. Preserve across re-renders."
+        }
+      }
+    }
+  }
+}
