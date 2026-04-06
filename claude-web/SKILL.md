@@ -656,7 +656,7 @@ rendering — empty fields mean empty card sections, which looks broken to the u
 |---|---|
 | `posting_url` | URL to the job posting |
 
-**Key rules:**
+**Use EXACT field names — the template renders based on these specific keys:**
 - `source` MUST be one of these **exact strings** — no other values, no snake_case, no
   abbreviations: `"Job Alert Listings"`, `"Direct Outreach"`, or `"LinkedIn DMs"`.
   The HTML template groups results by these values; any other string creates a broken group.
@@ -666,6 +666,15 @@ rendering — empty fields mean empty card sections, which looks broken to the u
 - `posting_url` is set when the email contains a link to a job posting
 - `comp_assessment` uses the user's sliding_scale_notes to give an honest assessment
 - `missing_fields` lists fields from the user's required_info that weren't in the email
+
+**Common field name mistakes that break the UI:**
+- `comp_note` → WRONG. Use `comp_assessment`.
+- `assessment` → WRONG. Use `reason`.
+- `salary` or `comp` → WRONG. Use `comp_assessment`.
+- `draft` → WRONG. Use `reply_draft`.
+- `url` → WRONG. Use `posting_url` or `email_url`.
+Using the wrong field name means the data exists in the JSON but is invisible in the
+rendered HTML — the card will have blank sections.
 - **No standalone `$WORD` tokens in any field value.** Claude.ai renders `$ABC` as a
   clickable stock ticker link. Dollar amounts like `$200k` are fine (number follows `$`).
   Avoid abbreviations like `$NYC`, `$GQR`, `$TC` — write them without the `$` prefix.

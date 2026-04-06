@@ -561,6 +561,15 @@ rendering — empty fields mean empty card sections, which looks broken to the u
 |---|---|
 | `posting_url` | URL to the job posting |
 
+**Use EXACT field names.** The template renders based on these specific keys. Using
+`comp_note` instead of `comp_assessment`, or `reason_text` instead of `reason`, means
+the data exists but is invisible to the user. Common mistakes to avoid:
+- `comp_note` → WRONG. Use `comp_assessment`.
+- `assessment` → WRONG. Use `reason`.
+- `salary` → WRONG. Use `comp_assessment`.
+- `draft` → WRONG. Use `reply_draft`.
+- `url` → WRONG. Use `posting_url` or `email_url`.
+
 **No standalone `$WORD` tokens in any field value.** Claude.ai renders `$ABC` as a
 clickable stock ticker link. Dollar amounts like `$200k` are fine (number follows `$`).
 Avoid abbreviations like `$NYC`, `$GQR`, `$TC` — write them without the `$` prefix.
