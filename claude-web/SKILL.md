@@ -614,6 +614,11 @@ When you receive this prompt:
 
 ## Result object schema
 
+The authoritative field definitions are in `schemas/results.schema.json` in the
+.skill package. That schema is the single source of truth for field names, types,
+and requirements. The summary below is for quick reference — when in doubt, read
+the schema file.
+
 As you screen each item, build a result object. These fields drive the HTML card
 rendering — empty fields mean empty card sections, which looks broken to the user.
 
