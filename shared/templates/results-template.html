@@ -1430,6 +1430,16 @@ function downloadPage(){
     });
     results = results.concat(pending);
 
+    // Normalize field names (handle common LLM drift)
+    results.forEach(function(r) {
+      if (!r.comp_assessment && r.comp_note) r.comp_assessment = r.comp_note;
+      if (!r.comp_assessment && r.comp) r.comp_assessment = r.comp;
+      if (!r.email_url && r.message_id) r.email_url = 'https://mail.google.com/mail/u/0/#inbox/' + r.message_id;
+      if (!r.missing_fields) r.missing_fields = [];
+      if (!r.source) r.source = 'Job Alert Listings';
+      if (r.sent === undefined) r.sent = false;
+    });
+
     // Count verdicts
     var passes = results.filter(function(r) { return r.verdict === 'pass'; });
     var maybes = results.filter(function(r) { return r.verdict === 'maybe'; });

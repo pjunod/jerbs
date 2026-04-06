@@ -614,35 +614,49 @@ When you receive this prompt:
 
 ## Result object schema
 
-As you screen each item, build a result object with ALL of these fields. Every field
-must be populated (use empty string or empty array if not applicable). These fields
-drive the HTML card rendering — missing fields mean missing UI elements.
+As you screen each item, build a result object. These fields drive the HTML card
+rendering — empty fields mean empty card sections, which looks broken to the user.
 
-```json
-{
-  "source": "MUST be exactly one of: Job Alert Listings | Direct Outreach | LinkedIn DMs",
-  "message_id": "Gmail message ID",
-  "thread_id": "Gmail thread ID",
-  "subject": "email subject line",
-  "from": "sender name and address",
-  "email_date": "date of the email",
-  "company": "company name",
-  "role": "job title",
-  "location": "city, remote, hybrid, etc.",
-  "verdict": "pass | maybe | fail",
-  "reason": "1-sentence verdict explanation",
-  "dealbreaker": "which dealbreaker triggered (fail only)",
-  "comp_assessment": "sliding-scale comp note (pass/maybe only)",
-  "missing_fields": ["salary", "equity", "location", "..."],
-  "reply_draft": "full draft reply text (pass/maybe only)",
-  "draft_url": "",
-  "posting_url": "URL to the job posting (if found in email)",
-  "email_url": "https://mail.google.com/mail/u/0/#inbox/<message_id>",
-  "sent": false
-}
-```
+**ALWAYS required (every result, every verdict):**
 
-**Key rules:**
+| Field | Value |
+|---|---|
+| `source` | MUST be exactly one of: `Job Alert Listings`, `Direct Outreach`, `LinkedIn DMs` |
+| `message_id` | Gmail message ID |
+| `thread_id` | Gmail thread ID |
+| `subject` | email subject line |
+| `from` | sender name and address |
+| `email_date` | date of the email |
+| `company` | company name (never empty) |
+| `role` | job title (never empty) |
+| `location` | city, remote, hybrid, etc. |
+| `verdict` | `pass`, `maybe`, or `fail` |
+| `reason` | **NEVER empty.** 1-2 sentence verdict explanation. Every card displays this prominently — an empty reason makes the card look broken. |
+| `email_url` | `https://mail.google.com/mail/u/0/#inbox/<message_id>` |
+| `sent` | false (dry-run) or true (send mode) |
+
+**Required for pass/maybe (empty string for fail):**
+
+| Field | Value |
+|---|---|
+| `comp_assessment` | **NEVER empty on pass/maybe.** Honest sliding-scale comp note using the user's nuance notes. If no comp is listed in the email, say "No comp listed" and estimate based on company tier and role level. |
+| `missing_fields` | Array of missing required info fields. Empty array `[]` only if nothing is missing. |
+| `reply_draft` | Full draft reply text |
+| `draft_url` | Gmail draft URL (from `gmail_create_draft` response) |
+
+**Required for fail (empty string for pass/maybe):**
+
+| Field | Value |
+|---|---|
+| `dealbreaker` | Which dealbreaker triggered |
+
+**Optional (empty string if not found):**
+
+| Field | Value |
+|---|---|
+| `posting_url` | URL to the job posting |
+
+**Use EXACT field names — the template renders based on these specific keys:**
 - `source` MUST be one of these **exact strings** — no other values, no snake_case, no
   abbreviations: `"Job Alert Listings"`, `"Direct Outreach"`, or `"LinkedIn DMs"`.
   The HTML template groups results by these values; any other string creates a broken group.
@@ -652,6 +666,15 @@ drive the HTML card rendering — missing fields mean missing UI elements.
 - `posting_url` is set when the email contains a link to a job posting
 - `comp_assessment` uses the user's sliding_scale_notes to give an honest assessment
 - `missing_fields` lists fields from the user's required_info that weren't in the email
+
+**Common field name mistakes that break the UI:**
+- `comp_note` → WRONG. Use `comp_assessment`.
+- `assessment` → WRONG. Use `reason`.
+- `salary` or `comp` → WRONG. Use `comp_assessment`.
+- `draft` → WRONG. Use `reply_draft`.
+- `url` → WRONG. Use `posting_url` or `email_url`.
+Using the wrong field name means the data exists in the JSON but is invisible in the
+rendered HTML — the card will have blank sections.
 - **No standalone `$WORD` tokens in any field value.** Claude.ai renders `$ABC` as a
   clickable stock ticker link. Dollar amounts like `$200k` are fine (number follows `$`).
   Avoid abbreviations like `$NYC`, `$GQR`, `$TC` — write them without the `$` prefix.

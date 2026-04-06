@@ -519,32 +519,56 @@ When you receive this prompt:
 
 ### Result object schema
 
-Each screened item must be saved as a result object with ALL of these fields (use empty
-string or empty array if not applicable). These fields drive the HTML card rendering.
+Each screened item must be saved as a result object. These fields drive the HTML card
+rendering — empty fields mean empty card sections, which looks broken to the user.
 
-```json
-{
-  "source": "MUST be exactly one of: Job Alert Listings | Direct Outreach | LinkedIn DMs",
-  "message_id": "Gmail message ID",
-  "thread_id": "Gmail thread ID",
-  "subject": "email subject line",
-  "from": "sender name and address",
-  "email_date": "date of the email",
-  "company": "company name",
-  "role": "job title",
-  "location": "city, remote, hybrid, etc.",
-  "verdict": "pass | maybe | fail",
-  "reason": "1-sentence verdict explanation",
-  "dealbreaker": "which dealbreaker triggered (fail only)",
-  "comp_assessment": "sliding-scale comp note (pass/maybe only)",
-  "missing_fields": ["salary", "equity", "location", "..."],
-  "reply_draft": "full draft reply text (pass/maybe only)",
-  "draft_url": "",
-  "posting_url": "URL to the job posting (if found in email)",
-  "email_url": "https://mail.google.com/mail/u/0/#inbox/<message_id>",
-  "sent": false
-}
-```
+**ALWAYS required (every result, every verdict):**
+
+| Field | Value |
+|---|---|
+| `source` | MUST be exactly one of: `Job Alert Listings`, `Direct Outreach`, `LinkedIn DMs` |
+| `message_id` | Gmail message ID |
+| `thread_id` | Gmail thread ID |
+| `subject` | email subject line |
+| `from` | sender name and address |
+| `email_date` | date of the email |
+| `company` | company name (never empty) |
+| `role` | job title (never empty) |
+| `location` | city, remote, hybrid, etc. |
+| `verdict` | `pass`, `maybe`, or `fail` |
+| `reason` | **NEVER empty.** 1-2 sentence verdict explanation. Every card displays this. |
+| `email_url` | `https://mail.google.com/mail/u/0/#inbox/<message_id>` |
+| `sent` | false (dry-run) or true (send mode) |
+
+**Required for pass/maybe (empty string for fail):**
+
+| Field | Value |
+|---|---|
+| `comp_assessment` | **NEVER empty on pass/maybe.** Honest sliding-scale comp note using the user's nuance notes. If no comp listed, say so and estimate based on company/role. |
+| `missing_fields` | Array of missing required info fields. Empty array `[]` only if nothing is missing. |
+| `reply_draft` | Full draft reply text |
+| `draft_url` | Gmail draft URL (from `gmail_create_draft` response) |
+
+**Required for fail (empty string for pass/maybe):**
+
+| Field | Value |
+|---|---|
+| `dealbreaker` | Which dealbreaker triggered |
+
+**Optional (empty string if not found):**
+
+| Field | Value |
+|---|---|
+| `posting_url` | URL to the job posting |
+
+**Use EXACT field names.** The template renders based on these specific keys. Using
+`comp_note` instead of `comp_assessment`, or `reason_text` instead of `reason`, means
+the data exists but is invisible to the user. Common mistakes to avoid:
+- `comp_note` → WRONG. Use `comp_assessment`.
+- `assessment` → WRONG. Use `reason`.
+- `salary` → WRONG. Use `comp_assessment`.
+- `draft` → WRONG. Use `reply_draft`.
+- `url` → WRONG. Use `posting_url` or `email_url`.
 
 **No standalone `$WORD` tokens in any field value.** Claude.ai renders `$ABC` as a
 clickable stock ticker link. Dollar amounts like `$200k` are fine (number follows `$`).
