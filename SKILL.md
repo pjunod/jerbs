@@ -241,12 +241,32 @@ Before running the Gmail passes, load the correspondence log and check for open 
 3. If a new message from the recruiter is found (after `timestamp` in the log):
    - Set `awaiting_reply: false` and `replied_at` to the recruiter's reply timestamp
    - Mark the thread as replied in the log
-   - Surface it in the **Active Threads** section of results as "📬 Reply received"
+   - Build an action banner object for the `actions` array:
+     ```json
+     {
+       "title": "Recruiter replied — Company Name",
+       "body": "Name responded: 'summary of reply'. You have an unsent draft.",
+       "links": [
+         {"label": "Open Gmail drafts", "url": "https://mail.google.com/mail/u/0/#drafts"},
+         {"label": "View thread", "url": "https://mail.google.com/mail/u/0/#inbox/<thread_id>"}
+       ]
+     }
+     ```
 4. If still no reply:
    - Calculate days since outreach
-   - Surface it in the **Active Threads** section as "⏳ Awaiting reply (N days)"
+   - Build an action banner object:
+     ```json
+     {
+       "title": "Awaiting reply — Company Name",
+       "body": "Sent N days ago. No response yet.",
+       "links": [
+         {"label": "View thread", "url": "https://mail.google.com/mail/u/0/#inbox/<thread_id>"}
+       ]
+     }
+     ```
 
-Save the updated correspondence log after processing.
+Save the updated correspondence log after processing. The action banner objects
+are collected into the `actions` array in the results JSON wrapper (Step 4).
 
 If there are no open threads, skip this section entirely — don't mention it.
 
@@ -537,7 +557,7 @@ Write all results to `results.json` with this wrapper before calling `export_htm
   "profile_name": "from criteria",
   "mode": "dry-run | send",
   "lookback_days": N,
-  "actions": [],
+  "actions": [ ...action objects from Step 2.5... ],
   "persistence_stats": {
     "pending_merged": 0,
     "pending_total": 0,
@@ -817,6 +837,9 @@ Use `/loop` or `/schedule` for session-based or background automation:
 - The daemon and `/loop` only run while the session is open.
 - Remote triggers run independently in the cloud on a cron schedule.
 - Rapid mode is automatic — no user action needed to trigger or cancel it.
-- The scheduler panel in the results template is only visible when `__SCHEDULER_SETTINGS__`
-  is replaced with valid JSON. In Claude Code, `export_html.py` only replaces
-  `__RESULTS_DATA__`, so the scheduler panel is automatically hidden.
+- The scheduler panel in the results template is only visible when
+  `data.scheduler` is present in the results JSON with a valid `timezone` field.
+  In Claude Code, `export_html.py` injects scheduler settings from the
+  criteria file's `business_hours` into the `scheduler` field of results.json
+  automatically. On the web, the LLM includes a `scheduler` object in the
+  results JSON when the user requests the scheduler.

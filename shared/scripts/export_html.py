@@ -1,7 +1,7 @@
 """
 export_html.py — Job Email Screener
-Thin wrapper that injects screening results JSON into the client-side HTML
-template (results-template.html) to produce a self-contained results page.
+Copies the client-side HTML template (results-template.html) alongside a
+results.json data file so the template can fetch its data at runtime.
 
 The template handles all rendering: both themes (terminal/cards), light/dark
 mode, filtering, expandable cards, age badges, and theme switching at runtime.
@@ -15,6 +15,7 @@ Or import and call:
 """
 
 import json
+import shutil
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -69,11 +70,36 @@ def _resolve_pending(results_data, new_message_ids):
     return [p for p in pending if p.get("message_id") not in new_message_ids]
 
 
+# ── Scheduler settings injection ───────────────────────────────────────────
+
+
+def _load_scheduler_settings():
+    """
+    Load scheduler settings (timezone, bizStart, bizEnd) from the criteria
+    file on disk. Returns a dict or None if not found.
+    """
+    for path in CRITERIA_PATHS:
+        if path.exists():
+            try:
+                with open(path, encoding="utf-8") as f:
+                    criteria = json.load(f)
+                bh = criteria.get("business_hours", {})
+                if bh.get("timezone"):
+                    return {
+                        "timezone": bh["timezone"],
+                        "bizStart": bh.get("start_hour", 9),
+                        "bizEnd": bh.get("end_hour", 17),
+                    }
+            except (json.JSONDecodeError, OSError):
+                continue
+    return None
+
+
 # ── Main export ─────────────────────────────────────────────────────────────
 
 
 def export_to_html(results_data, output_path, theme=None):
-    """Generate a self-contained HTML results page by injecting JSON into the template."""
+    """Generate an HTML results page by copying the template and writing data to results.json."""
     theme = theme or results_data.get("theme", DEFAULT_THEME)
     if theme not in THEMES:
         theme = DEFAULT_THEME
@@ -84,11 +110,19 @@ def export_to_html(results_data, output_path, theme=None):
     results_data["pending_results"] = pending
     results_data["theme"] = theme
 
-    # Read template and inject JSON data
-    template = TEMPLATE_PATH.read_text(encoding="utf-8")
-    html = template.replace("__RESULTS_DATA__", json.dumps(results_data))
+    # Inject scheduler settings from criteria if not already present
+    if "scheduler" not in results_data:
+        sched = _load_scheduler_settings()
+        if sched:
+            results_data["scheduler"] = sched
 
-    Path(output_path).write_text(html, encoding="utf-8")
+    # Write results.json next to the output HTML
+    output = Path(output_path)
+    json_path = output.parent / "results.json"
+    json_path.write_text(json.dumps(results_data), encoding="utf-8")
+
+    # Copy template as-is (placeholder stays for web/fallback use)
+    shutil.copy2(TEMPLATE_PATH, output)
 
     total = len(results_data.get("results", [])) + len(pending)
     print(f"Exported {total} results → {output_path}")
