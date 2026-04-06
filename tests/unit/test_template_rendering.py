@@ -1,17 +1,22 @@
 """
 Template rendering tests — verify that results-template.html correctly renders
-screening results from embedded JSON using a headless browser.
+screening results from fetched JSON using a headless browser.
 
 These tests use playwright to load the generated HTML and inspect the DOM after
 client-side JavaScript execution. They cover the rendering pipeline that unit
 tests cannot reach: theme switching, card building, filter bar, age badges,
 and light/dark mode — all of which execute in JavaScript.
 
+Files are served via a local HTTP server so fetch('results.json') works
+(file:// URLs cannot use fetch).
+
 Requires: playwright (pip install playwright && playwright install chromium)
 """
 
 import sys
-import tempfile
+import threading
+from functools import partial
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
 import pytest
@@ -124,14 +129,34 @@ SAMPLE_DATA = {
 }
 
 
+class _QuietHandler(SimpleHTTPRequestHandler):
+    """HTTP handler that suppresses log output during tests."""
+
+    def log_message(self, format, *args):
+        pass
+
+
 @pytest.fixture(scope="module")
-def html_file():
-    """Generate an HTML file from sample data using the real pipeline."""
-    with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as f:
-        path = f.name
-    export_to_html(SAMPLE_DATA.copy(), path)
-    yield path
-    Path(path).unlink(missing_ok=True)
+def served_dir(tmp_path_factory):
+    """Set up a tmpdir with HTML + results.json, served via HTTP."""
+    tmp = tmp_path_factory.mktemp("template_test")
+    html_path = tmp / "index.html"
+    export_to_html(SAMPLE_DATA.copy(), str(html_path))
+    # Verify results.json was created
+    assert (tmp / "results.json").exists()
+    return tmp
+
+
+@pytest.fixture(scope="module")
+def http_server(served_dir):
+    """Start a local HTTP server serving the test directory."""
+    handler = partial(_QuietHandler, directory=str(served_dir))
+    server = HTTPServer(("127.0.0.1", 0), handler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield f"http://127.0.0.1:{port}"
+    server.shutdown()
 
 
 @pytest.fixture(scope="module")
@@ -145,12 +170,12 @@ def browser():
 
 
 @pytest.fixture()
-def page(browser, html_file):
+def page(browser, http_server):
     """Open a fresh page with the rendered HTML for each test.
     Uses dark color scheme to match the expected default behavior."""
     ctx = browser.new_context(color_scheme="dark")
     p = ctx.new_page()
-    p.goto(f"file://{html_file}")
+    p.goto(f"{http_server}/index.html")
     p.wait_for_selector("#app .header, #app .top-bar", timeout=5000)
     yield p
     p.close()
@@ -173,8 +198,9 @@ class TestPageRenders:
         assert "2026-04-04" in title
 
     def test_no_placeholder_visible(self, page):
-        content = page.content()
-        assert "__RESULTS_DATA__" not in content
+        # The placeholder is in the raw HTML but should not be in rendered content
+        app_text = page.inner_text("#app")
+        assert "__RESULTS_DATA__" not in app_text
 
 
 # ---------------------------------------------------------------------------
@@ -366,10 +392,10 @@ class TestLightDarkMode:
 class TestSystemLightPreference:
     """Verify that prefers-color-scheme: light is respected."""
 
-    def test_light_system_preference_activates_light_mode(self, browser, html_file):
+    def test_light_system_preference_activates_light_mode(self, browser, http_server):
         ctx = browser.new_context(color_scheme="light")
         p = ctx.new_page()
-        p.goto(f"file://{html_file}")
+        p.goto(f"{http_server}/index.html")
         p.wait_for_selector("#app .header, #app .top-bar", timeout=5000)
         has_light = p.evaluate("document.body.classList.contains('light')")
         assert has_light is True

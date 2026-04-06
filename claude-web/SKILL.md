@@ -808,37 +808,35 @@ The `<antArtifact>` tag MUST have:
 ## Using the pre-built template
 
 **CRITICAL: You MUST read and output the template file UNMODIFIED. Do NOT write your
-own HTML. Do NOT replace any placeholders. The template loads its data externally.**
+own HTML. Do NOT replace any placeholders except `__RESULTS_DATA__`. The template is a
+complete production application — you cannot reproduce it.**
 
 The HTML report is a pre-built template at `templates/results-template.html` in the
 .skill package. It is ~1700 lines of production HTML/CSS/JS. You cannot reproduce it.
 If you try to write your own HTML, the output will be broken — missing theme switcher,
 missing filter buttons, wrong styling. **Every run must use the template file.**
 
-The template automatically loads results data from localStorage. Your job is to write
-the data there, then output the template unchanged.
+The template contains one placeholder: `__RESULTS_DATA__` inside a `<script>` tag.
+For web artifacts, you replace this placeholder with the results JSON. The template's
+JavaScript reads that embedded JSON as a fallback data source.
 
 **Steps — follow exactly:**
 1. Build the results JSON wrapper (from Stage 5 — MERGE)
-2. Serialize the JSON to a string, then **base64-encode** it (use `btoa()` equivalent)
+2. Include a `scheduler` object in the results JSON if the user has requested the
+   scheduler (with `timezone`, `bizStart`, `bizEnd`, `autoStart`, and optionally
+   `rapidModeEnd` and `runCount` fields)
 3. Read `templates/results-template.html` from the .skill package
-4. Output this inside `<antArtifact>` tags:
-   - A `<script>` tag that base64-decodes the data and writes it to localStorage
-   - The **entire template file, byte-for-byte, with ZERO modifications**
+4. Replace `__RESULTS_DATA__` with the JSON string (this is the ONLY replacement)
+5. Output the result inside `<antArtifact>` tags
 
 ```
 <antArtifact identifier="jerbs-results" type="text/html" title="Jerbs screening report YYYY-MM-DD">
-<script>localStorage.setItem('jerbs-results-data', atob('...base64 encoded JSON...'));</script>
-[paste the ENTIRE template file here — do not modify a single character]
+[entire template file with __RESULTS_DATA__ replaced by the JSON — no other modifications]
 </antArtifact>
 ```
 
-**Why base64:** The JSON contains quotes, newlines, and special characters that break
-JavaScript string literals. Base64 encoding produces a safe ASCII string with no escaping
-issues. The `atob()` call decodes it back to the original JSON at runtime.
-
 **You are NOT writing HTML. You are NOT creating CSS. You are NOT building a page.**
-You are writing one `<script>` tag for the data, then copying a file verbatim.
+You are replacing one placeholder in an existing file and outputting the result.
 
 If you find yourself writing `<style>`, `<div class="card">`, `<button>`, or any
 HTML structure — **STOP. You are doing it wrong.** Read the template file and output it.
@@ -944,23 +942,9 @@ so the scheduler never replaces or hides results.
 
 ### Starting the scheduler
 
-When the user asks to start, automate, or set up the scheduler, render the **results
-template** (`templates/results-template.html`):
+When the user asks to start, automate, or set up the scheduler, include a `scheduler`
+object in the results JSON. The template reads `data.scheduler` to show the panel:
 
-1. Write the results JSON to localStorage (empty wrapper if no screening yet, or actual
-   results) — same as normal rendering
-2. Replace `__SCHEDULER_SETTINGS__` with a settings JSON object from the user's criteria
-   (this is the only placeholder you replace in the template):
-   ```json
-   {
-     "timezone": "America/New_York",
-     "bizStart": 9,
-     "bizEnd": 17,
-     "autoStart": true
-   }
-   ```
-
-For the initial scheduler start with no results yet, use this empty wrapper:
 ```json
 {
   "run_date": "YYYY-MM-DD",
@@ -969,7 +953,13 @@ For the initial scheduler start with no results yet, use this empty wrapper:
   "lookback_days": 1,
   "results": [],
   "pending_results": [],
-  "actions": []
+  "actions": [],
+  "scheduler": {
+    "timezone": "America/New_York",
+    "bizStart": 9,
+    "bizEnd": 17,
+    "autoStart": true
+  }
 }
 ```
 
@@ -977,8 +967,8 @@ The artifact tag MUST use `identifier="jerbs-results"` — the same identifier a
 normal results. This ensures the scheduler and results coexist in one artifact.
 
 When the scheduler's timer fires `sendPrompt()`, the subsequent screening run should
-re-render the same artifact with updated results data AND scheduler settings (preserving
-`runCount` and any active `rapidModeEnd`).
+re-render the same artifact with updated results data AND scheduler settings in the
+`scheduler` field (preserving `runCount` and any active `rapidModeEnd`).
 
 ### Interval state machine
 
@@ -996,16 +986,19 @@ countdown expires, it calls `sendPrompt()` to trigger the next screening run.
 ### Rapid mode trigger
 
 When the scheduler is active and you generate draft replies during a screening run,
-re-render the artifact with `rapidModeEnd` set in the scheduler settings:
+re-render the artifact with `rapidModeEnd` set in the `scheduler` field of the
+results JSON:
 
 ```json
 {
-  "timezone": "America/New_York",
-  "bizStart": 9,
-  "bizEnd": 17,
-  "autoStart": true,
-  "rapidModeEnd": 1743800000000,
-  "runCount": 3
+  "scheduler": {
+    "timezone": "America/New_York",
+    "bizStart": 9,
+    "bizEnd": 17,
+    "autoStart": true,
+    "rapidModeEnd": 1743800000000,
+    "runCount": 3
+  }
 }
 ```
 
@@ -1027,8 +1020,10 @@ and automatically revert when the timer expires.
 
 ### Important notes
 - The scheduler only runs while the browser tab is open — it is not a background service.
-- The scheduler panel is hidden when `__SCHEDULER_SETTINGS__` is not replaced (e.g.,
-  in Claude Code / daemon mode where `export_html.py` only replaces `__RESULTS_DATA__`).
+- The scheduler panel is hidden when `data.scheduler` is absent or has no `timezone`
+  field. In Claude Code, `export_html.py` injects scheduler settings from the
+  criteria file automatically. On the web, include the `scheduler` object in the
+  results JSON only when the user requests the scheduler.
 - Settings changes (timezone, business hours) made in the panel take effect
   immediately — no re-render needed.
 - When re-rendering, always preserve `runCount` so the session counter is not reset.
